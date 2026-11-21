@@ -160,6 +160,12 @@
 
 /* 12) 悬停时角标轻微放大外扩（增量动效） */
 #cdp .cdp-row:hover::before,
-#cdp .cdp-row:focus-within::before{ transform:scale(1.035); }
+#cdp .cdp-row:focus-within::before{ transform:scale(.955); }
 @media (max-width:640px){ :root{ --brk-l:13px; --brk-r:13px; } }
 @media (prefers-reduced-motion: reduce){ #cdp .cdp-row:hover::before{ transform:none; } }
+
+
+/* 14) 卡片区加宽（菜单横向留白更大），宽屏才生效 */
+@media (min-width:900px){
+  #cdp{ width:min(100%, 660px); margin-left:auto; margin-right:auto; }
+}
