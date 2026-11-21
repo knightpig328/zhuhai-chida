@@ -139,30 +139,28 @@
 #cdp .cdp-tick, #cdp .cdp-del, #cdp .cdp-map{ font-family:var(--font-sans); }
 
 
-/* 11) 悬停：底色加深 + 阴影抬起 + 轻微上浮 */
+/* 11) 悬停：整卡连内容一起收紧（角括号随行，不再单独缩） */
 #cdp .cdp-row{
   box-shadow:0 1px 2px rgba(var(--ink-rgb),.055), 0 1px 0 rgba(var(--ink-rgb),.035);
-  transition:background-image .18s ease, border-color .2s ease, box-shadow .2s ease, transform .18s ease;
+  transition:background-image .18s ease, border-color .2s ease, box-shadow .2s ease,
+             transform .2s cubic-bezier(.2,.7,.3,1);
+  transform-origin:center center;
+  backface-visibility:hidden;
 }
-#cdp .cdp-row:hover{
-  background-image:linear-gradient(180deg, rgba(var(--ink-rgb),.080), rgba(var(--ink-rgb),.032));
-  border-color:rgba(var(--ink-rgb),.42);
-  box-shadow:0 5px 14px rgba(var(--ink-rgb),.16), 0 1px 0 rgba(var(--ink-rgb),.05);
-  transform:translateY(-1px);
+@media (hover:hover) and (pointer:fine){
+  #cdp .cdp-row:hover{
+    background-image:linear-gradient(180deg, rgba(var(--ink-rgb),.080), rgba(var(--ink-rgb),.032));
+    border-color:rgba(var(--ink-rgb),.42);
+    box-shadow:0 5px 14px rgba(var(--ink-rgb),.16), 0 1px 0 rgba(var(--ink-rgb),.05);
+    transform:translateY(-1px) scale(.978);
+  }
 }
 #cdp .cdp-row.is-done{ box-shadow:none; }
-@media (prefers-reduced-motion: reduce){
-  #cdp .cdp-row{ transition:none; }
-  #cdp .cdp-row:hover{ transform:none; }
-}
-@media print{ #cdp .cdp-row{ box-shadow:none !important; } }
 
-
-/* 12) 悬停时角标轻微放大外扩（增量动效） */
+/* 12) 角括号只交颜色，几何交给整行（禁用单独缩放，避免叠加成 .941） */
 #cdp .cdp-row:hover::before,
-#cdp .cdp-row:focus-within::before{ transform:scale(.955); }
-@media (prefers-reduced-motion: reduce){ #cdp .cdp-row:hover::before{ transform:none; } }
-
+#cdp .cdp-row:focus-within::before,
+#cdp .cdp-row:active::before{ transform:none; }
 
 /* 14) 卡片区加宽：直接放宽阅读列（--col 原为 30 字 = 510px） */
 :root{ --col: calc(38 * 1.0625rem); }
@@ -278,3 +276,12 @@
 #cdp .score-stars .cdp-star:last-child{ margin-right:0; }
 #cdp .cdp-score{ display:block; }
 #cdp .cdp-score .score-row + .score-row{ margin-top:2px; }
+
+/* 18) 动效偏好与打印：hover 缩放必须归零 */
+@media (prefers-reduced-motion: reduce){
+  #cdp .cdp-row{ transition:none; }
+  #cdp .cdp-row:hover{ transform:none; }
+}
+@media print{
+  #cdp .cdp-row{ box-shadow:none !important; transform:none !important; }
+}
