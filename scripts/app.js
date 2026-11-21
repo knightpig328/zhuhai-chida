@@ -286,6 +286,8 @@
     if (!doc) return false;
     /* 静态镜像只用于看一眼：不并入 TS、不计 hydrated，避免用旧数据覆盖云端 */
     if (doc.__mirror) {
+      if (silent) return false;              /* 写路径上的读不刷界面 */
+      if (isEditing()) { pendingRender = true; return false; }
       var mst = buildState(doc);
       state.done = mst.done; state.extra = mst.extra; ADDR = mst.addr || {};
       if (root.classList.contains("cdp-boot")) root.classList.remove("cdp-boot");
@@ -393,7 +395,7 @@
     else pickO = oa || ob;
     out.order = pickO && Object.prototype.toString.call(pickO.v) === "[object Array]"
       ? { v: pickO.v.slice(), t: pickO.t || 0 } : { v: [], t: 0 };
-    out.rev = Math.max((a && a.rev) || 0, (b && b.rev) || 0) + 1;
+    out.rev = Math.max((a && a.rev) || 0, (b && b.rev) || 0);
     return out;
   }
 
@@ -426,9 +428,18 @@
 
 
   function patchOnce(retry) {
-    if (!canWrite()) return Promise.resolve(false);
     return fetchData().then(function (res) {
-      if (res && res.doc) applyDoc(res.doc, true);
+      /* 本次读失败 / 只拿到静态镜像 → 一律不写。这是唯一可靠的覆盖防护。 */
+      if (!res || !res.doc || res.doc.__mirror) {
+        setBadge("未连上·未写入", "warn");
+        markPending(true);
+        return false;
+      }
+      var d = res.doc;
+      var okShape = d && d.v === 3 && typeof d.rev === "number" && d.done && typeof d.done === "object" && d.extra && typeof d.extra === "object";
+      if (!okShape) { setBadge("数据异常·未写入", "warn"); markPending(true); return false; }
+      hydrated = true;
+      applyDoc(d, true);
       var doc = snapshot();
       var text = JSON.stringify(doc, null, 1);
       if (net.lastBody === contentKey(doc) && retry === 0) { setBadge("已同步", "ok"); return true; }
