@@ -1,4 +1,4 @@
-  var BUILD_VER = "20261128p";
+  var BUILD_VER = "20261128r";
 (function () {
   var root = document.getElementById("cdp");
   if (!root) return;
