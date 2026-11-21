@@ -685,6 +685,24 @@
     var btn = li.querySelector(".cdp-rate");
     if (btn) btn.classList.toggle("is-on", on > 0);
   }
+  /* 面板已开时原地刷新星级（只改 class，不重建 DOM，避免闪） */
+  function refreshStars(li, text) {
+    var panel = li.querySelector(".cdp-score");
+    if (!panel) return;
+    var sc = scoreOf(text);
+    var rows = panel.querySelectorAll(".score-row");
+    SCORE_WHO.forEach(function (w, i) {
+      var row = rows[i];
+      if (!row) return;
+      var stars = row.querySelectorAll(".cdp-star");
+      var v = sc[w[0]] || 0;
+      for (var j = 0; j < stars.length; j++) {
+        var n = starOn(v, j);
+        stars[j].className = "cdp-star" + (n === 2 ? " is-full" : n === 1 ? " is-half" : "");
+      }
+    });
+  }
+
   function toggleScore(li, text) {
     var panel = li.querySelector(".cdp-score");
     if (panel) { panel.parentNode.removeChild(panel); delete openScore[text]; li.classList.remove("has-score"); return; }
@@ -899,6 +917,7 @@
       li.classList.toggle("is-done", on);
       syncScratch(li);
       paintScoreTag(li, t);
+      refreshStars(li, t);
       var tick = li.querySelector(".cdp-tick");
       if (tick) tick.setAttribute("aria-pressed", on ? "true" : "false");
       var idx = li.querySelector(".cdp-idx");
