@@ -1,0 +1,123 @@
+﻿/* ==== 2026-11-22 第五轮：角括号 / 铅笔删除线 / 书页翻开 · 必须在 deco.css 之后 ==== */
+:root{
+  --pencil-rgb: 92,84,72;
+  --scrib-a: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 12' preserveAspectRatio='none'%3E%3Cpath d='M1.6 7.4C6.4 6.2 10.6 8.2 15.4 7S24 8.4 28.8 7.1S37.4 8.5 42.2 7S50.8 8.3 55.6 6.9S64.2 8.4 69 6.8S77.6 8.2 82.4 6.6S91 8 95.8 5.9' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round'/%3E%3Cpath d='M2.4 8.3C8 7.4 13 8.9 19 7.8S30 9 36 7.9S47 9 53 7.8S64 8.9 70 7.6S81 8.7 87 7.4S95 8.3 97.5 7' fill='none' stroke='%23000' stroke-width='.85' stroke-opacity='.45' stroke-linecap='round'/%3E%3Cpath d='M91.6 6.2C94 6 96.6 5.6 99 5.1' fill='none' stroke='%23000' stroke-width='.6' stroke-linecap='round'/%3E%3C/svg%3E");
+  --scrib-ink: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 12' preserveAspectRatio='none'%3E%3Cpath d='M1.6 7.4C6.4 6.2 10.6 8.2 15.4 7S24 8.4 28.8 7.1S37.4 8.5 42.2 7S50.8 8.3 55.6 6.9S64.2 8.4 69 6.8S77.6 8.2 82.4 6.6S91 8 95.8 5.9' fill='none' stroke='%235c5448' stroke-width='1.6' stroke-linecap='round'/%3E%3Cpath d='M2.4 8.3C8 7.4 13 8.9 19 7.8S30 9 36 7.9S47 9 53 7.8S64 8.9 70 7.6S81 8.7 87 7.4S95 8.3 97.5 7' fill='none' stroke='%235c5448' stroke-width='.85' stroke-opacity='.45' stroke-linecap='round'/%3E%3Cpath d='M91.6 6.2C94 6 96.6 5.6 99 5.1' fill='none' stroke='%235c5448' stroke-width='.6' stroke-linecap='round'/%3E%3C/svg%3E");
+  --scrib-ink-dark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 12' preserveAspectRatio='none'%3E%3Cpath d='M1.6 7.4C6.4 6.2 10.6 8.2 15.4 7S24 8.4 28.8 7.1S37.4 8.5 42.2 7S50.8 8.3 55.6 6.9S64.2 8.4 69 6.8S77.6 8.2 82.4 6.6S91 8 95.8 5.9' fill='none' stroke='%23e4d8c0' stroke-width='1.6' stroke-linecap='round'/%3E%3Cpath d='M2.4 8.3C8 7.4 13 8.9 19 7.8S30 9 36 7.9S47 9 53 7.8S64 8.9 70 7.6S81 8.7 87 7.4S95 8.3 97.5 7' fill='none' stroke='%23e4d8c0' stroke-width='.85' stroke-opacity='.45' stroke-linecap='round'/%3E%3Cpath d='M91.6 6.2C94 6 96.6 5.6 99 5.1' fill='none' stroke='%23e4d8c0' stroke-width='.6' stroke-linecap='round'/%3E%3C/svg%3E");
+  --scrib-print: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 12' preserveAspectRatio='none'%3E%3Cpath d='M1.6 7.4C6.4 6.2 10.6 8.2 15.4 7S24 8.4 28.8 7.1S37.4 8.5 42.2 7S50.8 8.3 55.6 6.9S64.2 8.4 69 6.8S77.6 8.2 82.4 6.6S91 8 95.8 5.9' fill='none' stroke='%234a463f' stroke-width='1.6' stroke-linecap='round'/%3E%3Cpath d='M2.4 8.3C8 7.4 13 8.9 19 7.8S30 9 36 7.9S47 9 53 7.8S64 8.9 70 7.6S81 8.7 87 7.4S95 8.3 97.5 7' fill='none' stroke='%234a463f' stroke-opacity='.5' stroke-width='.85' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+[data-scheme="dark"]{ --pencil-rgb: 228,216,192; --scrib-ink: var(--scrib-ink-dark); }
+
+/* 1) 左右不对称的空心角括号：方正直线，左窄右宽、上下臂错位 */
+#cdp .cdp-row{ padding-left:26px; padding-right:26px; }
+#cdp .cdp-row::before,
+#cdp .cdp-row::after{
+  display:block; content:"";
+  position:absolute; z-index:2;
+  border:0; border-radius:0;
+  border-left:1.4px solid rgba(var(--ink-rgb),.34);
+  border-top:1.4px solid rgba(var(--ink-rgb),.34);
+  border-bottom:1.4px solid rgba(var(--ink-rgb),.34);
+  pointer-events:none;
+  transition:border-color .2s ease;
+}
+#cdp .cdp-row::before{ left:2px; top:6px; bottom:10px; width:14px; }
+#cdp .cdp-row::after{
+  left:auto; right:2px; top:10px; bottom:6px; width:16px;
+  border-left:0; border-right:1.4px solid rgba(var(--ink-rgb),.34);
+}
+#cdp .cdp-row:hover::before, #cdp .cdp-row:hover::after,
+#cdp .cdp-row:focus-within::before, #cdp .cdp-row:focus-within::after{
+  border-color:rgba(var(--accent-rgb),.55);
+}
+#cdp .cdp-row.is-done::before,
+#cdp .cdp-row.is-done::after{ border-color:rgba(var(--ink-rgb),.18); }
+[data-scheme="dark"] #cdp .cdp-row::before,
+[data-scheme="dark"] #cdp .cdp-row::after{ border-color:rgba(var(--ink-rgb),.40); }
+[data-scheme="dark"] #cdp .cdp-row:hover::before,
+[data-scheme="dark"] #cdp .cdp-row:hover::after{ border-color:rgba(var(--accent-rgb),.62); }
+
+@media (max-width:640px){
+  #cdp .cdp-row{ padding-left:22px; padding-right:22px; }
+  #cdp .cdp-row::before{ left:1px; top:5px; bottom:8px; width:12px; }
+  #cdp .cdp-row::after{ right:1px; top:8px; bottom:5px; width:13px; }
+}
+
+/* 2) 铅笔涂鸦删除线：宽度跟字，mask 出手绘抖动 */
+#cdp .cdp-name{ justify-self:start; max-width:100%; }
+#cdp .cdp-name::after{
+  content:""; position:absolute; left:-2px; top:50%;
+  height:12px; margin-top:-6px;
+  width:0;
+  background-color:transparent;
+  background-image:var(--scrib-ink);
+  background-size:100% 100%; background-repeat:no-repeat; background-position:0 0;
+  clip-path:inset(0 100% 0 0);
+  transition:width .52s cubic-bezier(.3,.85,.3,1) .06s, clip-path .52s cubic-bezier(.3,.85,.3,1) .06s;
+  pointer-events:none;
+}
+#cdp .is-done .cdp-name::after{
+  width:calc(100% + 4px);
+  clip-path:inset(0 0 0 0);
+}
+@supports not ((mask-image:linear-gradient(#000,#000)) or (-webkit-mask-image:linear-gradient(#000,#000))){
+  #cdp .cdp-name::after{ height:1px; top:58%; background:currentColor; opacity:.85; }
+}
+
+/* 3) 书页侧向翻开（作用在菜单纸本身，避免页边纹与横向滚动条） */
+@keyframes cdpPageTurn{
+  0%  { opacity:0; transform:perspective(1200px) rotateY(-30deg) translateX(-8px); }
+  60% { opacity:1; }
+  100%{ opacity:1; transform:perspective(1200px) rotateY(0) translateX(0); }
+}
+#cdp.cdp-boot{
+  transform-origin:left center;
+  animation:cdpPageTurn .86s cubic-bezier(.2,.7,.12,1) both;
+}
+#cdp.cdp-boot .cdp-row{ animation:none !important; }
+@media (max-width:640px){
+  #cdp.cdp-boot{ animation-duration:.72s; }
+}
+
+/* 打印：括号保留细线，铅笔线用实色背景图 */
+@media print{
+  #cdp .cdp-row{ padding:8px 0 8px 14px !important; }
+  #cdp .cdp-row::before,
+  #cdp .cdp-row::after{
+    display:block !important;
+    border-color:rgba(var(--ink-rgb),.42) !important;
+  }
+  #cdp .is-done .cdp-name::after{
+    -webkit-mask:none; mask:none;
+    background-color:transparent;
+    background-image:var(--scrib-print);
+    background-repeat:no-repeat; background-position:0 0; background-size:100% 100%;
+    clip-path:none;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  #cdp.cdp-boot{ animation:none !important; transform:none !important; opacity:1 !important; }
+}
+
+/* 减少动效 */
+@media (prefers-reduced-motion: reduce){
+  #cdp.cdp-boot{ animation:none !important; transform:none !important; opacity:1 !important; }
+  #cdp .cdp-row::before,
+  #cdp .cdp-row::after{ transition:none !important; }
+  #cdp .cdp-name::after{ transition:none !important; }
+}
+
+
+
+
+
+/* 勾选行：卡片只保留底色渐变，不再叠角花图（角弧改由左右括号承担） */
+#cdp .cdp-row,
+#cdp .cdp-row.is-done{
+  background-image:linear-gradient(180deg, rgba(var(--ink-rgb),.028), rgba(var(--ink-rgb),.010));
+  background-size:auto;
+  background-repeat:repeat;
+  background-position:0 0;
+}
+#cdp .cdp-row.is-done{
+  background-image:linear-gradient(180deg, rgba(var(--ink-rgb),.018), rgba(var(--ink-rgb),.006));
+}
