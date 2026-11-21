@@ -183,5 +183,8 @@ body::before{
 
 
 /* 15) 收掉页脚后的大片空白 */
-.container{ padding-bottom:24px !important; }
+.container{ padding-bottom:8px !important; }
 body{ min-height:0 !important; }
+.section{ padding-bottom:8px !important; }
+.divider-dot{ display:none !important; }
+#cdp{ margin-bottom:0 !important; }
