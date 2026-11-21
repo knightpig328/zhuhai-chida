@@ -24,7 +24,9 @@
   /* ===== 协同层 ===== */
   var CFG_KEY = "cdp-sync-cfg-v1";
   var GIST = { id: "4bb6f3b536c05a65de7132179a8826e9", file: "zhuhai-chida.json" };
-  var TOKEN = "", ETAG = "";
+  var TOKEN = "w", ETAG = "";
+  var WORKER = "https://liqianshiqianjin.zkc1014102029.workers.dev";
+  var WKEY = "zhuhai-2026-liqianwoainikeshinizongshichaowowozhendehaonanguo";
   var TS = { done: {}, extra: {}, del: {}, addr: {} };
   var ADDR = {};
   var CACHE = { done: {}, extra: [] };
@@ -248,130 +250,60 @@
     return { doc: doc };
   }
 
-  /* 读取不需要 token：secret gist 匿名可读；401 时自动丢掉旧 token 降级重读 */
+  /* 读取：Worker 优先（秒级、无配额）；Worker 不可用时回退静态 data.json */
   function fetchData() {
-    if (!TOKEN) {
+    if (net.get) return net.get;
+    net.getAt = Date.now();
+    var base = fetch(WORKER + "/data", {
+      headers: { "Authorization": "Bearer " + WKEY },
+      cache: "no-store"
+    }).then(function (r) {
+      if (!r.ok) throw new Error("worker " + r.status);
+      return r.text();
+    }).then(function (t) {
+      var doc = JSON.parse(t);
+      lastErr = null;
+      return { doc: doc };
+    }).catch(function () {
       var stamp = Math.floor(Date.now() / 60000);
       return fetch("data.json?m=" + stamp, { cache: "no-store" })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (doc) { if (!doc) return null; lastErr = null; return { doc: doc }; })
         .catch(function () { return null; });
-    }
-    if (net.get) return net.get;
-    var hadToken = !!TOKEN;
-    var h = ETAG ? { "If-None-Match": ETAG } : {};
-    var gid = "https://api.github.com/gists/" + GIST.id;
-    net.getAt = Date.now();
-    var base = api(gid, { headers: h }).then(parseDoc).catch(function (e) {
-      lastErr = e || null;
-      if (hadToken && e && e.code === 401) {
-        TOKEN = ""; ETAG = "";
-        saveCfg({ gist: GIST.id, token: "" });
-        return api(gid, { headers: {} }).then(parseDoc).catch(function (e2) { lastErr = e2 || null; return null; });
-      }
-      return null;
     });
     net.get = base.then(function (r) { net.get = null; return r; }, function () { net.get = null; return null; });
     return net.get;
-  }
-
-  function mergeState(a, b) {
-    var out = { v: 3, rev: 0, updatedAt: new Date().toISOString(), done: {}, extra: {}, del: {}, addr: {} };
-    ["done", "extra", "del"].forEach(function (f) {
-      var x = (a && a[f]) || {}, y = (b && b[f]) || {}, m = out[f];
-      Object.keys(x).forEach(function (k) { var xv = Number(x[k]); if (isFinite(xv) && xv) m[k] = xv; });
-      Object.keys(y).forEach(function (k) {
-        var yv = Number(y[k]);
-        if (!isFinite(yv) || yv === 0) return;
-        if (!own(m, k)) { m[k] = yv; return; }
-        var mv = Number(m[k]);
-        if (!isFinite(mv) || mv === 0) { m[k] = yv; return; }
-        var ay = Math.abs(yv), am = Math.abs(mv);
-        if (ay > am) { m[k] = yv; return; }
-        if (ay < am) return;
-        if (f === "done" && yv < 0 && mv >= 0) { m[k] = yv; return; }
-        if (f === "done" && mv < 0 && yv >= 0) return;
-        if (String(yv) > String(mv)) m[k] = yv;
-      });
-    });
-    var ax = (a && a.addr) || {}, ay = (b && b.addr) || {};
-    Object.keys(ax).forEach(function (k) { var n = normAddr(ax[k]); if (n) out.addr[k] = n; });
-    Object.keys(ay).forEach(function (k) { var n = pickAddr(out.addr[k], ay[k]); if (n) out.addr[k] = n; });
-    out.rev = Math.max((a && a.rev) || 0, (b && b.rev) || 0) + 1;
-    return out;
-  }
-
-  function buildState(doc) {
-    var st = { done: {}, extra: [], addr: {} };
-    Object.keys(doc.done || {}).forEach(function (k) { if (doc.done[k] > 0) st.done[k] = 1; });
-    Object.keys(doc.extra || {}).forEach(function (k) {
-      var d = doc.del && doc.del[k];
-      if (!(typeof d === "number" && Math.abs(d) >= Math.abs(doc.extra[k]))) st.extra.push(k);
-    });
-    st.extra.sort(function (x, y) { return (doc.extra[x] - doc.extra[y]) || (x < y ? -1 : x > y ? 1 : 0); });
-    Object.keys(doc.addr || {}).forEach(function (k) {
-      var a = normAddr(doc.addr[k]);
-      if (!a) return;
-      var d = doc.del && doc.del[k];
-      if (typeof d === "number" && d >= a.t) return;
-      if (a.v) st.addr[k] = a.v;
-    });
-    return st;
-  }
-
-  function isEditing() {
-    var a = document.activeElement;
-    if (!a || a === document.body) return false;
-    if (a === input) return true;
-    try { return !!(a.isContentEditable && root.contains(a)); } catch (e) { return false; }
-  }
-
-  function applyDoc(doc, silent) {
-    if (!doc) return false;
-    TS = mergeState(TS, doc);
-    scanMax();
-    var st = buildState(TS);
-    state.done = st.done;
-    state.extra = st.extra;
-    ADDR = st.addr || {};
-    if (silent) { save(); return false; }
-    hydrated = true;
-    save();
-    if (isEditing()) { pendingRender = true; return false; }
-    pendingRender = false;
-    if (root.classList.contains("cdp-boot")) root.classList.remove("cdp-boot");
-    render();
-    return true;
-  }
-
-  function snapshot() {
-    return { v: 3, rev: (TS.rev || 0) + 1, updatedAt: new Date().toISOString(), done: TS.done || {}, extra: TS.extra || {}, del: TS.del || {}, addr: TS.addr || {} };
-  }
-  function contentKey(d) {
-    return JSON.stringify({ d: d.done || {}, e: d.extra || {}, x: d.del || {}, a: d.addr || {} });
   }
 
   function patchOnce(retry) {
     return fetchData().then(function (res) {
       if (res && res.doc) applyDoc(res.doc, true);
       var doc = snapshot();
-      var body = { files: {} };
-      body.files[GIST.file] = { content: JSON.stringify(doc, null, 1) };
+      var text = JSON.stringify(doc, null, 1);
       if (net.lastBody === contentKey(doc) && retry === 0) { setBadge("已同步", "ok"); return true; }
       setBadge("同步中", "busy");
-      return api("https://api.github.com/gists/" + GIST.id, { method: "PATCH", body: JSON.stringify(body) })
-        .then(function () {
-          failCount = 0; lastErr = null; net.lastBody = contentKey(doc);
-          setBadge("已同步", "ok");
-          return true;
-        }, function (e) {
-          if (e && e.kind === "conflict" && retry < 2) {
-            setBadge("冲突·重试中", "warn");
-            return new Promise(function (r) { window.setTimeout(r, 400 * Math.pow(2, retry)); })
-              .then(function () { return patchOnce(retry + 1); });
-          }
-          throw (e || new Error("push failed"));
-        });
+      return fetch(WORKER + "/data", {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + WKEY, "Content-Type": "text/plain;charset=UTF-8" },
+        body: text,
+        cache: "no-store"
+      }).then(function (r) {
+        if (!r.ok) {
+          var e = new Error("worker " + r.status);
+          e.kind = r.status === 409 ? "conflict" : (r.status === 401 ? "key_bad" : "server");
+          throw e;
+        }
+        failCount = 0; lastErr = null; net.lastBody = contentKey(doc);
+        setBadge("已同步", "ok");
+        return true;
+      }, function (e) {
+        if (e && e.kind === "conflict" && retry < 2) {
+          setBadge("冲突·重试中", "warn");
+          return new Promise(function (r) { window.setTimeout(r, 400 * Math.pow(2, retry)); })
+            .then(function () { return patchOnce(retry + 1); });
+        }
+        throw (e || new Error("push failed"));
+      });
     });
   }
 
@@ -398,7 +330,7 @@
   }
 
   function push() {
-    if (!TOKEN) { setBadge("只读·改动不会同步", "fail"); saveTs(); markPending(true); return; }
+    if (!WORKER) { setBadge("未配置同步地址", "fail"); saveTs(); markPending(true); return; }
     net.pending = true; markPending(true);
     var now = Date.now();
     if (!pushFirstAt) pushFirstAt = now;
@@ -417,16 +349,22 @@
   }
   function sendKeepalive() {
     try {
-      var files = {}; files[GIST.file] = { content: JSON.stringify(snapshot(), null, 1) };
-      var body = JSON.stringify({ files: files });
-      if (body.length > 60000) { setBadge("改动太大·未上传", "fail"); return; }
-      fetch("https://api.github.com/gists/" + GIST.id, {
-        method: "PATCH", keepalive: true,
-        headers: { "Accept": "application/vnd.github+json", "Authorization": "Bearer " + TOKEN, "Content-Type": "application/json" },
-        body: body
+      var text = JSON.stringify(snapshot(), null, 1);
+      if (text.length > 60000) { setBadge("改动太大·未上传", "fail"); return; }
+      var u = WORKER + "/data?k=" + encodeURIComponent(WKEY);
+      var sent = false;
+      try {
+        if (navigator.sendBeacon) sent = navigator.sendBeacon(u, new Blob([text], { type: "text/plain;charset=UTF-8" }));
+      } catch (e) { sent = false; }
+      if (sent) { markPending(false); net.lastBody = null; return; }
+      fetch(u, {
+        method: "POST", keepalive: true, cache: "no-store",
+        headers: { "Content-Type": "text/plain;charset=UTF-8" },
+        body: text
       }).then(function () { markPending(false); net.lastBody = null; }, function () {});
     } catch (e) {}
   }
+
   function leaveOnce(stopPoll) {
     if (stopPoll && pollTimer) { window.clearInterval(pollTimer); pollTimer = 0; }
     if (!TOKEN || !dirtyNow()) return;
