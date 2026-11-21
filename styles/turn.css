@@ -328,6 +328,9 @@
   --accent-ink-inverse:#6a6258;
   --accent-on-text:#141312;
   --accent-on-text-rgb:20,19,18;
+  /* 次要文字：浅色下是灰，深色下必须提亮，否则 01 / 已经吃完 这类几乎看不见 */
+  --ink-2:#c9c2b6;
+  --ink-3:#9a9186;
 }
 :root[data-scheme="dark"] body{ background-color:var(--paper); color:var(--ink); }
 :root[data-scheme="dark"] #cdp{ background-color:var(--paper); border-color:rgba(var(--ink-rgb),.22); }
