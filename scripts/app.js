@@ -75,9 +75,9 @@
         if (p.TS && typeof p.TS === "object") readTs(p.TS);
       }
     }
-    if (!Object.keys(TS.done).length && !TS.rev) {
-      var rawTs = window.localStorage.getItem(TS_KEY);
-      if (rawTs) readTs(JSON.parse(rawTs));
+    var rawTs = window.localStorage.getItem(TS_KEY);
+    if (rawTs) {
+      try { readTs(JSON.parse(rawTs)); } catch (e) {}
     }
   } catch (e) {}
 
@@ -111,7 +111,6 @@
   function saveTs() { try { window.localStorage.setItem(TS_KEY, JSON.stringify(TS)); } catch (e) {} }
   function save() {
     try {
-      if (!hydrated) { saveTs(); return; }
       window.localStorage.setItem(KEY, JSON.stringify({ done: state.done, extra: state.extra, TS: TS }));
       window.localStorage.removeItem(TS_KEY);
     } catch (e) {}
@@ -752,16 +751,13 @@
     bootSettled = true;
     root.classList.remove("is-booting");
     var tokenProblem = !!(lastErr && (lastErr.kind === "token_bad" || lastErr.kind === "gist_missing"));
-    if (Object.keys(CACHE.done).length || CACHE.extra.length) {
-      state.done = CACHE.done;
-      state.extra = CACHE.extra.filter(function (t) {
-        var d = TS.del && TS.del[t];
-        if (typeof d !== "number") return true;
-        var add = TS.extra && TS.extra[t];
-        return typeof add === "number" && add > d;
-      });
+    var _bo = buildState(TS);
+    var _has = Object.keys(_bo.done).length || _bo.extra.length || Object.keys(_bo.addr || {}).length;
+    if (_has) {
+      state.done = _bo.done;
+      state.extra = _bo.extra;
+      if (_bo.addr && Object.keys(_bo.addr).length) ADDR = _bo.addr;
       hydrated = true;
-      hydrateAddr();
       render({ force: true });
       setBadge(tokenProblem ? "token 失效·点我换" : "离线·上次内容", tokenProblem ? "fail" : "warn");
     } else {
