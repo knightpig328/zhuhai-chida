@@ -130,9 +130,28 @@
 /* 10) 菜单名字用行楷；其余恢复原字体栈，地址栏用衬线（楷体笔画倾斜，地址会看着上下扭曲） */
 #cdp .cdp-name{
   font-family:'Xingkai Web','STXingkai','华文行楷','KaiTi','Kaiti SC',var(--font-serif);
-  font-size:1.14rem;
-  letter-spacing:.04em;
+  font-size:1.3rem;
+  letter-spacing:.05em;
 }
 #cdp .cdp-idx{ font-family:var(--font-mono); }
 #cdp .cdp-addr{ font-family:var(--font-serif); font-size:.78em; letter-spacing:.01em; }
 #cdp .cdp-tick, #cdp .cdp-del, #cdp .cdp-map{ font-family:var(--font-sans); }
+
+
+/* 11) 悬停：底色加深 + 阴影抬起 + 轻微上浮 */
+#cdp .cdp-row{
+  box-shadow:0 1px 2px rgba(var(--ink-rgb),.055), 0 1px 0 rgba(var(--ink-rgb),.035);
+  transition:background-image .18s ease, border-color .2s ease, box-shadow .2s ease, transform .18s ease;
+}
+#cdp .cdp-row:hover{
+  background-image:linear-gradient(180deg, rgba(var(--ink-rgb),.080), rgba(var(--ink-rgb),.032));
+  border-color:rgba(var(--ink-rgb),.42);
+  box-shadow:0 5px 14px rgba(var(--ink-rgb),.16), 0 1px 0 rgba(var(--ink-rgb),.05);
+  transform:translateY(-1px);
+}
+#cdp .cdp-row.is-done{ box-shadow:none; }
+@media (prefers-reduced-motion: reduce){
+  #cdp .cdp-row{ transition:none; }
+  #cdp .cdp-row:hover{ transform:none; }
+}
+@media print{ #cdp .cdp-row{ box-shadow:none !important; } }
