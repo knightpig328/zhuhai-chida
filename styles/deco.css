@@ -165,8 +165,8 @@ body::before{
   background-size:min(118vmax, 1500px) auto;
   background-position:50% 30%;
   background-repeat:no-repeat;
-  opacity:.10;
-  filter:grayscale(1) contrast(2.6) brightness(1.85);
+  opacity:.055;
+  filter:grayscale(1) contrast(3.1) brightness(2.15);
   mix-blend-mode:multiply;
   -webkit-mask-image:linear-gradient(to bottom, #000 0 74%, rgba(0,0,0,.3) 92%, transparent 100%);
   mask-image:linear-gradient(to bottom, #000 0 74%, rgba(0,0,0,.3) 92%, transparent 100%);
@@ -181,7 +181,7 @@ body::before{
     background-image:url("../assets/wood-rings.webp");
     background-size:min(150vmax, 780px) auto;
     background-position:50% 22%;
-    opacity:.13;
+    opacity:.07;
   }
 }
 
