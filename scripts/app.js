@@ -309,13 +309,15 @@
       if (c === "1") { ORDER_OK = true; return Promise.resolve(true); }
       /* 失败不缓存：Worker 更新后下一次启动会自动重探 */
     } catch (e) {}
-    return fetch(WORKER + "/data?dry=1", {
-      method: "POST",
-      headers: { "Authorization": "Bearer " + WKEY, "Content-Type": "text/plain;charset=UTF-8" },
-      body: JSON.stringify({ v: 3, order: { v: [], t: 0 } }),
+    /* 只读探测：GET 到合法 JSON 说明协议可用；绝不发 POST（POST 会整份覆盖远端） */
+    return fetch(WORKER + "/data", {
+      method: "GET",
+      headers: { "Authorization": "Bearer " + WKEY },
       cache: "no-store"
     }).then(function (r) {
-      ORDER_OK = (r.status === 200);
+      return r.ok ? r.json().then(function (d) { return !!(d && typeof d === "object"); }).catch(function () { return false; }) : false;
+    }).then(function (ok) {
+      ORDER_OK = !!ok;
       try { if (ORDER_OK) window.localStorage.setItem("cdp-order-ok", "1"); } catch (e) {}
       return ORDER_OK;
     }).catch(function () { return false; });
@@ -415,6 +417,7 @@
 
 
   function patchOnce(retry) {
+    if (!canWrite()) return;
     return fetchData().then(function (res) {
       if (res && res.doc) applyDoc(res.doc, true);
       var doc = snapshot();
@@ -468,7 +471,15 @@
     return net.patch;
   }
 
+  /* R2: 未 hydrate（没成功读到远端）时禁止任何写入，避免用空壳覆盖云端 */
+  function canWrite() {
+    if (hydrated) return true;
+    try { setBadge("未连上·暂不能改"); } catch (e) {}
+    return false;
+  }
+
   function push() {
+    if (!canWrite()) return;
     if (!WORKER) { setBadge("未配置同步地址", "fail"); saveTs(); markPending(true); return; }
     net.pending = true; markPending(true);
     var now = Date.now();
@@ -487,6 +498,7 @@
     saveData();
   }
   function sendKeepalive() {
+    if (!canWrite()) return;
     try {
       var text = JSON.stringify(snapshot(), null, 1);
       if (text.length > 60000) { setBadge("改动太大·未上传", "fail"); return; }
@@ -674,7 +686,7 @@
     delete state.done[text];
     if (TS.order && TS.order.v) TS.order.v = TS.order.v.filter(function (x) { return x !== text; });
     TS.del[text] = now;
-    TS.addr[text] = { t: now, v: "" };
+    /* R7: 删除只写 del 墓碑，不抹地址；复活时地址原样保留 */
     TS.done[text] = -Math.max(now, prev + 1);
     delete ADDR[text];
     save(); push();
