@@ -1,4 +1,4 @@
-  var BUILD_VER = "20261125q";
+  var BUILD_VER = "20261126f";
 (function () {
   var root = document.getElementById("cdp");
   if (!root) return;
@@ -332,12 +332,22 @@
     Object.keys(ax).forEach(function (k) { var n = normAddr(ax[k]); if (n) out.addr[k] = n; });
     Object.keys(ay).forEach(function (k) { var n = pickAddr(out.addr[k], ay[k]); if (n) out.addr[k] = n; });
     // score 合并：按 t 取新
+    /* score 按字段合并：程程(me) 与 倩倩(her) 各自比 t，互不覆盖 */
     var sx = (a && a.score) || {}, sy = (b && b.score) || {};
-    Object.keys(sx).forEach(function (k) { out.score[k] = sx[k]; });
+    Object.keys(sx).forEach(function (k) { out.score[k] = Object.assign({}, sx[k]); });
     Object.keys(sy).forEach(function (k) {
       var x = out.score[k], y = sy[k];
-      if (!x) { out.score[k] = y; return; }
-      out.score[k] = ((y.t || 0) >= (x.t || 0)) ? y : x;
+      if (!x) { out.score[k] = Object.assign({}, y); return; }
+      var merged = Object.assign({}, x);
+      ["me", "her"].forEach(function (who) {
+        var xv = x[who], yv = y[who];
+        if (typeof yv !== "number") return;
+        if (typeof xv !== "number") { merged[who] = yv; return; }
+        /* 只有对方更新（t 更大）且分数不同才覆盖该字段 */
+        if ((y.t || 0) > (x.t || 0) && yv !== xv) merged[who] = yv;
+      });
+      merged.t = Math.max(x.t || 0, y.t || 0);
+      out.score[k] = merged;
     });
     // order 合并：按 t 取新（LWW）
     var oa = (a && a.order) || null, ob = (b && b.order) || null;
