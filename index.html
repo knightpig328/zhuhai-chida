@@ -2457,7 +2457,17 @@
     pushTimer = setTimeout(function () { saveData(TS); }, 1200);
   }
   function flushNow() { if (pushTimer && TOKEN) { clearTimeout(pushTimer); pushTimer = 0; saveData(TS); } }
-  if (badge) badge.addEventListener("click", function () { if (TOKEN && failCount > 0) { failCount = 0; saveData(TS); } });
+  if (badge) badge.addEventListener("click", function () {
+    if (!TOKEN) { setBadge("未配置 token", "#888"); return; }
+    failCount = 0;
+    setBadge("检测中", "#888");
+    fetchData().then(function (res) {
+      if (res && res.doc) {
+        applyDoc(res.doc);
+        setBadge("已同步·刚拉取  rev" + (res.doc.rev || "?"), "#3ddc84");
+      } else { setBadge("拉取失败·点我重试", "#ffb74d"); }
+    });
+  });
 
   function rowEl(text, isExtra) {
     var li = document.createElement("li");
@@ -2560,9 +2570,15 @@
     pollTimer = setInterval(function () {
       if (document.hidden) return;
       fetchData().then(function (res) { if (res && res.doc) applyDoc(res.doc); });
-    }, 20000);
+    }, 5000);
     addEventListener("pagehide", flushNow);
-    addEventListener("visibilitychange", function () { if (document.hidden) flushNow(); });
+    addEventListener("visibilitychange", function () {
+      if (document.hidden) { flushNow(); }
+      else if (TOKEN) { fetchData().then(function (res) { if (res && res.doc) applyDoc(res.doc); }); }
+    });
+    addEventListener("focus", function () {
+      if (TOKEN) fetchData().then(function (res) { if (res && res.doc) applyDoc(res.doc); });
+    });
   }
   boot();
 })();
