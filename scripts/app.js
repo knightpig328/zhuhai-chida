@@ -1,4 +1,4 @@
-  var BUILD_VER = "20261128n";
+  var BUILD_VER = "20261128o";
 (function () {
   var root = document.getElementById("cdp");
   if (!root) return;
@@ -272,7 +272,15 @@
       cache: "no-store",
       signal: ac ? ac.signal : undefined
     }).then(function (r) {
-      if (r.status === 401 || r.status === 403) { var e1 = new Error("gh auth"); e1.kind = "token_bad"; throw e1; }
+      if (r.status === 401) { var e1 = new Error("gh auth"); e1.kind = "token_bad"; throw e1; }
+      if (r.status === 403 || r.status === 429) {
+        var rem = r.headers.get("x-ratelimit-remaining");
+        var rst = r.headers.get("x-ratelimit-reset");
+        var e2 = new Error("gh rate");
+        e2.kind = (rem === "0") ? "rate_limited" : "forbidden";
+        e2.resetAt = rst ? Number(rst) * 1000 : 0;
+        throw e2;
+      }
       if (!r.ok) throw new Error("gh " + r.status);
       return r.json();
     }).then(function (j) {
@@ -282,8 +290,12 @@
       var doc = JSON.parse(f.content);
       lastErr = null;
       return { doc: doc, viaWorker: true };
-    }).catch(function () {
+    }).catch(function (err0) {
       if (timer) clearTimeout(timer);
+      if (err0 && (err0.kind === "rate_limited" || err0.kind === "forbidden")) {
+        lastErr = err0;
+        return null;   /* 不回退镜像，避免把「限流」伪装成「只读」 */
+      }
       var stamp = Math.floor(Date.now() / 60000);
       return fetch("data.json?m=" + stamp, { cache: "no-store" })
         .then(function (r) { return r.ok ? r.json() : null; })
@@ -514,7 +526,7 @@
   }
 
   function push() {
-    if (!canWrite()) return;
+    if (!canWrite()) { markPending(true); return; }   /* 先记待发，再退出 */
     if (!WORKER) { setBadge("未配置同步地址", "fail"); saveTs(); markPending(true); return; }
     net.pending = true; markPending(true);
     var now = Date.now();
@@ -542,7 +554,7 @@
       try {
         if (navigator.sendBeacon) sent = navigator.sendBeacon(u, new Blob([text], { type: "text/plain;charset=UTF-8" }));
       } catch (e) { sent = false; }
-      if (sent) { markPending(false); net.lastBody = null; return; }
+      if (sent) { net.lastBody = null; return; }   /* sendBeacon 的 true 只代表「已排队」，不清 pending，等下次拉取确认 */
       fetch(u, {
         method: "POST", keepalive: true, cache: "no-store",
         headers: { "Content-Type": "text/plain;charset=UTF-8" },
@@ -1094,7 +1106,7 @@
     render({ force: true });
     window.setTimeout(function () {
       root.classList.add("cdp-boot");
-      window.setTimeout(function () { root.classList.remove("cdp-boot"); }, 1500);
+      window.setTimeout(function () { root.classList.remove("cdp-boot"); }, 10000);
     }, 70);
   }
   function bootDone() {
@@ -1161,7 +1173,7 @@
       if (net.get && Date.now() - net.getAt > 20000) net.get = null;
       if (net.patch) return;
       fetchData().then(function (res) { if (res && res.doc) applyDoc(res.doc); });
-    }, 1500);
+    }, 10000);
     addEventListener("pagehide", function () { leaveOnce(true); });
     addEventListener("visibilitychange", function () {
       if (document.hidden) { leaveOnce(false); }
