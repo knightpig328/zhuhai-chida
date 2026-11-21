@@ -207,7 +207,7 @@
 #cdp .cdp-rate.is-on{ color:rgba(var(--accent-rgb),.9); }
 #cdp .cdp-row.has-score{ grid-auto-rows:auto; }
 #cdp .cdp-score{
-  grid-column:1 / -1; margin:8px 0 2px; padding-top:8px;
+  grid-column:1 / -1; margin:8px -2px 2px; padding-top:8px;
   border-top:1px dashed rgba(var(--ink-rgb),.16);
   display:flex; flex-direction:column; gap:4px;
 }
@@ -238,7 +238,9 @@
   }
   #cdp .cdp-star{ width:40px; height:40px; font-size:1.55rem; }
   #cdp .score-stars{ gap:4px; }
-  #cdp .cdp-score{ width:100%; box-sizing:border-box; }
+  #cdp .cdp-score{ width:100%; box-sizing:border-box; margin-left:-2px; margin-right:-2px; }
+  #cdp .score-row{ gap:6px; }
+  #cdp .score-stars{ gap:3px; }
   #cdp .score-who{ font-size:.78rem; }
 }
 
