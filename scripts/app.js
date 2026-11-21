@@ -1150,7 +1150,7 @@
       function tick() {
         if (!SORT.active || !AUTO_SCROLL.dir) { AUTO_SCROLL.raf = 0; return; }
         var before = window.pageYOffset;
-        window.scrollBy(0, AUTO_SCROLL.dir * 5);
+        window.scrollBy(0, AUTO_SCROLL.dir * 3);
         var moved = window.pageYOffset - before;
         /* 滚动量补回 dy，避免被拖的那一行「粘住」指针 */
         if (moved) {
@@ -1204,6 +1204,7 @@
       if (!li || to < 0 || to === from) return;
 
       /* 基于当前 DOM 全量顺序重排：先摘出自己，再插到目标位置 */
+      window.__lastSortNames = (SORT.names || []).length;
       var names = (SORT.names && SORT.names.length)
         ? SORT.names.slice()
         : Array.prototype.map.call(list.children, function (r) { return r.getAttribute("data-text"); });
