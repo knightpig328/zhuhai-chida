@@ -168,3 +168,21 @@
 /* 14) 卡片区加宽：直接放宽阅读列（--col 原为 30 字 = 510px） */
 :root{ --col: calc(38 * 1.0625rem); }
 @media (max-width:640px){ :root{ --col: calc(30 * 1.0625rem); } }
+
+
+/* 15) 结尾：细分隔线 + 相思句 */
+.cdp-tail{ margin:20px auto 4px; max-width:420px; text-align:center; }
+.tail-rule{
+  height:1px; margin:0 0 16px;
+  background:linear-gradient(90deg, transparent, rgba(var(--ink-rgb),.26), transparent);
+  position:relative;
+}
+.tail-rule::after{
+  content:"✦"; position:absolute; left:50%; top:-9px; transform:translateX(-50%);
+  font-size:.6rem; color:rgba(var(--ink-rgb),.38); background:var(--paper); padding:0 6px;
+}
+.tail-poem{
+  font-family:var(--font-serif); font-size:.9rem; line-height:2;
+  letter-spacing:.1em; color:rgba(var(--ink-rgb),.5); margin:0;
+}
+@media print{ .tail-rule::after{ background:transparent; } }
