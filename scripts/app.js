@@ -781,7 +781,9 @@
   }
 
   /* 拖拽排序状态：拖拽期间禁止重建列表/刷新编号 */
-  var SORT = { active: false, li: null, text: "", startY: 0, dy: 0, from: -1, to: -1 };
+  var SORT = { active: false, li: null, text: "", startY: 0, dy: 0, from: -1, to: -1, scrollBase: 0 };
+  var AUTO_SCROLL = { raf: 0, dir: 0 };
+  var ev0Y = 0;
   function isSorting() { return SORT.active; }
 
   function hasOpenScore() {
@@ -1133,6 +1135,7 @@
       SORT.active = true; SORT.li = li; SORT.text = li.getAttribute("data-text");
       SORT.startY = ev.clientY; SORT.dy = 0;
       SORT.from = Array.prototype.indexOf.call(list.children, li);
+      SORT.scrollBase = 0;
       SORT.to = SORT.from;
       li.classList.add("is-dragging");
       li.classList.add("is-drag-src");
@@ -1141,9 +1144,30 @@
       ev.preventDefault();
     }, { passive: false });
 
+    function startAutoScroll() {
+      if (AUTO_SCROLL.raf) return;
+      function tick() {
+        if (!SORT.active || !AUTO_SCROLL.dir) { AUTO_SCROLL.raf = 0; return; }
+        var before = window.pageYOffset;
+        window.scrollBy(0, AUTO_SCROLL.dir * 12);
+        var moved = window.pageYOffset - before;
+        /* 滚动量补回 dy，避免被拖的那一行「粘住」指针 */
+        if (moved) {
+          SORT.scrollBase += moved;
+          if (SORT.li) SORT.li.style.setProperty("--dy", (ev0Y - SORT.startY + SORT.scrollBase) + "px");
+        }
+        AUTO_SCROLL.raf = window.requestAnimationFrame(tick);
+      }
+      AUTO_SCROLL.raf = window.requestAnimationFrame(tick);
+    }
+
     list.addEventListener("pointermove", function (ev) {
       if (!SORT.active || !SORT.li) return;
-      SORT.dy = ev.clientY - SORT.startY;
+      ev0Y = ev.clientY;
+      SORT.dy = ev.clientY - SORT.startY + SORT.scrollBase;
+      var vh = window.innerHeight, edge = 90;
+      AUTO_SCROLL.dir = ev.clientY < edge ? -1 : (ev.clientY > vh - edge ? 1 : 0);
+      if (AUTO_SCROLL.dir) startAutoScroll();
       SORT.li.style.setProperty("--dy", SORT.dy + "px");
       var rows = Array.prototype.slice.call(list.children);
       var h = SORT.li.offsetHeight || 60;
@@ -1164,6 +1188,7 @@
 
     function endSort() {
       if (!SORT.active) return;
+      AUTO_SCROLL.dir = 0;
       var li = SORT.li, text = SORT.text, to = SORT.to, from = SORT.from;
       if (li) {
         li.classList.remove("is-dragging", "is-drag-src");
