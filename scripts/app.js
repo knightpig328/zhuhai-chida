@@ -1135,7 +1135,7 @@
       SORT.active = true; SORT.li = li; SORT.text = li.getAttribute("data-text");
       SORT.startY = ev.clientY; SORT.dy = 0;
       SORT.from = Array.prototype.indexOf.call(list.children, li);
-      SORT.scrollBase = 0;
+      SORT.scrollBase = window.pageYOffset;
       SORT.names = Array.prototype.map.call(list.children, function (r) { return r.getAttribute("data-text"); });
       SORT.to = SORT.from;
       li.classList.add("is-dragging");
@@ -1149,13 +1149,11 @@
       if (AUTO_SCROLL.raf) return;
       function tick() {
         if (!SORT.active || !AUTO_SCROLL.dir) { AUTO_SCROLL.raf = 0; return; }
-        var before = window.pageYOffset;
-        window.scrollBy(0, AUTO_SCROLL.dir * 3);
-        var moved = window.pageYOffset - before;
-        /* 滚动量补回 dy，避免被拖的那一行「粘住」指针 */
-        if (moved) {
-          SORT.scrollBase += moved;
-          if (SORT.li) SORT.li.style.setProperty("--dy", (ev0Y - SORT.startY + SORT.scrollBase) + "px");
+        window.scrollBy(0, AUTO_SCROLL.dir * 4);
+        /* 直接写 transform（跳过 CSS 变量），减少每帧的 style 重算 */
+        if (SORT.li) {
+          var dy = (ev0Y - SORT.startY) + (window.pageYOffset - SORT.scrollBase);
+          SORT.li.style.transform = "translate3d(0," + dy + "px,0) scale(1.012)";
         }
         AUTO_SCROLL.raf = window.requestAnimationFrame(tick);
       }
