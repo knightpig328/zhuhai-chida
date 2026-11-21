@@ -124,3 +124,12 @@
   font-size: .78em;
   letter-spacing: .01em;
 }
+
+
+/* 10) 全站统一楷体（turn.css 最后加载，变量覆盖 token 区） */
+:root{
+  --font-serif:'KaiTi Web','KaiTi','STKaiti','Kaiti SC','楷体',serif;
+  --font-sans:'KaiTi Web','KaiTi','STKaiti','Kaiti SC','楷体',serif;
+  --font-mono:'KaiTi Web','KaiTi','STKaiti','Kaiti SC','楷体',serif;
+  --font-display:'KaiTi Web','KaiTi','STKaiti','Kaiti SC','楷体',serif;
+}
