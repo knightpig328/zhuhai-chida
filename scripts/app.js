@@ -275,6 +275,32 @@
     return net.get;
   }
 
+  function applyDoc(doc, silent) {
+    if (!doc) return false;
+    TS = mergeState(TS, doc);
+    scanMax();
+    var st = buildState(TS);
+    state.done = st.done;
+    state.extra = st.extra;
+    ADDR = st.addr || {};
+    if (silent) { save(); return false; }
+    hydrated = true;
+    save();
+    if (isEditing()) { pendingRender = true; return false; }
+    pendingRender = false;
+    if (root.classList.contains("cdp-boot")) root.classList.remove("cdp-boot");
+    render();
+    return true;
+  }
+
+  function snapshot() {
+    return { v: 3, rev: (TS.rev || 0) + 1, updatedAt: new Date().toISOString(), done: TS.done || {}, extra: TS.extra || {}, del: TS.del || {}, addr: TS.addr || {} };
+  }
+  function contentKey(d) {
+    return JSON.stringify({ d: d.done || {}, e: d.extra || {}, x: d.del || {}, a: d.addr || {} });
+  }
+
+
   function patchOnce(retry) {
     return fetchData().then(function (res) {
       if (res && res.doc) applyDoc(res.doc, true);
