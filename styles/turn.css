@@ -251,7 +251,7 @@
 
 /* 16c) 手机名字不换行：字号与字距收一点，6 字名一行放得下 */
 @media (max-width:640px){
-  #cdp .cdp-name{ font-size:1.35rem; letter-spacing:.02em; white-space:nowrap; }
+  #cdp .cdp-name{ font-size:1.35rem; letter-spacing:.02em; white-space:normal; overflow-wrap:anywhere; }
   #cdp .cdp-rate{ grid-column:6; grid-row:1; align-self:center; margin-top:-12px; }
   #cdp .cdp-del{ grid-column:5; grid-row:1; align-self:center; margin-top:-6px; opacity:.55; }
   #cdp .cdp-map{ grid-column:6; grid-row:2; align-self:center; margin-top:-4px; }

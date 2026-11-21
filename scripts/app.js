@@ -1,4 +1,4 @@
-  var BUILD_VER = "20261128o";
+  var BUILD_VER = "20261128p";
 (function () {
   var root = document.getElementById("cdp");
   if (!root) return;
@@ -581,7 +581,7 @@
       if (res && res.doc) {
         hydrated = true;
         applyDoc(res.doc);
-        setBadge(TOKEN ? "已取最新" : "只读·点我绑定", TOKEN ? "ok" : "warn");
+        setBadge(res && res.viaWorker ? "已取最新" : "只读·未连上", res && res.viaWorker ? "ok" : "warn");
         window.setTimeout(function () { if (badge && badge.textContent === "已取最新") setBadge("已同步", "ok"); }, 1600);
         return true;
       }
@@ -630,7 +630,7 @@
     if (net.pending || net.dirty) { setBadge("重试中", "busy"); saveData(); return; }
     setBadge("检测中", "busy");
     fetchData().then(function (res) {
-      if (res && res.doc) { applyDoc(res.doc); setBadge("已同步", "ok"); }
+      if (res && res.doc) { applyDoc(res.doc); setBadge(res.viaWorker ? "已同步" : "只读·未连上", res.viaWorker ? "ok" : "warn"); }
       else if (res && res.unchanged) { setBadge("已同步", "ok"); }
       else { setBadge(failText(lastErr), failState(lastErr)); }
     });
