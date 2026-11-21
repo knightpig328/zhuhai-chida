@@ -1163,25 +1163,25 @@
     list.addEventListener("pointermove", function (ev) {
       if (!SORT.active || !SORT.li) return;
       ev0Y = ev.clientY;
-      SORT.dy = ev.clientY - SORT.startY + SORT.scrollBase;
-      var vh = window.innerHeight, edge = 90;
-      AUTO_SCROLL.dir = ev.clientY < edge ? -1 : (ev.clientY > vh - edge ? 1 : 0);
-      if (AUTO_SCROLL.dir) startAutoScroll();
+      SORT.dy = ev.clientY - SORT.startY + (window.pageYOffset - SORT.scrollBase);
       SORT.li.style.setProperty("--dy", SORT.dy + "px");
       var rows = Array.prototype.slice.call(list.children);
       var h = SORT.li.offsetHeight || 60;
       var to = Math.max(0, Math.min(rows.length - 1, SORT.from + Math.round(SORT.dy / h)));
       if (to !== SORT.to) {
         SORT.to = to;
-        rows.forEach(function (r, i) { r.classList.toggle("is-shift", i !== SORT.from); });
         for (var i = 0; i < rows.length; i++) {
           if (i === SORT.from) continue;
           var shift = 0;
           if (SORT.from < to && i > SORT.from && i <= to) shift = -h;
           if (SORT.from > to && i >= to && i < SORT.from) shift = h;
+          rows[i].classList.add("is-shift");
           rows[i].style.setProperty("--shift", shift + "px");
         }
       }
+      var vh = window.innerHeight, edge = 90;
+      AUTO_SCROLL.dir = ev.clientY < edge ? -1 : (ev.clientY > vh - edge ? 1 : 0);
+      if (AUTO_SCROLL.dir) startAutoScroll();
       ev.preventDefault();
     }, { passive: false });
 
