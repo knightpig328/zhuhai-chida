@@ -891,6 +891,7 @@
       var on = !!state.done[t];
       li.classList.toggle("is-done", on);
       syncScratch(li);
+      paintScoreTag(li, t);
       var tick = li.querySelector(".cdp-tick");
       if (tick) tick.setAttribute("aria-pressed", on ? "true" : "false");
       var idx = li.querySelector(".cdp-idx");
