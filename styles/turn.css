@@ -259,8 +259,8 @@
 @media (max-width:640px){
   #cdp .cdp-addr{ font-size:.72em; padding:1px 4px; grid-column:1 / 5; width:100%; }
   #cdp .cdp-map{ grid-area:2 / 5 / 3 / 6; justify-self:end; }
-  #cdp .cdp-rate{ grid-area:2 / 6 / 3 / 7; }
-  #cdp .cdp-del{ grid-area:2 / 7 / 3 / 8; }
+  #cdp .cdp-rate{ grid-area:1 / 6 / 2 / 7; }
+  #cdp .cdp-del{ grid-area:1 / 7 / 2 / 8; opacity:.55; }
 }
 
 @keyframes cdpScoreIn{

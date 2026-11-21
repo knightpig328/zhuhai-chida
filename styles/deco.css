@@ -163,9 +163,9 @@ footer::before{
 body::before{
   content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
   background-image:
-    radial-gradient(circle at 0 0, rgba(var(--ink-rgb),.075) 0 .9px, transparent 1.1px),
+    radial-gradient(circle at 1px 1px, rgba(var(--ink-rgb),.11) 0 1.1px, transparent 1.6px),
     radial-gradient(120% 70% at 8% 0%, rgba(var(--accent-rgb),.05), transparent 62%);
-  background-size:22px 22px, auto;
+  background-size:20px 20px, auto;
   background-repeat:repeat, no-repeat;
   opacity:1;
   mix-blend-mode:multiply;
@@ -179,7 +179,7 @@ body::before{
 /* 14) 窄屏不显示木纹（cover 拉伸会把年轮压成竖条） */
 @media (max-width:900px){
   body::before{
-    background-size:18px 18px, auto;
+    background-size:16px 16px, auto;
     opacity:.85;
   }
 }
