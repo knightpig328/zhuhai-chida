@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>珠海 · 大吃特吃</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E%E2%9C%A6%3C/text%3E%3C/svg%3E">
 <style>/* GZ:TOKENS:START · guizang-design v0.1.0 生成，不要手改；改设计请改 guizang-design 后运行 scripts/sync-skill.mjs */
 :root{
   --font-display:'Playfair Display','Noto Serif SC','Source Han Serif SC','Songti SC',serif;
@@ -2129,6 +2130,56 @@
   }
   /* 成品页不保留字体/配色设置按钮，避免任何在线字体入口 */
   .hf-fab, .toc, .toc-scrim, .toc-toggle { display: none !important; }
+
+  /* ==== 2026-11-22 第二轮：同步正确性 + 动画编排 + 角标主题化（追加覆盖区） ==== */
+  /* 地址栏：颜色改走 ink-rgb（--ink-3/--ink-4 全文未定义，--rule 是 border 简写不是颜色） */
+  #cdp .cdp-addr{color:rgba(var(--ink-rgb),.55);box-shadow:none!important}
+  #cdp .cdp-addr:hover{border-color:rgba(var(--ink-rgb),.22);background:rgba(var(--ink-rgb),.03)}
+  #cdp .cdp-addr:focus{border-color:var(--accent);background:rgba(var(--ink-rgb),.04);color:var(--fg,var(--ink));box-shadow:none!important}
+  #cdp .cdp-addr:empty::before{color:rgba(var(--ink-rgb),.3)}
+  /* 重建时抑制重放：只关 box pop 与删除线过渡，不关 row 级入场/退场动画 */
+  #cdp .cdp-list.no-anim .cdp-box{animation:none!important}
+  #cdp .cdp-list.no-anim .cdp-name::after{transition:none!important}
+  #cdp .cdp-list.no-anim .cdp-name{transition:none!important}
+  #cdp .cdp-list.no-anim .cdp-flag{transition:none!important}
+  /* 角标：四态走主题 token（浅色） */
+  #cdp .cdp-sync{
+    margin-left:auto;font-size:11px;padding:2px 9px;border-radius:20px;white-space:nowrap;cursor:pointer;
+    border:1px solid rgba(var(--ink-rgb),.14);color:rgba(var(--ink-rgb),.62);background:rgba(var(--ink-rgb),.06);
+    transition:color .2s,background .2s,border-color .2s;
+  }
+  #cdp .cdp-sync[data-state="busy"]{color:var(--accent-ink);background:rgba(var(--accent-rgb),.10);border-color:rgba(var(--accent-rgb),.30)}
+  #cdp .cdp-sync[data-state="ok"]{color:#1d6f47;background:rgba(29,111,71,.10);border-color:rgba(29,111,71,.30)}
+  #cdp .cdp-sync[data-state="fail"]{color:#9a4a12;background:rgba(154,74,18,.10);border-color:rgba(154,74,18,.32)}
+  /* 角标：深色主题（midnight-ink）单独抬高对比 */
+  [data-scheme="dark"] #cdp .cdp-sync{color:rgba(var(--ink-rgb),.74);background:rgba(var(--ink-rgb),.10);border-color:rgba(var(--ink-rgb),.22)}
+  [data-scheme="dark"] #cdp .cdp-sync[data-state="busy"]{color:var(--accent-ink);background:rgba(var(--accent-rgb),.18);border-color:rgba(var(--accent-rgb),.40)}
+  [data-scheme="dark"] #cdp .cdp-sync[data-state="ok"]{color:#7fd6a3;background:rgba(127,214,163,.14);border-color:rgba(127,214,163,.34)}
+  [data-scheme="dark"] #cdp .cdp-sync[data-state="fail"]{color:#f0b27a;background:rgba(240,178,122,.14);border-color:rgba(240,178,122,.36)}
+  /* 触屏：没有 hover，删除按钮必须可见 */
+  @media (hover:none){
+    #cdp .cdp-del{opacity:.45}
+    #cdp .cdp-row.is-done .cdp-del{opacity:.35}
+  }
+  /* 打印：地址完整带出去，去框去底，空地址不占位，角标不打印 */
+  @media print{
+    #cdp .cdp-sync{display:none!important}
+    #cdp .cdp-addr{
+      border:0!important;background:none!important;box-shadow:none!important;color:var(--fg)!important;
+      padding:0!important;min-width:0;max-width:none!important;white-space:normal!important;
+      overflow:visible!important;text-overflow:clip!important;
+    }
+    #cdp .cdp-addr:focus{border:0!important}
+    #cdp .cdp-addr:empty{display:none!important}
+    #cdp .cdp-addr:empty::before{content:""!important}
+    #cdp .cdp-row{column-gap:8px;flex-wrap:nowrap!important}
+    #cdp .cdp-addr{flex-basis:auto!important;margin-left:0!important}
+    .hero h1{margin-bottom:0!important}
+  }
+  /* 删副标题后收紧 hero 空洞（32+36=68px -> 4+12=16px）；只覆盖，不改 GZ:TOKENS 与 magazine 原文 */
+  .hero h1{margin-bottom:4px}
+  .hero::after{margin-top:12px}
+
 </style>
 </head>
 <body>
@@ -2329,15 +2380,42 @@
     row.removeAttribute("contenteditable");
   });
 
+  var raf = window.requestAnimationFrame ? function (fn) { return window.requestAnimationFrame(fn); } : function (fn) { return window.setTimeout(fn, 16); };
+  var mqReduce = null;
+  try { mqReduce = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null; } catch (e) {}
+  function reducedMotion() { return !!(mqReduce && mqReduce.matches); }
+
   /* ===== 协同层 ===== */
   var CFG_KEY = "cdp-sync-cfg-v1";
   var GIST = { id: "4bb6f3b536c05a65de7132179a8826e9", file: "zhuhai-chida.json" };
   var TOKEN = "", ETAG = "";
   var TS = { done: {}, extra: {}, del: {}, addr: {} };
   var ADDR = {};
-  var pushTimer = 0, pollTimer = 0, failCount = 0;
-
   var state = { done: {}, extra: [] };
+  var pushTimer = 0, pollTimer = 0, failCount = 0, pendingRender = false, leaving = 0, maxTs = 0;
+  var net = { get: null, getAt: 0, patch: null, dirty: false, pending: false };
+
+  /* --- 地址归一化：{t,v} / 旧字符串 / 垃圾 --- */
+  function normAddr(e) {
+    if (typeof e === "string") return { t: 0, v: e };
+    if (e && typeof e === "object" && typeof e.v === "string") {
+      var t = typeof e.t === "number" && isFinite(e.t) ? e.t : 0;
+      return { t: t, v: e.v };
+    }
+    return null;
+  }
+  function pickAddr(x, y) {
+    var a = normAddr(x), b = normAddr(y);
+    if (!a) return b;
+    if (!b) return a;
+    if (b.t > a.t) return b;
+    if (b.t < a.t) return a;
+    return String(b.v) > String(a.v) ? b : a;
+  }
+  function own(o, k) { return Object.prototype.hasOwnProperty.call(o, k); }
+  function has(arr, v) { return arr.indexOf(v) !== -1; }
+
+  /* --- 本地装载 --- */
   try {
     var raw = window.localStorage.getItem(KEY);
     if (raw) {
@@ -2346,74 +2424,129 @@
         state.done = p.done && typeof p.done === "object" ? p.done : {};
         state.extra = Array.isArray(p.extra) ? p.extra.filter(function (t) { return typeof t === "string" && t; }) : [];
         if (p.TS && typeof p.TS === "object") {
-          TS.done = p.TS.done || {}; TS.extra = p.TS.extra || {}; TS.del = p.TS.del || {};
+          TS.done = p.TS.done && typeof p.TS.done === "object" ? p.TS.done : {};
+          TS.extra = p.TS.extra && typeof p.TS.extra === "object" ? p.TS.extra : {};
+          TS.del = p.TS.del && typeof p.TS.del === "object" ? p.TS.del : {};
+          if (typeof p.TS.rev === "number") TS.rev = p.TS.rev;
+          var savedAddr = p.TS.addr && typeof p.TS.addr === "object" ? p.TS.addr : {};
+          Object.keys(savedAddr).forEach(function (k) {
+            var n = normAddr(savedAddr[k]);
+            if (n) TS.addr[k] = n;
+          });
         }
       }
     }
   } catch (e) {}
-  if (!TS.done) TS.done = {};
-  /* 迁移：无 TS 时按现状 seed */
+
+  /* 迁移：无 done 时间戳时按现状 seed */
   if (!Object.keys(TS.done).length) {
     Object.keys(state.done).forEach(function (k) { if (state.done[k]) TS.done[k] = Date.now() - 1000; });
     state.extra.forEach(function (t, i) { if (!TS.extra[t]) TS.extra[t] = Date.now() - 1000 + i; });
   }
 
-  function save() { try { window.localStorage.setItem(KEY, JSON.stringify({ done: state.done, extra: state.extra, TS: TS })); } catch (e) {} }
-  function has(arr, v) { return arr.indexOf(v) !== -1; }
+  function scanMax() {
+    ["done", "extra", "del"].forEach(function (f) {
+      var o = TS[f] || {};
+      Object.keys(o).forEach(function (k) { var v = Math.abs(Number(o[k]) || 0); if (v > maxTs) maxTs = v; });
+    });
+    var a = TS.addr || {};
+    Object.keys(a).forEach(function (k) { var n = normAddr(a[k]); if (n && n.t > maxTs) maxTs = n.t; });
+  }
+  function tsNow() { var t = Math.max(Date.now(), maxTs + 1); maxTs = t; return t; }
 
-  /* --- 同步状态角标 --- */
+  function hydrateAddr() {
+    ADDR = {};
+    Object.keys(TS.addr || {}).forEach(function (k) {
+      var a = normAddr(TS.addr[k]);
+      if (!a) return;
+      var d = TS.del && TS.del[k];
+      if (typeof d === "number" && d >= a.t) return;
+      ADDR[k] = a.v;
+    });
+  }
+
+  function save() {
+    try { window.localStorage.setItem(KEY, JSON.stringify({ done: state.done, extra: state.extra, TS: TS })); } catch (e) {}
+  }
+  function markPending(v) {
+    try { if (v) window.localStorage.setItem(KEY + ":pending", "1"); else window.localStorage.removeItem(KEY + ":pending"); } catch (e) {}
+  }
+  function readPending() { try { return window.localStorage.getItem(KEY + ":pending") === "1"; } catch (e) { return false; } }
+
+  /* --- 同步状态角标（配色交给 CSS 的 data-state） --- */
   var badge = document.createElement("span");
   badge.className = "cdp-sync";
-  badge.style.cssText = "margin-left:auto;font-size:11px;padding:2px 9px;border-radius:20px;background:rgba(128,128,128,.12);color:#888;white-space:nowrap;transition:all .2s";
+  badge.setAttribute("role", "status");
+  badge.setAttribute("aria-live", "polite");
+  badge.setAttribute("title", "同步状态，点我重试");
+  badge.setAttribute("data-state", "local");
   var head = root.querySelector(".cdp-head");
   if (head) head.appendChild(badge);
-  function setBadge(txt, color) {
+  function setBadge(txt, st) {
     if (!badge) return;
+    st = st || "local";
+    if (badge.textContent === txt && badge.getAttribute("data-state") === st) return;
     badge.textContent = txt;
-    badge.style.color = color;
-    badge.style.background = color === "#3ddc84" ? "rgba(61,220,132,.15)" : (color === "#ffb74d" ? "rgba(255,183,77,.15)" : "rgba(128,128,128,.12)");
+    badge.setAttribute("data-state", st);
   }
 
   /* --- 配置读写 --- */
   function loadCfg() { try { return JSON.parse(window.localStorage.getItem(CFG_KEY) || "null"); } catch (e) { return null; } }
   function saveCfg(c) { try { window.localStorage.setItem(CFG_KEY, JSON.stringify(c)); } catch (e) {} }
 
-  /* --- base64 --- */
-
   function api(url, opt) {
     opt = opt || {}; opt.cache = "no-store";
     opt.headers = Object.assign({ "Accept": "application/vnd.github+json", "Authorization": "Bearer " + TOKEN, "Content-Type": "application/json" }, opt.headers || {});
+    var ctl = null, timer = 0;
+    try { if (window.AbortController) { ctl = new AbortController(); opt.signal = ctl.signal; } } catch (e) {}
+    if (ctl) timer = window.setTimeout(function () { try { ctl.abort(); } catch (e) {} }, 12000);
+    function stop() { if (timer) { window.clearTimeout(timer); timer = 0; } }
     return fetch(url, opt).then(function (r) {
+      stop();
       if (r.status === 304) return { notModified: true };
       if (r.status === 409 || r.status === 422) { var e = new Error("conflict"); e.code = 409; throw e; }
       if (!r.ok) { var e2 = new Error("http " + r.status); e2.code = r.status; throw e2; }
       ETAG = r.headers.get("ETag") || ETAG;
       return r.json();
-    });
+    }, function (err) { stop(); throw err; });
   }
 
+  function readDoc(j) {
+    if (!j || j.notModified) return null;
+    var f = j.files && j.files[GIST.file];
+    if (!f || f.truncated) return null;
+    try { return JSON.parse(f.content); } catch (e) { return null; }
+  }
+
+  /* 单飞拉取：5s 轮询 / focus / 可见性 / 点击 共用一次请求 */
   function fetchData() {
     if (!TOKEN) return Promise.resolve(null);
+    if (net.get) return net.get;
     var h = ETAG ? { "If-None-Match": ETAG } : {};
-    return api("https://api.github.com/gists/" + GIST.id, { headers: h })
+    net.getAt = Date.now();
+    var base = api("https://api.github.com/gists/" + GIST.id, { headers: h })
       .then(function (j) {
         if (j.notModified) return { unchanged: true };
-        var f = j.files && j.files[GIST.file];
-        if (!f || f.truncated) return null;
-        return { doc: JSON.parse(f.content) };
+        var doc = readDoc(j);
+        return doc ? { doc: doc } : null;
       })
-      .catch(function (e) { return null; });
+      .catch(function () { return null; });
+    net.get = base.then(function (r) { net.get = null; return r; }, function () { net.get = null; return null; });
+    return net.get;
   }
 
   function mergeState(a, b) {
-    var out = { v: 2, rev: 0, updatedAt: new Date().toISOString(), done: {}, extra: {}, del: {}, addr: {} };
-    ["done", "extra", "del", "addr"].forEach(function (f) {
+    var out = { v: 3, rev: 0, updatedAt: new Date().toISOString(), done: {}, extra: {}, del: {}, addr: {} };
+    ["done", "extra", "del"].forEach(function (f) {
       var x = (a && a[f]) || {}, y = (b && b[f]) || {}, m = out[f];
       Object.keys(x).forEach(function (k) { m[k] = x[k]; });
       Object.keys(y).forEach(function (k) {
-        if (!(k in m) || Math.abs(y[k]) > Math.abs(m[k]) || (Math.abs(y[k]) === Math.abs(m[k]) && String(y[k]) > String(m[k]))) m[k] = y[k];
+        if (!own(m, k) || Math.abs(y[k]) > Math.abs(m[k]) || (Math.abs(y[k]) === Math.abs(m[k]) && String(y[k]) > String(m[k]))) m[k] = y[k];
       });
     });
+    var ax = (a && a.addr) || {}, ay = (b && b.addr) || {};
+    Object.keys(ax).forEach(function (k) { var n = normAddr(ax[k]); if (n) out.addr[k] = n; });
+    Object.keys(ay).forEach(function (k) { var n = pickAddr(out.addr[k], ay[k]); if (n) out.addr[k] = n; });
     out.rev = Math.max((a && a.rev) || 0, (b && b.rev) || 0) + 1;
     return out;
   }
@@ -2421,70 +2554,112 @@
   function buildState(doc) {
     var st = { done: {}, extra: [], addr: {} };
     Object.keys(doc.done || {}).forEach(function (k) { if (doc.done[k] > 0) st.done[k] = 1; });
-    st.extra = Object.keys(doc.extra || {}).filter(function (k) {
+    Object.keys(doc.extra || {}).forEach(function (k) {
       var d = doc.del && doc.del[k];
-      return !(d && Math.abs(d) >= Math.abs(doc.extra[k]));
-    }).sort(function (x, y) { return doc.extra[x] - doc.extra[y]; });
-    Object.keys(doc.addr || {}).forEach(function (k2) {
-      var a = doc.addr[k2];
-      var tv = doc.done && doc.done[k2];
-      /* 负数 = 该条已删，地址作废 */
-      if (a && typeof a === "object" && typeof a.v === "string" && !(tv < 0)) st.addr[k2] = a.v;
+      if (!(typeof d === "number" && Math.abs(d) >= Math.abs(doc.extra[k]))) st.extra.push(k);
+    });
+    st.extra.sort(function (x, y) { return doc.extra[x] - doc.extra[y]; });
+    Object.keys(doc.addr || {}).forEach(function (k) {
+      var a = normAddr(doc.addr[k]);
+      if (!a) return;
+      var d = doc.del && doc.del[k];
+      if (typeof d === "number" && d >= a.t) return;   /* 删得比填得晚 => 作废 */
+      st.addr[k] = a.v;                                /* 空串也保留，压住旧值防回灌 */
     });
     return st;
   }
 
-  function applyDoc(doc) {
-    TS = mergeState(TS, doc);
-    var st = buildState(TS);
-    state.done = st.done; state.extra = st.extra;
-    Object.keys(st.addr || {}).forEach(function (k3) { ADDR[k3] = st.addr[k3]; });
-    save(); render();
+  function isEditing() {
+    var a = document.activeElement;
+    if (!a || a === document.body) return false;
+    if (a === input) return true;
+    try { return !!(a.isContentEditable && root.contains(a)); } catch (e) { return false; }
   }
 
-  function saveData(doc, retry) {
-    retry = retry || 0;
+  function applyDoc(doc, silent) {
+    if (!doc) return;
+    TS = mergeState(TS, doc);
+    scanMax();
+    var st = buildState(TS);
+    state.done = st.done;
+    state.extra = st.extra;
+    save();
+    if (silent) return;
+    if (isEditing()) { pendingRender = true; return; }
+    ADDR = st.addr || {};
+    pendingRender = false;
+    if (root.classList.contains("cdp-boot")) root.classList.remove("cdp-boot");
+    render();
+  }
+
+  function snapshot() {
+    return { v: 3, rev: (TS.rev || 0) + 1, updatedAt: new Date().toISOString(), done: TS.done || {}, extra: TS.extra || {}, del: TS.del || {}, addr: TS.addr || {} };
+  }
+
+  function patchOnce(retry) {
+    return fetchData().then(function (res) {
+      if (res && res.doc) applyDoc(res.doc, true);
+      var doc = snapshot();
+      var body = { files: {} };
+      body.files[GIST.file] = { content: JSON.stringify(doc, null, 1) };
+      setBadge("同步中", "busy");
+      return api("https://api.github.com/gists/" + GIST.id, { method: "PATCH", body: JSON.stringify(body), keepalive: true })
+        .then(function () { failCount = 0; setBadge("已同步", "ok"); return true; }, function (e) {
+          if (e && e.code === 409 && retry < 3) {
+            setBadge("同步中·重试", "busy");
+            return new Promise(function (r) { window.setTimeout(r, 400 * Math.pow(2, retry)); }).then(function () { return patchOnce(retry + 1); });
+          }
+          throw (e || new Error("push failed"));
+        });
+    });
+  }
+
+  function saveData() {
     if (!TOKEN) return Promise.resolve(false);
-    doc.updatedAt = new Date().toISOString();
-    var body = { files: {} };
-    body.files[GIST.file] = { content: JSON.stringify(doc, null, 1) };
-    setBadge("同步中", "#888");
-    return api("https://api.github.com/gists/" + GIST.id, { method: "PATCH", body: JSON.stringify(body) })
-      .then(function (j) { failCount = 0; setBadge("已同步·刚刚", "#3ddc84"); return true; })
-      .catch(function (e) {
-        if (e.code === 409 && retry < 3) {
-          setBadge("同步中·重试", "#888");
-          return new Promise(function (r) { setTimeout(r, 400 * Math.pow(2, retry)); })
-            .then(fetchData).then(function (fresh) {
-              if (fresh && fresh.doc) applyDoc(fresh.doc);
-              return saveData(TS, retry + 1);
-            });
-        }
+    if (net.patch) { net.dirty = true; markPending(true); return net.patch; }
+    net.dirty = false; net.pending = true; markPending(true);
+    var chain = (function loop() {
+      return patchOnce(0).then(function (ok) {
+        net.pending = false; markPending(false);
+        if (net.dirty) { net.dirty = false; return loop(); }
+        return ok;
+      }, function () {
+        net.pending = true; markPending(true);
         failCount++;
-        setBadge(failCount >= 3 ? "同步不上·点我重试" : "待同步·点我重试", "#ffb74d");
+        setBadge(failCount >= 3 ? "同步不上·点我重试" : "待同步·点我重试", "fail");
         return false;
       });
+    })();
+    net.patch = chain.then(function (v) { net.patch = null; return v; }, function () { net.patch = null; return false; });
+    return net.patch;
   }
 
   function push() {
-    if (!TOKEN) { setBadge("已存本机", "#888"); return; }
-    setBadge("同步中", "#888");
-    clearTimeout(pushTimer);
-    pushTimer = setTimeout(function () { saveData(TS); }, 1200);
+    if (!TOKEN) { setBadge("已存本机", "local"); return; }
+    net.dirty = true; net.pending = true; markPending(true);
+    setBadge("待同步", "busy");
+    window.clearTimeout(pushTimer);
+    pushTimer = window.setTimeout(function () { pushTimer = 0; saveData(); }, 1200);
   }
-  function flushNow() { if (pushTimer && TOKEN) { clearTimeout(pushTimer); pushTimer = 0; saveData(TS); } }
+  function flushNow() {
+    if (!TOKEN) return;
+    window.clearTimeout(pushTimer); pushTimer = 0;
+    if (net.patch) { net.dirty = true; markPending(true); return; }
+    saveData();
+  }
   if (badge) badge.addEventListener("click", function () {
-    if (!TOKEN) { setBadge("未配置 token", "#888"); return; }
+    if (!TOKEN) { setBadge("仅本机", "local"); return; }
     failCount = 0;
-    setBadge("检测中", "#888");
+    if (net.pending || net.dirty) { setBadge("重试中", "busy"); saveData(); return; }
+    setBadge("检测中", "busy");
     fetchData().then(function (res) {
-      if (res && res.doc) {
-        applyDoc(res.doc);
-        setBadge("已同步·刚拉取  rev" + (res.doc.rev || "?"), "#3ddc84");
-      } else { setBadge("拉取失败·点我重试", "#ffb74d"); }
+      if (res && res.doc) { applyDoc(res.doc); setBadge("已同步", "ok"); }
+      else if (res && res.unchanged) { setBadge("已同步·无变化", "ok"); }
+      else { setBadge("拉取失败·点我重试", "fail"); }
     });
   });
 
+  /* --- 渲染 --- */
   function rowEl(text, isExtra) {
     var li = document.createElement("li");
     li.className = "cdp-row";
@@ -2497,56 +2672,104 @@
     var idx = document.createElement("span"); idx.className = "cdp-idx";
     var name = document.createElement("span"); name.className = "cdp-name"; name.textContent = text;
     var flag = document.createElement("span"); flag.className = "cdp-flag"; flag.textContent = "已吃";
-    li.appendChild(tick); li.appendChild(idx); li.appendChild(name); li.appendChild(flag);
     var addr = document.createElement("span");
     addr.className = "cdp-addr";
     addr.setAttribute("contenteditable", "true");
     addr.setAttribute("role", "textbox");
     addr.setAttribute("aria-label", text + " 的地址");
     addr.setAttribute("data-ph", "加地址");
-    addr.setAttribute("data-for", text);
     addr.textContent = ADDR[text] || "";
     addr.addEventListener("click", function (ev) { ev.stopPropagation(); });
     addr.addEventListener("mousedown", function (ev) { ev.stopPropagation(); });
     addr.addEventListener("keydown", function (ev) {
+      if (ev.isComposing || ev.keyCode === 229) return;
       if (ev.key === "Enter") { ev.preventDefault(); addr.blur(); }
-      else if (ev.key === "Escape") { addr.textContent = ADDR[text] || ""; addr.blur(); }
+      else if (ev.key === "Escape") { ev.preventDefault(); addr.textContent = ADDR[text] || ""; addr.blur(); }
     });
     addr.addEventListener("focusout", function () {
       var v = (addr.textContent || "").replace(/\s+/g, " ").trim().slice(0, 40);
       addr.textContent = v;
-      ADDR[text] = v;
-      TS.addr[text] = { t: Date.now(), v: v };
-      save(); push();
+      if (has(BASE, text) || has(state.extra, text)) {
+        var old = own(ADDR, text) ? ADDR[text] : "";
+        if (v !== old) {
+          ADDR[text] = v;
+          TS.addr[text] = { t: tsNow(), v: v };
+          save(); push();
+        }
+      }
+      if (pendingRender) window.setTimeout(function () {
+        if (pendingRender && !isEditing()) { pendingRender = false; render(); }
+      }, 0);
     });
-    li.appendChild(addr);
-    if (!(text in ADDR)) ADDR[text] = (TS.addr[text] && TS.addr[text].v) || "";
+    li.appendChild(tick); li.appendChild(idx); li.appendChild(name); li.appendChild(addr); li.appendChild(flag);
     if (isExtra) {
       var del = document.createElement("button");
       del.type = "button"; del.className = "cdp-del"; del.textContent = "×";
       del.setAttribute("aria-label", "删掉 " + text);
-      del.addEventListener("click", function (ev) {
-        ev.stopPropagation();
-        state.extra = state.extra.filter(function (t) { return t !== text; });
-        delete state.done[text];
-        TS.del[text] = Date.now();
-        save(); push(); render();
-      });
+      del.addEventListener("click", function (ev) { ev.stopPropagation(); removeRow(li, text); });
       li.appendChild(del);
     }
     li.addEventListener("click", function (ev) {
       if (ev.target && ev.target.closest && ev.target.closest(".cdp-del, .cdp-addr")) return;
-      if (state.done[text]) { delete state.done[text]; TS.done[text] = -Date.now(); }
-      else { state.done[text] = 1; TS.done[text] = Date.now(); }
+      if (li.classList.contains("is-leaving")) return;
+      if (state.done[text]) { delete state.done[text]; TS.done[text] = -tsNow(); }
+      else { state.done[text] = 1; TS.done[text] = tsNow(); }
       save(); push(); paint();
     });
     return li;
   }
-  function render() {
+
+  function removeRow(li, text) {
+    if (li.__leaving) return;
+    li.__leaving = true;
+    /* 先提交状态（避免轮询窗口里条目复活） */
+    var now = tsNow();
+    var prev = Math.abs(Number(TS.done[text]) || 0);
+    state.extra = state.extra.filter(function (t) { return t !== text; });
+    delete state.done[text];
+    TS.del[text] = now;
+    TS.addr[text] = { t: now, v: "" };
+    TS.done[text] = -Math.max(now, prev + 1);
+    delete ADDR[text];
+    save(); push();
+    if (reducedMotion()) { render({ force: true }); return; }
+    leaving++;
+    li.classList.add("is-leaving");
+    var fired = false;
+    var fin = function () {
+      if (fired) return;
+      fired = true;
+      li.removeEventListener("animationend", onEnd);
+      leaving = Math.max(0, leaving - 1);
+      render({ force: true });
+    };
+    var onEnd = function (e) { if (e && e.animationName && e.animationName !== "cdpOut") return; fin(); };
+    li.addEventListener("animationend", onEnd);
+    window.setTimeout(fin, 340);
+  }
+
+  function render(opts) {
+    opts = opts || {};
+    if (leaving > 0 && !opts.force) { pendingRender = true; return; }
+    var sy = window.pageYOffset || 0;
+    list.classList.add("no-anim");
     list.textContent = "";
     BASE.concat(state.extra).forEach(function (t) { list.appendChild(rowEl(t, has(state.extra, t))); });
     paint();
+    if (opts.enter) {
+      var rows = list.querySelectorAll(".cdp-row");
+      for (var i = 0; i < rows.length; i++) {
+        if (rows[i].getAttribute("data-text") === opts.enter) { rows[i].classList.add("is-enter"); break; }
+      }
+      window.setTimeout(function () {
+        Array.prototype.forEach.call(list.querySelectorAll(".is-enter"), function (n) { n.classList.remove("is-enter"); });
+      }, 480);
+    }
+    void list.offsetHeight;
+    if (sy) window.scrollTo(0, sy);
+    raf(function () { list.classList.remove("no-anim"); });
   }
+
   function paint() {
     var rows = list.querySelectorAll(".cdp-row");
     var done = 0;
@@ -2564,27 +2787,41 @@
     if (totalEl) totalEl.textContent = String(rows.length);
     if (fillEl) fillEl.style.width = rows.length ? (done / rows.length * 100).toFixed(1) + "%" : "0%";
   }
+
   if (form) {
     form.addEventListener("submit", function (ev) {
       ev.preventDefault();
-      var v = (input && input.value ? input.value : "").replace(/\s+/g, " ").trim();
-      if (!v) return;
-      if (!has(BASE, v) && !has(state.extra, v)) { state.extra.push(v); TS.extra[v] = Date.now(); }
-      var isNew = has(state.extra, v);
+      var v = (input && input.value ? input.value : "").replace(/\s+/g, " ").trim().slice(0, 16);
       if (input) input.value = "";
-      setTimeout(function () { var rows2 = list.querySelectorAll(".cdp-row"); var last = rows2[rows2.length-1]; if (last) { last.classList.add("is-enter"); setTimeout(function(){ last.classList.remove("is-enter"); }, 420); } }, 0);
-      save(); push(); render();
+      if (!v) return;
+      if (has(BASE, v)) { setBadge("清单里已有", "fail"); return; }
+      if (has(state.extra, v)) { setBadge("已经有了", "fail"); return; }
+      state.extra.push(v);
+      TS.extra[v] = tsNow();
+      save(); push();
+      render({ force: true, enter: v });
     });
   }
+
   var hint = root.querySelector(".cdp-hint");
   var note = root.querySelector(".cdp-note");
-  if (hint) {
-    hint.setAttribute("contenteditable", "false");
-  }
+  if (hint) hint.removeAttribute("contenteditable");
   if (note) note.removeAttribute("contenteditable");
-  render();
+
+  scanMax();
+  hydrateAddr();
+  render({ force: true });
+
+  /* 首屏入场：等 no-anim 退场后再挂 cdp-boot */
+  window.setTimeout(function () {
+    root.classList.add("cdp-boot");
+    window.setTimeout(function () { root.classList.remove("cdp-boot"); }, 1000);
+  }, 70);
 
   /* ===== 启动协同 ===== */
+  function clearTokenFromUrl() {
+    try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+  }
   function boot() {
     var cfg = loadCfg();
     if (cfg && cfg.token) { TOKEN = cfg.token; if (cfg.gist) GIST.id = cfg.gist; }
@@ -2596,32 +2833,48 @@
           TOKEN = packed.token || "";
           if (packed.gist) GIST.id = packed.gist;
           saveCfg({ gist: GIST.id, token: TOKEN });
-          history.replaceState(null, "", location.pathname);
+          clearTokenFromUrl();
         } catch (e) {}
       }
     }
-    if (!TOKEN) { setBadge("仅本机", "#888"); return; }
-    setBadge("连接中", "#888");
+    if (!TOKEN) { setBadge("仅本机", "local"); return; }
+    setBadge("连接中", "busy");
     fetchData().then(function (res) {
-      if (res && res.doc) applyDoc(res.doc);
-      else setBadge("已存本机", "#888");
+      if (res && res.doc) { applyDoc(res.doc); setBadge("已同步", "ok"); }
+      else setBadge("已存本机", "local");
     });
     pollTimer = setInterval(function () {
       if (document.hidden) return;
+      if (net.get && Date.now() - net.getAt > 20000) net.get = null;
+      if (net.patch) return;
       fetchData().then(function (res) { if (res && res.doc) applyDoc(res.doc); });
     }, 5000);
     addEventListener("pagehide", flushNow);
     addEventListener("pagehide", function () { if (pollTimer) clearInterval(pollTimer); });
+    addEventListener("pagehide", function () {
+      if (!TOKEN) return;
+      try {
+        var doc = snapshot();
+        var files = {}; files[GIST.file] = { content: JSON.stringify(doc, null, 1) };
+        fetch("https://api.github.com/gists/" + GIST.id, {
+          method: "PATCH", keepalive: true,
+          headers: { "Accept": "application/vnd.github+json", "Authorization": "Bearer " + TOKEN, "Content-Type": "application/json" },
+          body: JSON.stringify({ files: files })
+        });
+      } catch (e) {}
+    });
     addEventListener("visibilitychange", function () {
       if (document.hidden) { flushNow(); }
-      else if (TOKEN) { fetchData().then(function (res) { if (res && res.doc) applyDoc(res.doc); }); }
+      else if (TOKEN && !net.patch) { fetchData().then(function (res) { if (res && res.doc) applyDoc(res.doc); }); }
     });
     addEventListener("focus", function () {
-      if (TOKEN) fetchData().then(function (res) { if (res && res.doc) applyDoc(res.doc); });
+      if (TOKEN && !net.patch) fetchData().then(function (res) { if (res && res.doc) applyDoc(res.doc); });
     });
-    if (root) { root.classList.add("cdp-boot"); setTimeout(function () { root.classList.remove("cdp-boot"); }, 900); }
+    if (readPending()) saveData();
   }
   boot();
+  if (document.readyState === "complete") clearTokenFromUrl();
+  else addEventListener("load", clearTokenFromUrl);
 })();
 </script>
 </body>
