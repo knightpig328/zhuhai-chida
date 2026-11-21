@@ -707,10 +707,16 @@
     li.classList.add("has-score");
   }
 
+  function hasOpenScore() {
+    for (var k in openScore) { if (openScore[k]) return true; }
+    return false;
+  }
   function render(opts) {
     opts = opts || {};
     if (leaving > 0 && !opts.force) { pendingRender = true; return; }
     if (opts.enter && root.classList.contains("is-folded")) setFold(false);
+    /* 面板开着的时候只刷新状态，不重建列表——否则轮询会让面板闪 */
+    if (!opts.force && hasOpenScore()) { paint(); return; }
     var sy = window.pageYOffset || 0;
     list.classList.add("no-anim");
     list.textContent = "";
