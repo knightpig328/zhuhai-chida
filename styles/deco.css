@@ -162,8 +162,8 @@ footer::before{
 body::before{
   content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
   background-image:url("../assets/wood-rings.webp");
-  background-size:150% auto;
-  background-position:center 22%;
+  background-size:min(115vmax, 1400px) auto;
+  background-position:50% 38%;
   background-repeat:no-repeat;
   opacity:.11;
   mix-blend-mode:multiply;
@@ -175,7 +175,7 @@ body::before{
 
 
 /* 14) 窄屏不显示木纹（cover 拉伸会把年轮压成竖条） */
-@media (max-width:1200px){ body::before{ display:none; } }
+@media (max-width:900px){ body::before{ display:none; } }
 
 
 /* 15) 收掉页脚后的大片空白 */

@@ -1,96 +1,66 @@
 {
-  "count": 10,
-  "totalBytes": 666324,
+  "count": 12,
+  "totalBytes": 3221420,
   "faces": [
     {
-      "family": "Playfair Display",
-      "style": "normal",
-      "weight": "400 900",
-      "display": "block",
-      "file": "playfair-display-400-900-normal.woff2",
-      "bytes": 38784,
-      "sha256": "95ea8e5148adfd89028edb5e2a29e2d03207adc6a9d8dbc0f04a54571c1ba7d0"
+      "family": "ibm-plex-mono-400-normal.woff2",
+      "file": "ibm-plex-mono-400-normal.woff2",
+      "bytes": 11440
     },
     {
-      "family": "Playfair Display",
-      "style": "italic",
-      "weight": "400 900",
-      "display": "block",
-      "file": "playfair-display-400-900-italic.woff2",
-      "bytes": 40512,
-      "sha256": "6c6742f331b808b04a34e3ca665acf269a7b2e8ec8b923f1d55fbf273bab0638"
+      "family": "ibm-plex-mono-500-normal.woff2",
+      "file": "ibm-plex-mono-500-normal.woff2",
+      "bytes": 11768
     },
     {
-      "family": "Noto Serif SC",
-      "style": "normal",
-      "weight": "200 900",
-      "display": "block",
-      "file": "noto-serif-sc-200-900-normal.woff2",
-      "bytes": 103712,
-      "sha256": "b1a17425faa24de30607038a2d6f4deb45c7f5314ccf3022ac6bd4a79c2b82b1"
+      "family": "ibm-plex-mono-600-normal.woff2",
+      "file": "ibm-plex-mono-600-normal.woff2",
+      "bytes": 12456
     },
     {
-      "family": "Source Serif 4",
-      "style": "normal",
-      "weight": "200 900",
-      "display": "block",
-      "file": "source-serif-4-200-900-normal.woff2",
-      "bytes": 158020,
-      "sha256": "fdd6bbe472abeb94f2c5a9ca34635c85ae290a2566e12e7adb4658e2ff498954"
+      "family": "inter-100-900-normal.woff2",
+      "file": "inter-100-900-normal.woff2",
+      "bytes": 79780
     },
     {
-      "family": "Source Serif 4",
-      "style": "italic",
-      "weight": "200 900",
-      "display": "block",
-      "file": "source-serif-4-200-900-italic.woff2",
-      "bytes": 134320,
-      "sha256": "e483089ad8c4fea7412bef863e01a387af2a3f06534e77d8004df18b791c5f3d"
+      "family": "kaiti-400-normal.woff2",
+      "file": "kaiti-400-normal.woff2",
+      "bytes": 78288
     },
     {
       "family": "Noto Sans SC",
-      "style": "normal",
-      "weight": "100 900",
-      "display": "block",
       "file": "noto-sans-sc-100-900-normal.woff2",
-      "bytes": 75532,
-      "sha256": "de2d6983c0f0c8b830084b03dde8d3fba36510233229c6477f5309d29a41835e"
+      "bytes": 185372
     },
     {
-      "family": "IBM Plex Mono",
-      "style": "normal",
-      "weight": "400",
-      "display": "block",
-      "file": "ibm-plex-mono-400-normal.woff2",
-      "bytes": 11440,
-      "sha256": "06ebb0935dc9d0f48b0987c6e825d60697fa2c06f5a8350225dfacbb8bbc0993"
+      "family": "Noto Serif SC",
+      "file": "noto-serif-sc-200-900-normal.woff2",
+      "bytes": 246280
     },
     {
-      "family": "IBM Plex Mono",
-      "style": "normal",
-      "weight": "500",
-      "display": "block",
-      "file": "ibm-plex-mono-500-normal.woff2",
-      "bytes": 11768,
-      "sha256": "79ff9d18ffa9f5e83314d0ab6f00aeab824d3107828e54888dedf8d46cf80bd1"
+      "family": "playfair-display-400-900-italic.woff2",
+      "file": "playfair-display-400-900-italic.woff2",
+      "bytes": 40512
     },
     {
-      "family": "IBM Plex Mono",
-      "style": "normal",
-      "weight": "600",
-      "display": "block",
-      "file": "ibm-plex-mono-600-normal.woff2",
-      "bytes": 12456,
-      "sha256": "0e7993d63a85c9726062258a88fa60c26661a691610f84a543c12872f859de64"
+      "family": "playfair-display-400-900-normal.woff2",
+      "file": "playfair-display-400-900-normal.woff2",
+      "bytes": 38784
     },
     {
-      "family": "Inter",
-      "style": "normal",
-      "weight": "100 900",
-      "display": "block",
-      "file": "inter-100-900-normal.woff2",
-      "bytes": 79780,
-      "sha256": "7c09e1c82104929029e05a211d175ea37f56e118440803624c2a57d7dd07c184"
+      "family": "source-serif-4-200-900-italic.woff2",
+      "file": "source-serif-4-200-900-italic.woff2",
+      "bytes": 134320
+    },
+    {
+      "family": "source-serif-4-200-900-normal.woff2",
+      "file": "source-serif-4-200-900-normal.woff2",
+      "bytes": 158020
+    },
+    {
+      "family": "Xingkai Web",
+      "file": "xingkai-400-normal.woff2",
+      "bytes": 2224400
     }
   ]
 }
