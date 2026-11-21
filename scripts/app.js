@@ -28,7 +28,7 @@
   var TOKEN = "w", ETAG = "";
   var WORKER = "https://liqianshiqianjin.pages.dev";
   var WKEY = "zhuhai-2026-liqianwoainikeshinizongshichaowowozhendehaonanguo";
-  var TS = { done: {}, extra: {}, del: {}, addr: {}, score: {} };
+  var TS = { done: {}, extra: {}, del: {}, addr: {}, score: {}, order: { v: [], t: 0 } };
   var ADDR = {};
   var CACHE = { done: {}, extra: [] };
   var state = { done: {}, extra: [] };
@@ -66,6 +66,12 @@
     TS.extra = o.extra && typeof o.extra === "object" ? o.extra : TS.extra;
     TS.del = o.del && typeof o.del === "object" ? o.del : TS.del;
     if (typeof o.rev === "number") TS.rev = o.rev;
+    if (o.score && typeof o.score === "object") TS.score = o.score;
+    if (o.order && Object.prototype.toString.call(o.order.v) === "[object Array]") {
+      var ov = o.order.v.filter(function (x) { return typeof x === "string"; });
+      var ot = typeof o.order.t === "number" ? o.order.t : 0;
+      if (ot >= ((TS.order && TS.order.t) || 0)) TS.order = { v: ov, t: ot };
+    }
     var a = o.addr && typeof o.addr === "object" ? o.addr : {};
     Object.keys(a).forEach(function (k) { var n = normAddr(a[k]); if (n) TS.addr[k] = n; });
   }
@@ -295,10 +301,10 @@
   }
 
   function snapshot() {
-    return { v: 3, rev: (TS.rev || 0) + 1, updatedAt: new Date().toISOString(), done: TS.done || {}, extra: TS.extra || {}, del: TS.del || {}, addr: TS.addr || {}, score: TS.score || {} };
+    return { v: 3, rev: (TS.rev || 0) + 1, updatedAt: new Date().toISOString(), done: TS.done || {}, extra: TS.extra || {}, del: TS.del || {}, addr: TS.addr || {}, score: TS.score || {}, order: TS.order || { v: [], t: 0 } };
   }
   function contentKey(d) {
-    return JSON.stringify({ d: d.done || {}, e: d.extra || {}, x: d.del || {}, a: d.addr || {}, s: d.score || {} });
+    return JSON.stringify({ d: d.done || {}, e: d.extra || {}, x: d.del || {}, a: d.addr || {}, s: d.score || {}, o: (d.order && d.order.v) || [] });
   }
 
 
@@ -332,6 +338,13 @@
       if (!x) { out.score[k] = y; return; }
       out.score[k] = ((y.t || 0) >= (x.t || 0)) ? y : x;
     });
+    // order 合并：按 t 取新（LWW）
+    var oa = (a && a.order) || null, ob = (b && b.order) || null;
+    var pickO = null;
+    if (oa && ob) pickO = ((ob.t || 0) >= (oa.t || 0)) ? ob : oa;
+    else pickO = oa || ob;
+    out.order = pickO && Object.prototype.toString.call(pickO.v) === "[object Array]"
+      ? { v: pickO.v.slice(), t: pickO.t || 0 } : { v: [], t: 0 };
     out.rev = Math.max((a && a.rev) || 0, (b && b.rev) || 0) + 1;
     return out;
   }
@@ -619,6 +632,7 @@
     var prev = Math.abs(Number(TS.done[text]) || 0);
     state.extra = state.extra.filter(function (t) { return t !== text; });
     delete state.done[text];
+    if (TS.order && TS.order.v) TS.order.v = TS.order.v.filter(function (x) { return x !== text; });
     TS.del[text] = now;
     TS.addr[text] = { t: now, v: "" };
     TS.done[text] = -Math.max(now, prev + 1);
@@ -741,7 +755,11 @@
     list.textContent = "";
     var baseVisible = BASE.filter(function (t) { return !isBaseDeleted(t); });
     var tailRows = state.extra.filter(function (t) { return baseVisible.indexOf(t) === -1; });
-    baseVisible.concat(tailRows).forEach(function (t) { list.appendChild(rowEl(t)); });
+    var _all = baseVisible.concat(tailRows);
+    var _ov = (TS.order && TS.order.v) || [];
+    var _ranked = _ov.filter(function (t) { return _all.indexOf(t) >= 0; });
+    var _rest = _all.filter(function (t) { return _ranked.indexOf(t) === -1; });
+    _ranked.concat(_rest).forEach(function (t) { list.appendChild(rowEl(t)); });
     paint();
     Object.keys(openScore).forEach(function (t) {
       if (!openScore[t]) return;
@@ -946,6 +964,9 @@
       if (has(state.extra, v)) { setBadge("已经有了", "fail"); return; }
       state.extra.push(v);
       TS.extra[v] = tsNow();
+      if (!TS.order) TS.order = { v: [], t: 0 };
+      TS.order.v = (TS.order.v || []).filter(function (x) { return x !== v; }).concat([v]);
+      TS.order.t = tsNow();
       save(); push();
       render({ force: true, enter: v });
     });
