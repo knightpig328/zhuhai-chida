@@ -7,11 +7,25 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E%E2%9C%A6%3C/text%3E%3C/svg%3E">
 <link rel="preload" href="assets/fonts/noto-serif-sc-200-900-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/noto-sans-sc-100-900-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="styles/fonts.css?v=20261125q">
-<link rel="stylesheet" href="styles/base.css?v=20261125q">
-<link rel="stylesheet" href="styles/app.css?v=20261125q">
-<link rel="stylesheet" href="styles/deco.css?v=20261125q">
-<link rel="stylesheet" href="styles/turn-20261125p.css?v=20261125q">
+<link rel="stylesheet" href="styles/fonts.css?v=20261125r">
+<link rel="stylesheet" href="styles/base.css?v=20261125r">
+<link rel="stylesheet" href="styles/app.css?v=20261125r">
+<link rel="stylesheet" href="styles/deco.css?v=20261125r">
+<link rel="stylesheet" href="styles/turn-20261125p.css?v=20261125r">
+<script>
+/* __verGuard: HTML 被缓存时，强制拉一次新的 */
+(function () {
+  var WANT = '20261125p';
+  var l = document.querySelector('link[href*="turn-"]');
+  if (!l) return;
+  if (l.href.indexOf(WANT) < 0) {
+    var u = location.pathname + '?vc=' + Date.now();
+    try { if (sessionStorage.getItem('__vc') !== '1') { sessionStorage.setItem('__vc', '1'); location.replace(u); } } catch (e) {}
+  } else {
+    try { sessionStorage.removeItem('__vc'); } catch (e) {}
+  }
+})();
+</script>
 </head>
 <body>
 
@@ -62,7 +76,7 @@
 
 </div>
 
-<script src="scripts/toc.js?v=20261125q"></script>
-<script src="scripts/app.js?v=20261125q"></script>
+<script src="scripts/toc.js?v=20261125r"></script>
+<script src="scripts/app.js?v=20261125r"></script>
 </body>
 </html>
