@@ -1169,13 +1169,21 @@
       if (AUTO_SCROLL.dir) startAutoScroll();
       SORT.li.style.setProperty("--dy", SORT.dy + "px");
       var rows = Array.prototype.slice.call(list.children);
-      var h = SORT.li.offsetHeight || 60;
-      var to = Math.max(0, Math.min(rows.length - 1, SORT.from + Math.round(SORT.dy / h)));
+      var to = SORT.from;
+      if (SORT.dy > 0) {
+        var accD = 0;
+        for (var k = SORT.from + 1; k < rows.length; k++) { accD += rows[k].offsetHeight; if (SORT.dy < accD - rows[k].offsetHeight / 2) break; to = k; }
+      } else if (SORT.dy < 0) {
+        var accU = 0;
+        for (var k2 = SORT.from - 1; k2 >= 0; k2--) { accU -= rows[k2].offsetHeight; if (SORT.dy > accU + rows[k2].offsetHeight / 2) break; to = k2; }
+      }
       if (to !== SORT.to) {
         SORT.to = to;
         rows.forEach(function (r, i) { r.classList.toggle("is-shift", i !== SORT.from); });
+        var acc = 0;
         for (var i = 0; i < rows.length; i++) {
           if (i === SORT.from) continue;
+          var hh = rows[i].offsetHeight;
           var shift = 0;
           if (SORT.from < to && i > SORT.from && i <= to) shift = -h;
           if (SORT.from > to && i >= to && i < SORT.from) shift = h;
