@@ -571,6 +571,7 @@
     var addr = document.createElement("span");
     addr.className = "cdp-addr";
     addr.setAttribute("contenteditable", "true");
+    addr.setAttribute("draggable", "false");
     addr.setAttribute("role", "textbox");
     addr.setAttribute("aria-label", text + " 的地址，可输入");
     addr.setAttribute("data-ph", "地址");
@@ -615,6 +616,7 @@
     map.addEventListener("click", function (ev) { ev.stopPropagation(); });
 
     li.appendChild(tick);
+    idx.setAttribute("tabindex", "0");
     li.appendChild(idx);
     li.appendChild(name);
     li.appendChild(addr);
@@ -631,6 +633,7 @@
     del.addEventListener("click", function (ev) { ev.stopPropagation(); removeRow(li, text); });
     li.appendChild(del);
     li.addEventListener("click", function (ev) {
+      if (li.__dragged) { li.__dragged = false; ev.preventDefault(); return; }
       if (ev.target && ev.target.closest && ev.target.closest(".cdp-del, .cdp-addr, .cdp-map, .cdp-score, .cdp-rate")) return;
       if (li.classList.contains("is-leaving")) return;
       if (state.done[text]) { delete state.done[text]; TS.done[text] = -tsNow(); }
@@ -755,6 +758,10 @@
     li.classList.add("has-score");
   }
 
+  /* 拖拽排序状态：拖拽期间禁止重建列表/刷新编号 */
+  var SORT = { active: false, li: null, text: "", startY: 0, dy: 0, from: -1, to: -1 };
+  function isSorting() { return SORT.active; }
+
   function hasOpenScore() {
     for (var k in openScore) { if (openScore[k]) return true; }
     return false;
@@ -764,7 +771,7 @@
     if (leaving > 0 && !opts.force) { pendingRender = true; return; }
     if (opts.enter && root.classList.contains("is-folded")) setFold(false);
     /* 面板开着的时候只刷新状态，不重建列表——否则轮询会让面板闪 */
-    if (!opts.force && hasOpenScore()) { paint(); return; }
+    if (!opts.force && (hasOpenScore() || isSorting())) { paint(); return; }
     var sy = window.pageYOffset || 0;
     list.classList.add("no-anim");
     list.textContent = "";
@@ -1090,7 +1097,101 @@
   }
 
   try { console.log("%c[zhuhai-chida] build " + BUILD_VER + " · turn css " + (document.querySelector('link[href*="turn-"]')||{}).href, "color:#6a5;font-weight:bold"); } catch (e) {}
+  /* ===== 拖拽排序：手柄 = 编号列，Pointer 单引擎 ===== */
+  function initSortEngine() {
+    if (!window.PointerEvent) return;
+    var html = document.documentElement;
+
+    list.addEventListener("pointerdown", function (ev) {
+      var idx = ev.target && ev.target.closest && ev.target.closest(".cdp-idx");
+      if (!idx) return;
+      if (isEditing() || isSorting()) return;
+      var li = idx.closest(".cdp-row");
+      if (!li) return;
+      SORT.active = true; SORT.li = li; SORT.text = li.getAttribute("data-text");
+      SORT.startY = ev.clientY; SORT.dy = 0;
+      SORT.from = Array.prototype.indexOf.call(list.children, li);
+      SORT.to = SORT.from;
+      li.classList.add("is-dragging");
+      li.classList.add("is-drag-src");
+      try { li.setPointerCapture(ev.pointerId); } catch (e) {}
+      html.style.overflow = "hidden";
+      ev.preventDefault();
+    }, { passive: false });
+
+    list.addEventListener("pointermove", function (ev) {
+      if (!SORT.active || !SORT.li) return;
+      SORT.dy = ev.clientY - SORT.startY;
+      SORT.li.style.setProperty("--dy", SORT.dy + "px");
+      var rows = Array.prototype.slice.call(list.children);
+      var h = SORT.li.offsetHeight || 60;
+      var to = Math.max(0, Math.min(rows.length - 1, SORT.from + Math.round(SORT.dy / h)));
+      if (to !== SORT.to) {
+        SORT.to = to;
+        rows.forEach(function (r, i) { r.classList.toggle("is-shift", i !== SORT.from); });
+        for (var i = 0; i < rows.length; i++) {
+          if (i === SORT.from) continue;
+          var shift = 0;
+          if (SORT.from < to && i > SORT.from && i <= to) shift = -h;
+          if (SORT.from > to && i >= to && i < SORT.from) shift = h;
+          rows[i].style.setProperty("--shift", shift + "px");
+        }
+      }
+      ev.preventDefault();
+    }, { passive: false });
+
+    function endSort() {
+      if (!SORT.active) return;
+      var li = SORT.li, text = SORT.text, to = SORT.to, from = SORT.from;
+      if (li) {
+        li.classList.remove("is-dragging", "is-drag-src");
+        li.style.removeProperty("--dy");
+      }
+      Array.prototype.forEach.call(list.children, function (r) {
+        r.classList.remove("is-shift");
+        r.style.removeProperty("--shift");
+      });
+      html.style.overflow = "";
+      SORT.active = false; SORT.li = null;
+      if (!li || to < 0 || to === from) return;
+
+      var names = Array.prototype.map.call(list.children, function (r) { return r.getAttribute("data-text"); });
+      var order = ((TS.order && TS.order.v) || []).filter(function (x) { return x !== text; });
+      var target = names[to] && names[to] !== text ? names[to] : null;
+      var at = target ? order.indexOf(target) : order.length;
+      if (at < 0) at = order.length;
+      order.splice(at, 0, text);
+      TS.order = { v: order, t: tsNow() };
+      save(); push();
+      li.__dragged = true;
+      render({ force: true });
+    }
+    list.addEventListener("pointerup", endSort);
+    list.addEventListener("pointercancel", endSort);
+    window.addEventListener("lostpointercapture", endSort);
+    window.addEventListener("blur", endSort);
+
+    /* 无障碍兜底：Alt + ↑/↓ 移动焦点所在行 */
+    list.addEventListener("keydown", function (ev) {
+      if (!ev.altKey || (ev.key !== "ArrowUp" && ev.key !== "ArrowDown")) return;
+      var li = document.activeElement && document.activeElement.closest && document.activeElement.closest(".cdp-row");
+      if (!li) return;
+      ev.preventDefault();
+      var text = li.getAttribute("data-text");
+      var names = Array.prototype.map.call(list.children, function (r) { return r.getAttribute("data-text"); });
+      var i = names.indexOf(text), j = ev.key === "ArrowUp" ? i - 1 : i + 1;
+      if (j < 0 || j >= names.length) return;
+      names.splice(i, 1); names.splice(j, 0, text);
+      TS.order = { v: names, t: tsNow() };
+      save(); push();
+      render({ force: true });
+      var again = list.querySelector('.cdp-row[data-text="' + (window.CSS && CSS.escape ? CSS.escape(text) : text) + '"]');
+      if (again) { var f = again.querySelector(".cdp-idx"); if (f) f.focus(); }
+    });
+  }
+
   bootSkeleton();
+  initSortEngine();
   boot();
   if (document.readyState === "complete") clearTokenFromUrl();
   else addEventListener("load", clearTokenFromUrl);

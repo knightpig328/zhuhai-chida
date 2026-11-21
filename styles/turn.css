@@ -285,3 +285,27 @@
 @media print{
   #cdp .cdp-row{ box-shadow:none !important; transform:none !important; }
 }
+
+
+/* 19) 拖拽排序：手柄在编号列，行本体只做 transform */
+#cdp .cdp-idx{
+  position:relative; touch-action:none; cursor:grab;
+  -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
+}
+#cdp .cdp-idx::after{ content:""; position:absolute; top:-14px; bottom:-14px; left:-8px; right:-6px; }
+#cdp .cdp-idx:active{ cursor:grabbing; }
+#cdp .cdp-list{ touch-action:pan-y; }
+
+#cdp .cdp-row.is-dragging,
+#cdp .cdp-row.is-dragging:hover{
+  transform:translate3d(0,var(--dy,0px),0) scale(1.012) !important;
+  z-index:3; transition:none !important; cursor:grabbing;
+  box-shadow:0 10px 22px rgba(var(--ink-rgb),.18);
+}
+#cdp .cdp-row.is-drag-src{ opacity:.38; }
+#cdp .cdp-row.is-shift{
+  transform:translate3d(0,var(--shift,0px),0);
+  transition:transform .16s cubic-bezier(.22,1,.36,1);
+}
+@media (prefers-reduced-motion: reduce){ #cdp .cdp-row.is-shift{ transition:none; } }
+@media print{ #cdp .cdp-idx{ cursor:auto; } }
