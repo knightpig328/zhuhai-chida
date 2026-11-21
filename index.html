@@ -2322,8 +2322,7 @@
 
   /* ===== 协同层 ===== */
   var CFG_KEY = "cdp-sync-cfg-v1";
-  var GH = { owner: "knightpig328", repo: "zhuhai-chida", branch: "main", path: "data.json" };
-  var TOKEN = "", SHA = null, ETAG = null;
+  var GIST = { id: "4bb6f3b536c05a65de7132179a8826e9", file: "zhuhai-chida.json" };
   var TS = { done: {}, extra: {}, del: {} };
   var pushTimer = 0, pollTimer = 0, failCount = 0, lastSync = 0;
 
@@ -2369,8 +2368,6 @@
   function saveCfg(c) { try { window.localStorage.setItem(CFG_KEY, JSON.stringify(c)); } catch (e) {} }
 
   /* --- base64 --- */
-  function b64d(s) { var b = atob(s.replace(/\s/g, "")), u = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return new TextDecoder().decode(u); }
-  function b64e(s) { var u = new TextEncoder().encode(s), b = ""; for (var i = 0; i < u.length; i++) b += String.fromCharCode(u[i]); return btoa(b); }
 
   function api(url, opt) {
     opt = opt || {}; opt.cache = "no-store";
@@ -2387,11 +2384,12 @@
   function fetchData() {
     if (!TOKEN) return Promise.resolve(null);
     var h = ETAG ? { "If-None-Match": ETAG } : {};
-    return api("https://api.github.com/repos/" + GH.owner + "/" + GH.repo + "/contents/" + GH.path + "?ref=" + GH.branch, { headers: h })
+    return api("https://api.github.com/gists/" + GIST.id, { headers: h })
       .then(function (j) {
         if (j.notModified) return { unchanged: true };
-        SHA = j.sha;
-        return { doc: JSON.parse(b64d(j.content || "")), sha: j.sha };
+        var f = j.files && j.files[GIST.file];
+        if (!f || f.truncated) return null;
+        return { doc: JSON.parse(f.content) };
       })
       .catch(function (e) { return null; });
   }
@@ -2430,11 +2428,11 @@
     retry = retry || 0;
     if (!TOKEN) return Promise.resolve(false);
     doc.updatedAt = new Date().toISOString();
-    var body = { message: "sync " + doc.updatedAt + " r" + doc.rev, content: b64e(JSON.stringify(doc, null, 1)), branch: GH.branch };
-    if (SHA) body.sha = SHA;
+    var body = { files: {} };
+    body.files[GIST.file] = { content: JSON.stringify(doc, null, 1) };
     setBadge("同步中", "#888");
-    return api("https://api.github.com/repos/" + GH.owner + "/" + GH.repo + "/contents/" + GH.path, { method: "PUT", body: JSON.stringify(body) })
-      .then(function (j) { SHA = (j.content && j.content.sha) || SHA; failCount = 0; lastSync = Date.now(); setBadge("已同步·刚刚", "#3ddc84"); return true; })
+    return api("https://api.github.com/gists/" + GIST.id, { method: "PATCH", body: JSON.stringify(body) })
+      .then(function (j) { failCount = 0; lastSync = Date.now(); setBadge("已同步·刚刚", "#3ddc84"); return true; })
       .catch(function (e) {
         if (e.code === 409 && retry < 3) {
           setBadge("同步中·重试", "#888");
@@ -2547,16 +2545,15 @@
   /* ===== 启动协同 ===== */
   function boot() {
     var cfg = loadCfg();
-    if (cfg && cfg.token) { GH = Object.assign(GH, cfg); TOKEN = cfg.token; }
+    if (cfg && cfg.token) { TOKEN = cfg.token; if (cfg.gist) GIST.id = cfg.gist; }
     else {
       var m = (location.hash || "").match(/[#&]t=([^&]+)/) || (location.search || "").match(/[?&]t=([^&]+)/);
       if (m) {
         try {
           var packed = JSON.parse(decodeURIComponent(m[1]));
           TOKEN = packed.token || "";
-          if (packed.repo) GH.repo = packed.repo;
-          if (packed.owner) GH.owner = packed.owner;
-          saveCfg({ owner: GH.owner, repo: GH.repo, branch: GH.branch, token: TOKEN });
+          if (packed.gist) GIST.id = packed.gist;
+          saveCfg({ gist: GIST.id, token: TOKEN });
           history.replaceState(null, "", location.pathname);
         } catch (e) {}
       }
