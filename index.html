@@ -2042,7 +2042,46 @@
 </style>
 <style id="cdp-style">
   #cdp { margin: 4px 0 0; }
-  #cdp .cdp-head { display:flex; align-items:center; gap:14px; padding-bottom:14px; border-bottom:1px solid rgba(var(--ink-rgb),.16); }
+  /* ==== 2026-11-22 UI 改造：地址栏 + 动画 ==== */
+#cdp .cdp-addr{
+  font-family:var(--font-mono,ui-monospace,monospace);
+  font-size:.72em;letter-spacing:.02em;color:var(--ink-3,#8a8577);
+  min-width:7em;min-height:1.5em;padding:1px 6px;border-radius:3px;
+  border:1px dashed transparent;transition:border-color .2s,background .2s,color .2s;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:16em;
+  cursor:text;outline:none;
+}
+#cdp .cdp-addr:hover{border-color:var(--rule,#d8d3c4);background:rgba(0,0,0,.02)}
+#cdp .cdp-addr:focus{border-color:var(--accent);background:rgba(0,0,0,.03);color:var(--ink,#2b2b2b)}
+#cdp .cdp-addr:empty::before{content:attr(data-ph);color:var(--ink-4,#b3aea2);font-style:italic}
+@media(max-width:640px){
+  #cdp .cdp-row{flex-wrap:wrap}
+  #cdp .cdp-addr{flex-basis:100%;margin-left:calc(18px + 1.9em + 20px);max-width:none}
+}
+/* 首屏入场（只挂 #cdp，不挂 row） */
+@keyframes cdpRise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+#cdp.cdp-boot .cdp-row{animation:cdpRise .52s cubic-bezier(.22,1,.36,1) both}
+#cdp.cdp-boot .cdp-row:nth-child(1){animation-delay:0s}
+#cdp.cdp-boot .cdp-row:nth-child(2){animation-delay:.05s}
+#cdp.cdp-boot .cdp-row:nth-child(3){animation-delay:.1s}
+#cdp.cdp-boot .cdp-row:nth-child(4){animation-delay:.15s}
+#cdp.cdp-boot .cdp-row:nth-child(5){animation-delay:.2s}
+#cdp.cdp-boot .cdp-row:nth-child(6){animation-delay:.25s}
+/* 新增条目 */
+@keyframes cdpIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+#cdp .cdp-row.is-enter{animation:cdpIn .38s cubic-bezier(.22,1,.36,1) both}
+/* 删除条目 */
+@keyframes cdpOut{to{opacity:0;transform:translateX(12px)}}
+#cdp .cdp-row.is-leaving{animation:cdpOut .28s cubic-bezier(.4,0,.2,1) both;pointer-events:none}
+/* 勾选反馈（复用已有 ::after 删除线，只加 box pop） */
+@keyframes cdpPop{50%{transform:scale(1.25)}}
+#cdp .cdp-row.is-done .cdp-box{animation:cdpPop .22s ease}
+/* 角标：去掉毛玻璃，用主题色 */
+#cdp .cdp-sync{transition:color .2s,background .2s}
+@media (prefers-reduced-motion: reduce){
+  #cdp .cdp-row,#cdp .cdp-row.is-enter,#cdp .cdp-row.is-leaving,#cdp .cdp-box{animation:none!important}
+}
+#cdp .cdp-head { display:flex; align-items:center; gap:14px; padding-bottom:14px; border-bottom:1px solid rgba(var(--ink-rgb),.16); }
   #cdp .cdp-count { font-family: var(--font-mono); font-size:.78rem; letter-spacing:.02em; color: rgba(var(--ink-rgb),.6); white-space:nowrap; }
   #cdp .cdp-count b { font-weight:600; font-size:.95rem; color: var(--fg); }
   #cdp .cdp-sep { margin:0 4px; opacity:.45; }
@@ -2110,7 +2149,6 @@
 
 <header class="hero">
   <h1>珠海 · 大吃特吃</h1>
-  <p class="hero-subtitle">店都内定了，不用挑。</p>
 </header>
 <section class="section" id="s-01"><div class="section-number sn-sym"><span class="sn-side sn-l"><span class="sn-star s3">✦</span><span class="sn-star s2">✦</span><span class="sn-star s1">✦</span></span><span class="sn-num">01</span><span class="sn-side sn-r"><span class="sn-star s1">✦</span><span class="sn-star s2">✦</span><span class="sn-star s3">✦</span></span></div><h2>内定六样</h2><div class="cdp" id="cdp">
     <div class="cdp-head">
@@ -2271,35 +2309,6 @@
   else window.addEventListener('load', () => setTimeout(eagerImages, 800));
 
   // ── Editable text ──
-  const editableSelectors = [
-    '.hero h1',
-    '.hero-subtitle',
-    '.hero-cover h1',
-    '.hero-cover .hero-subtitle',
-    '.section h2',
-    '.section h3',
-    '.section p',
-    '.section li',
-    '.pullquote p',
-    '.pullquote-swiss .pq-content p',
-    '.highlight-card p',
-    '.highlight-swiss .hl-body p',
-    '.def-card-body',
-    '.def-card-swiss .dc-body',
-    '.process-title',
-    '.process-desc',
-    '.aside-content p',
-    '.summary-item-title',
-    '.summary-item-desc',
-    'blockquote p',
-    'td',
-  ];
-  editableSelectors.forEach(sel => {
-    document.querySelectorAll(sel).forEach(el => {
-      el.setAttribute('contenteditable', 'true');
-      el.setAttribute('spellcheck', 'false');
-    });
-  });
 })();
 </script>
 <script id="cdp-script">
@@ -2323,8 +2332,10 @@
   /* ===== 协同层 ===== */
   var CFG_KEY = "cdp-sync-cfg-v1";
   var GIST = { id: "4bb6f3b536c05a65de7132179a8826e9", file: "zhuhai-chida.json" };
-  var TS = { done: {}, extra: {}, del: {} };
-  var pushTimer = 0, pollTimer = 0, failCount = 0, lastSync = 0;
+  var TOKEN = "", ETAG = "";
+  var TS = { done: {}, extra: {}, del: {}, addr: {} };
+  var ADDR = {};
+  var pushTimer = 0, pollTimer = 0, failCount = 0;
 
   var state = { done: {}, extra: [] };
   try {
@@ -2395,8 +2406,8 @@
   }
 
   function mergeState(a, b) {
-    var out = { v: 2, rev: 0, updatedAt: new Date().toISOString(), done: {}, extra: {}, del: {} };
-    ["done", "extra", "del"].forEach(function (f) {
+    var out = { v: 2, rev: 0, updatedAt: new Date().toISOString(), done: {}, extra: {}, del: {}, addr: {} };
+    ["done", "extra", "del", "addr"].forEach(function (f) {
       var x = (a && a[f]) || {}, y = (b && b[f]) || {}, m = out[f];
       Object.keys(x).forEach(function (k) { m[k] = x[k]; });
       Object.keys(y).forEach(function (k) {
@@ -2408,12 +2419,18 @@
   }
 
   function buildState(doc) {
-    var st = { done: {}, extra: [] };
+    var st = { done: {}, extra: [], addr: {} };
     Object.keys(doc.done || {}).forEach(function (k) { if (doc.done[k] > 0) st.done[k] = 1; });
     st.extra = Object.keys(doc.extra || {}).filter(function (k) {
       var d = doc.del && doc.del[k];
       return !(d && Math.abs(d) >= Math.abs(doc.extra[k]));
     }).sort(function (x, y) { return doc.extra[x] - doc.extra[y]; });
+    Object.keys(doc.addr || {}).forEach(function (k2) {
+      var a = doc.addr[k2];
+      var tv = doc.done && doc.done[k2];
+      /* 负数 = 该条已删，地址作废 */
+      if (a && typeof a === "object" && typeof a.v === "string" && !(tv < 0)) st.addr[k2] = a.v;
+    });
     return st;
   }
 
@@ -2421,6 +2438,7 @@
     TS = mergeState(TS, doc);
     var st = buildState(TS);
     state.done = st.done; state.extra = st.extra;
+    Object.keys(st.addr || {}).forEach(function (k3) { ADDR[k3] = st.addr[k3]; });
     save(); render();
   }
 
@@ -2432,7 +2450,7 @@
     body.files[GIST.file] = { content: JSON.stringify(doc, null, 1) };
     setBadge("同步中", "#888");
     return api("https://api.github.com/gists/" + GIST.id, { method: "PATCH", body: JSON.stringify(body) })
-      .then(function (j) { failCount = 0; lastSync = Date.now(); setBadge("已同步·刚刚", "#3ddc84"); return true; })
+      .then(function (j) { failCount = 0; setBadge("已同步·刚刚", "#3ddc84"); return true; })
       .catch(function (e) {
         if (e.code === 409 && retry < 3) {
           setBadge("同步中·重试", "#888");
@@ -2480,6 +2498,29 @@
     var name = document.createElement("span"); name.className = "cdp-name"; name.textContent = text;
     var flag = document.createElement("span"); flag.className = "cdp-flag"; flag.textContent = "已吃";
     li.appendChild(tick); li.appendChild(idx); li.appendChild(name); li.appendChild(flag);
+    var addr = document.createElement("span");
+    addr.className = "cdp-addr";
+    addr.setAttribute("contenteditable", "true");
+    addr.setAttribute("role", "textbox");
+    addr.setAttribute("aria-label", text + " 的地址");
+    addr.setAttribute("data-ph", "加地址");
+    addr.setAttribute("data-for", text);
+    addr.textContent = ADDR[text] || "";
+    addr.addEventListener("click", function (ev) { ev.stopPropagation(); });
+    addr.addEventListener("mousedown", function (ev) { ev.stopPropagation(); });
+    addr.addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter") { ev.preventDefault(); addr.blur(); }
+      else if (ev.key === "Escape") { addr.textContent = ADDR[text] || ""; addr.blur(); }
+    });
+    addr.addEventListener("focusout", function () {
+      var v = (addr.textContent || "").replace(/\s+/g, " ").trim().slice(0, 40);
+      addr.textContent = v;
+      ADDR[text] = v;
+      TS.addr[text] = { t: Date.now(), v: v };
+      save(); push();
+    });
+    li.appendChild(addr);
+    if (!(text in ADDR)) ADDR[text] = (TS.addr[text] && TS.addr[text].v) || "";
     if (isExtra) {
       var del = document.createElement("button");
       del.type = "button"; del.className = "cdp-del"; del.textContent = "×";
@@ -2494,7 +2535,7 @@
       li.appendChild(del);
     }
     li.addEventListener("click", function (ev) {
-      if (ev.target && ev.target.closest && ev.target.closest(".cdp-del")) return;
+      if (ev.target && ev.target.closest && ev.target.closest(".cdp-del, .cdp-addr")) return;
       if (state.done[text]) { delete state.done[text]; TS.done[text] = -Date.now(); }
       else { state.done[text] = 1; TS.done[text] = Date.now(); }
       save(); push(); paint();
@@ -2529,7 +2570,9 @@
       var v = (input && input.value ? input.value : "").replace(/\s+/g, " ").trim();
       if (!v) return;
       if (!has(BASE, v) && !has(state.extra, v)) { state.extra.push(v); TS.extra[v] = Date.now(); }
+      var isNew = has(state.extra, v);
       if (input) input.value = "";
+      setTimeout(function () { var rows2 = list.querySelectorAll(".cdp-row"); var last = rows2[rows2.length-1]; if (last) { last.classList.add("is-enter"); setTimeout(function(){ last.classList.remove("is-enter"); }, 420); } }, 0);
       save(); push(); render();
     });
   }
@@ -2537,7 +2580,6 @@
   var note = root.querySelector(".cdp-note");
   if (hint) {
     hint.setAttribute("contenteditable", "false");
-    hint.textContent = "点名字打勾，勾掉的会划掉；加进来的会自动同步，换设备也能看到。";
   }
   if (note) note.removeAttribute("contenteditable");
   render();
@@ -2569,6 +2611,7 @@
       fetchData().then(function (res) { if (res && res.doc) applyDoc(res.doc); });
     }, 5000);
     addEventListener("pagehide", flushNow);
+    addEventListener("pagehide", function () { if (pollTimer) clearInterval(pollTimer); });
     addEventListener("visibilitychange", function () {
       if (document.hidden) { flushNow(); }
       else if (TOKEN) { fetchData().then(function (res) { if (res && res.doc) applyDoc(res.doc); }); }
@@ -2576,6 +2619,7 @@
     addEventListener("focus", function () {
       if (TOKEN) fetchData().then(function (res) { if (res && res.doc) applyDoc(res.doc); });
     });
+    if (root) { root.classList.add("cdp-boot"); setTimeout(function () { root.classList.remove("cdp-boot"); }, 900); }
   }
   boot();
 })();
