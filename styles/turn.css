@@ -116,3 +116,11 @@
   #cdp .cdp-scratch path, #cdp .cdp-scratch g{ animation:none !important; }
   #cdp .cdp-scratch path{ stroke-dashoffset:0 !important; }
 }
+
+
+/* 9) 地址栏字体：与名字同一衬线栈（mono 没有中文，会回退成系统字体，字形与正文不齐） */
+#cdp .cdp-addr{
+  font-family: var(--font-serif);
+  font-size: .78em;
+  letter-spacing: .01em;
+}
