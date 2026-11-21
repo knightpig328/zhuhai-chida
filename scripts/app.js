@@ -261,17 +261,22 @@
   function fetchData() {
     if (net.get) return net.get;
     net.getAt = Date.now();
+    var ac = window.AbortController ? new AbortController() : null;
+    var timer = ac ? setTimeout(function () { try { ac.abort(); } catch (e) {} }, 10000) : 0;
     var base = fetch(WORKER + "/data", {
       headers: { "Authorization": "Bearer " + WKEY },
-      cache: "no-store"
+      cache: "no-store",
+      signal: ac ? ac.signal : undefined
     }).then(function (r) {
       if (!r.ok) throw new Error("worker " + r.status);
       return r.text();
     }).then(function (t) {
+      if (timer) clearTimeout(timer);
       var doc = JSON.parse(t);
       lastErr = null;
-      return { doc: doc };
+      return { doc: doc, viaWorker: true };
     }).catch(function () {
+      if (timer) clearTimeout(timer);
       var stamp = Math.floor(Date.now() / 60000);
       return fetch("data.json?m=" + stamp, { cache: "no-store" })
         .then(function (r) { return r.ok ? r.json() : null; })
@@ -456,7 +461,8 @@
           throw e;
         }
         failCount = 0; lastErr = null; net.lastBody = contentKey(doc);
-        setBadge("已同步", "ok");
+        if (res && res.viaWorker) setBadge("已同步", "ok");
+      else setBadge("只读·未连上", "warn");
         return true;
       }, function (e) {
         if (e && e.kind === "conflict" && retry < 2) {
