@@ -165,10 +165,11 @@ body::before{
   background-size:min(115vmax, 1400px) auto;
   background-position:50% 38%;
   background-repeat:no-repeat;
-  opacity:.11;
+  opacity:.055;
+  filter:saturate(.25) contrast(.85);
   mix-blend-mode:multiply;
-  -webkit-mask-image:linear-gradient(to bottom, #000 0 76%, rgba(0,0,0,.3) 92%, transparent 100%);
-  mask-image:linear-gradient(to bottom, #000 0 76%, rgba(0,0,0,.3) 92%, transparent 100%);
+  -webkit-mask-image:linear-gradient(to bottom, #000 0 74%, rgba(0,0,0,.3) 92%, transparent 100%);
+  mask-image:linear-gradient(to bottom, #000 0 74%, rgba(0,0,0,.3) 92%, transparent 100%);
 }
 [data-scheme="dark"] body::before{ opacity:.22; mix-blend-mode:screen; }
 @media print{ body::before{ display:none; } }

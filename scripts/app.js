@@ -954,3 +954,32 @@
 })();
 
 
+
+  /* ===== 结尾诗句：交错 + 每 6 秒换一首（相思题材） ===== */
+  var POEM_SET = [
+    ['山有木兮木有枝', '心悦君兮君不知'],
+    ['玲珑骰子安红豆', '入骨相思知不知'],
+    ['相思相见知何日', '此时此夜难为情'],
+    ['只缘感君一回顾', '使我思君朝与暮'],
+    ['天涯地角有穷时', '只有相思无尽处']
+  ];
+  (function () {
+    var box = document.getElementById('tailPoem');
+    if (!box) return;
+    var l = box.querySelector('.poem-l'), r = box.querySelector('.poem-r');
+    var i = 0, timer = 0;
+    function swap() {
+      if (document.hidden) return;
+      i = (i + 1) % POEM_SET.length;
+      l.classList.add('is-fading'); r.classList.add('is-fading');
+      window.setTimeout(function () {
+        l.textContent = POEM_SET[i][0];
+        r.textContent = POEM_SET[i][1];
+        l.classList.remove('is-fading'); r.classList.remove('is-fading');
+      }, 520);
+    }
+    function start() { if (!timer) timer = window.setInterval(swap, 6000); }
+    function stop() { if (timer) { window.clearInterval(timer); timer = 0; } }
+    document.addEventListener('visibilitychange', function () { if (document.hidden) stop(); else start(); });
+    start();
+  })();
