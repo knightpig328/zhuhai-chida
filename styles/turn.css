@@ -263,9 +263,9 @@
 @media (max-width:640px){
   /* 全部交给 app.css 的 6 列制，这里只调字号与垂直微调，不再写 grid-area */
   #cdp .cdp-addr{ font-size:.72em; padding:1px 4px; }
-  #cdp .cdp-rate{ align-self:center; margin-top:-12px; }
-  #cdp .cdp-del{ align-self:center; margin-top:-6px; opacity:.55; }
-  #cdp .cdp-map{ align-self:center; margin-top:-4px; }
+  #cdp .cdp-rate{ grid-column:6; grid-row:1; align-self:center; margin-top:-12px; }
+  #cdp .cdp-del{ grid-column:5; grid-row:1; align-self:center; margin-top:-6px; opacity:.55; }
+  #cdp .cdp-map{ grid-column:6; grid-row:2; align-self:center; margin-top:-4px; }
 }
 
 @keyframes cdpScoreIn{
