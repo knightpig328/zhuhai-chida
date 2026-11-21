@@ -1150,7 +1150,7 @@
       function tick() {
         if (!SORT.active || !AUTO_SCROLL.dir) { AUTO_SCROLL.raf = 0; return; }
         var before = window.pageYOffset;
-        window.scrollBy(0, AUTO_SCROLL.dir * 12);
+        window.scrollBy(0, AUTO_SCROLL.dir * 5);
         var moved = window.pageYOffset - before;
         /* 滚动量补回 dy，避免被拖的那一行「粘住」指针 */
         if (moved) {
