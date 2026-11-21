@@ -165,7 +165,6 @@
 @media (prefers-reduced-motion: reduce){ #cdp .cdp-row:hover::before{ transform:none; } }
 
 
-/* 14) 卡片区加宽（菜单横向留白更大），宽屏才生效 */
-@media (min-width:900px){
-  #cdp{ width:min(100%, 660px); margin-left:auto; margin-right:auto; }
-}
+/* 14) 卡片区加宽：直接放宽阅读列（--col 原为 30 字 = 510px） */
+:root{ --col: calc(38 * 1.0625rem); }
+@media (max-width:640px){ :root{ --col: calc(30 * 1.0625rem); } }
