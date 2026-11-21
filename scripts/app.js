@@ -1199,7 +1199,8 @@
       });
       html.style.overflow = "";
       SORT.active = false; SORT.li = null;
-      if (!li || to < 0 || to === from) return;
+      window.__sortDebug = { from: from, to: to, active: SORT.active, namesLen: (SORT.names || []).length, text: text };
+      if (!li || to < 0 || to === from) { window.__sortDebug.skipped = true; return; }
 
       /* 基于当前 DOM 全量顺序重排：先摘出自己，再插到目标位置 */
       window.__lastSortNames = (SORT.names || []).length;
@@ -1211,6 +1212,8 @@
       var tgt = Math.max(0, Math.min(names.length, to > at ? to - 1 : to));
       names.splice(tgt, 0, text);
       TS.order = { v: names, t: tsNow() };
+      window.__sortDebug.written = names.length;
+      window.__sortDebug.orderHead = names.slice(0, 3);
       save(); push();
       li.__dragged = true;
       render({ force: true });
