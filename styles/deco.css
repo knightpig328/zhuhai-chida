@@ -1,0 +1,162 @@
+﻿/* ==== 整页装饰层 v2（2026-11-22） · 同心弧角 + 菱形竖纹 + 菱形分隔 · 纯 CSS/SVG ==== */
+:root{
+  --orn-corner: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath d='M2 46A44 44 0 0 1 46 2' fill='none' stroke='%23111' stroke-width='1.25' stroke-linecap='round'/%3E%3Cpath d='M10 46A36 36 0 0 1 46 10' fill='none' stroke='%23111' stroke-width='.7' stroke-linecap='round'/%3E%3Cpath d='M46 2l3.2 3.2L46 8.4l-3.2-3.2z' fill='%23111'/%3E%3Cpath d='M2 46l3.2-3.2L8.4 46l-3.2 3.2z' fill='%23111'/%3E%3C/svg%3E");
+  --orn-corner-tr: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cg transform='translate(48,0) scale(-1,1)'%3E%3Cpath d='M2 46A44 44 0 0 1 46 2' fill='none' stroke='%23111' stroke-width='1.25' stroke-linecap='round'/%3E%3Cpath d='M10 46A36 36 0 0 1 46 10' fill='none' stroke='%23111' stroke-width='.7' stroke-linecap='round'/%3E%3Cpath d='M46 2l3.2 3.2L46 8.4l-3.2-3.2z' fill='%23111'/%3E%3Cpath d='M2 46l3.2-3.2L8.4 46l-3.2 3.2z' fill='%23111'/%3E%3C/g%3E%3C/svg%3E");
+  --orn-corner-bl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cg transform='translate(0,48) scale(1,-1)'%3E%3Cpath d='M2 46A44 44 0 0 1 46 2' fill='none' stroke='%23111' stroke-width='1.25' stroke-linecap='round'/%3E%3Cpath d='M10 46A36 36 0 0 1 46 10' fill='none' stroke='%23111' stroke-width='.7' stroke-linecap='round'/%3E%3Cpath d='M46 2l3.2 3.2L46 8.4l-3.2-3.2z' fill='%23111'/%3E%3Cpath d='M2 46l3.2-3.2L8.4 46l-3.2 3.2z' fill='%23111'/%3E%3C/g%3E%3C/svg%3E");
+  --orn-corner-br: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cg transform='translate(48,48) scale(-1,-1)'%3E%3Cpath d='M2 46A44 44 0 0 1 46 2' fill='none' stroke='%23111' stroke-width='1.25' stroke-linecap='round'/%3E%3Cpath d='M10 46A36 36 0 0 1 46 10' fill='none' stroke='%23111' stroke-width='.7' stroke-linecap='round'/%3E%3Cpath d='M46 2l3.2 3.2L46 8.4l-3.2-3.2z' fill='%23111'/%3E%3Cpath d='M2 46l3.2-3.2L8.4 46l-3.2 3.2z' fill='%23111'/%3E%3C/g%3E%3C/svg%3E");
+  --orn-rule: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 20'%3E%3Cpath d='M2 10H102M138 10H238' stroke='%23111' stroke-width='1.2' stroke-linecap='round'/%3E%3Cpath d='M120 3.6l6.4 6.4-6.4 6.4-6.4-6.4z' fill='none' stroke='%23111' stroke-width='1.1'/%3E%3Cpath d='M120 7.4l2.6 2.6-2.6 2.6-2.6-2.6z' fill='%23111'/%3E%3Ccircle cx='108' cy='10' r='1.3' fill='%23111'/%3E%3Ccircle cx='132' cy='10' r='1.3' fill='%23111'/%3E%3C/svg%3E");
+  --orn-vine: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 140'%3E%3Cpath d='M14 0V140' stroke='%23111' stroke-width='.5' stroke-opacity='.55'/%3E%3Cpath d='M14 14l7 16-7 16-7-16z' fill='none' stroke='%23111' stroke-width='.9'/%3E%3Cpath d='M14 60l7 16-7 16-7-16z' fill='none' stroke='%23111' stroke-width='.9'/%3E%3Cpath d='M14 38l2.4 5.6L14 49.2l-2.4-5.6z' fill='%23111'/%3E%3Cpath d='M14 84l2.4 5.6L14 95.2l-2.4-5.6z' fill='%23111'/%3E%3Ccircle cx='14' cy='118' r='2' fill='none' stroke='%23111' stroke-width='.8'/%3E%3C/svg%3E");
+  --orn-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2 6h20M2 12h20M2 18h20' stroke='%23111' stroke-opacity='.035' stroke-width='.5'/%3E%3C/svg%3E");
+}
+[data-scheme="dark"]{
+  --orn-corner: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath d='M2 46A44 44 0 0 1 46 2' fill='none' stroke='%23d4a04a' stroke-width='1.25' stroke-linecap='round'/%3E%3Cpath d='M10 46A36 36 0 0 1 46 10' fill='none' stroke='%23d4a04a' stroke-width='.7' stroke-linecap='round'/%3E%3Cpath d='M46 2l3.2 3.2L46 8.4l-3.2-3.2z' fill='%23d4a04a'/%3E%3Cpath d='M2 46l3.2-3.2L8.4 46l-3.2 3.2z' fill='%23d4a04a'/%3E%3C/svg%3E");
+  --orn-corner-tr: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cg transform='translate(48,0) scale(-1,1)'%3E%3Cpath d='M2 46A44 44 0 0 1 46 2' fill='none' stroke='%23d4a04a' stroke-width='1.25' stroke-linecap='round'/%3E%3Cpath d='M10 46A36 36 0 0 1 46 10' fill='none' stroke='%23d4a04a' stroke-width='.7' stroke-linecap='round'/%3E%3Cpath d='M46 2l3.2 3.2L46 8.4l-3.2-3.2z' fill='%23d4a04a'/%3E%3C/g%3E%3C/svg%3E");
+  --orn-corner-bl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cg transform='translate(0,48) scale(1,-1)'%3E%3Cpath d='M2 46A44 44 0 0 1 46 2' fill='none' stroke='%23d4a04a' stroke-width='1.25' stroke-linecap='round'/%3E%3Cpath d='M10 46A36 36 0 0 1 46 10' fill='none' stroke='%23d4a04a' stroke-width='.7' stroke-linecap='round'/%3E%3Cpath d='M46 2l3.2 3.2L46 8.4l-3.2-3.2z' fill='%23d4a04a'/%3E%3C/g%3E%3C/svg%3E");
+  --orn-corner-br: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cg transform='translate(48,48) scale(-1,-1)'%3E%3Cpath d='M2 46A44 44 0 0 1 46 2' fill='none' stroke='%23d4a04a' stroke-width='1.25' stroke-linecap='round'/%3E%3Cpath d='M10 46A36 36 0 0 1 46 10' fill='none' stroke='%23d4a04a' stroke-width='.7' stroke-linecap='round'/%3E%3Cpath d='M46 2l3.2 3.2L46 8.4l-3.2-3.2z' fill='%23d4a04a'/%3E%3C/g%3E%3C/svg%3E");
+  --orn-rule: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 20'%3E%3Cpath d='M2 10H102M138 10H238' stroke='%23d4a04a' stroke-width='1.2' stroke-linecap='round'/%3E%3Cpath d='M120 3.6l6.4 6.4-6.4 6.4-6.4-6.4z' fill='none' stroke='%23d4a04a' stroke-width='1.1'/%3E%3Cpath d='M120 7.4l2.6 2.6-2.6 2.6-2.6-2.6z' fill='%23d4a04a'/%3E%3Ccircle cx='108' cy='10' r='1.3' fill='%23d4a04a'/%3E%3Ccircle cx='132' cy='10' r='1.3' fill='%23d4a04a'/%3E%3C/svg%3E");
+  --orn-vine: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 140'%3E%3Cpath d='M14 0V140' stroke='%23d4a04a' stroke-width='.5' stroke-opacity='.55'/%3E%3Cpath d='M14 14l7 16-7 16-7-16z' fill='none' stroke='%23d4a04a' stroke-width='.9'/%3E%3Cpath d='M14 60l7 16-7 16-7-16z' fill='none' stroke='%23d4a04a' stroke-width='.9'/%3E%3Cpath d='M14 38l2.4 5.6L14 49.2l-2.4-5.6z' fill='%23d4a04a'/%3E%3Cpath d='M14 84l2.4 5.6L14 95.2l-2.4-5.6z' fill='%23d4a04a'/%3E%3Ccircle cx='14' cy='118' r='2' fill='none' stroke='%23d4a04a' stroke-width='.8'/%3E%3C/svg%3E");
+  --orn-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2 6h20M2 12h20M2 18h20' stroke='%23ece2cf' stroke-opacity='.03' stroke-width='.5'/%3E%3C/svg%3E");
+}
+
+/* 1) 页面光晕 */
+html, body{ background-color: var(--paper); }
+body{
+  background-image:
+    radial-gradient(120% 62% at 50% -10%, rgba(var(--accent-rgb),.11), transparent 62%),
+    radial-gradient(70% 46% at 0% 28%, rgba(var(--ink-rgb),.055), transparent 58%),
+    radial-gradient(82% 56% at 100% 94%, rgba(var(--accent-rgb),.075), transparent 60%),
+    var(--orn-grain);
+  background-repeat: no-repeat, no-repeat, no-repeat, repeat;
+  background-size: auto, auto, auto, 24px 24px;
+}
+[data-scheme="dark"] body{
+  background-image:
+    radial-gradient(120% 62% at 50% -10%, rgba(var(--accent-rgb),.16), transparent 64%),
+    radial-gradient(70% 46% at 0% 28%, rgba(255,255,255,.04), transparent 58%),
+    radial-gradient(82% 56% at 100% 94%, rgba(var(--accent-rgb),.10), transparent 60%),
+    var(--orn-grain);
+}
+
+/* 2) 页边菱形竖纹 */
+.container{ position:relative; }
+.container::before, .container::after{
+  content:""; position:absolute; top:8px; bottom:8px; width:28px;
+  background-color: rgba(var(--ink-rgb),.20);
+  -webkit-mask: var(--orn-vine) center top / 28px 140px repeat-y;
+  mask: var(--orn-vine) center top / 28px 140px repeat-y;
+  pointer-events:none; z-index:0;
+}
+.container::before{ left:22px; }
+.container::after{ right:22px; transform:scaleX(-1); }
+
+/* 3) 报头：双线 + 右端菱形 */
+.doc-chrome.doc-line{
+  position:relative;
+  padding-bottom:12px !important;
+  border-bottom:1px solid rgba(var(--ink-rgb),.34) !important;
+}
+.doc-chrome.doc-line::before{
+  content:""; position:absolute; left:0; right:0; bottom:4px; height:1px;
+  background:rgba(var(--ink-rgb),.16);
+}
+.doc-chrome.doc-line::after{
+  content:""; position:absolute; right:0; bottom:-3px; width:7px; height:7px;
+  border:1px solid rgba(var(--accent-rgb),.55); transform:rotate(45deg); background:var(--paper);
+}
+
+/* 4) hero：上下菱形分隔线（::after 火花保留） */
+.hero{ position:relative; }
+.hero::before{
+  content:""; display:block; width:min(92%, 480px); height:22px; margin:0 auto 6px;
+  background-color: rgba(var(--accent-rgb),.62);
+  -webkit-mask: var(--orn-rule) center / contain no-repeat;
+  mask: var(--orn-rule) center / contain no-repeat;
+}
+
+/* 5) 章节号两侧：菱形短线 */
+.section-number .sn-l, .section-number .sn-r{ position:relative; }
+.section-number .sn-l::after, .section-number .sn-r::after{
+  content:""; display:block; height:10px; margin-top:6px;
+  background-color: rgba(var(--ink-rgb),.24);
+  -webkit-mask: var(--orn-rule) center / 100% 10px no-repeat;
+  mask: var(--orn-rule) center / 100% 10px no-repeat;
+}
+.section-number .sn-r::after{ transform:scaleX(-1); }
+
+/* 6) 菜单框：四角同心弧 + 纸纹 + 光晕 */
+#cdp{
+  background-color: var(--paper);
+  background-image:
+    var(--orn-corner), var(--orn-corner-tr), var(--orn-corner-bl), var(--orn-corner-br),
+    var(--orn-grain),
+    radial-gradient(120% 80% at 0% 0%, rgba(var(--accent-rgb),.10), transparent 64%),
+    radial-gradient(140% 90% at 100% 100%, rgba(var(--ink-rgb),.06), transparent 60%);
+  background-position:
+    left 5px top 5px, right 5px top 5px, left 5px bottom 5px, right 5px bottom 5px,
+    0 0, 0 0, 0 0;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat, no-repeat, no-repeat;
+  background-size: 40px 40px, 40px 40px, 40px 40px, 40px 40px, 24px 24px, auto, auto;
+  border-color: rgba(var(--ink-rgb),.22);
+}
+#cdp::before{
+  border:1px solid rgba(var(--ink-rgb),.10);
+  border-radius:2px;
+}
+#cdp::after{ display:none; }
+[data-scheme="dark"] #cdp{
+  background-image:
+    var(--orn-corner), var(--orn-corner-tr), var(--orn-corner-bl), var(--orn-corner-br),
+    var(--orn-grain),
+    radial-gradient(120% 80% at 0% 0%, rgba(var(--accent-rgb),.20), transparent 64%),
+    radial-gradient(140% 90% at 100% 100%, rgba(255,255,255,.05), transparent 60%);
+  border-color: rgba(var(--ink-rgb),.24);
+}
+
+/* 7) 卡片：左上角小弧 + 右上角小弧（对角呼应，不压序号） */
+#cdp .cdp-row::before, #cdp .cdp-row::after{ display:none; content:none; }
+#cdp .cdp-row{
+  background-image:
+    var(--orn-corner), var(--orn-corner-tr),
+    linear-gradient(180deg, rgba(var(--ink-rgb),.030), rgba(var(--ink-rgb),.012));
+  background-position: left 3px top 3px, right 3px top 3px, 0 0;
+  background-repeat: no-repeat, no-repeat, repeat;
+  background-size: 18px 18px, 18px 18px, auto;
+  border-color: rgba(var(--ink-rgb),.22);
+}
+#cdp .cdp-row.is-done{
+  background-image:
+    var(--orn-corner), var(--orn-corner-tr),
+    linear-gradient(180deg, rgba(var(--ink-rgb),.020), rgba(var(--ink-rgb),.008));
+}
+
+/* 8) 页脚：菱形分隔收尾 */
+footer{ position:relative; padding-top:6px; }
+footer::before{
+  content:""; display:block; width:min(100%, 360px); height:20px; margin:0 auto 12px;
+  background-color: rgba(var(--accent-rgb),.55);
+  -webkit-mask: var(--orn-rule) center / contain no-repeat;
+  mask: var(--orn-rule) center / contain no-repeat;
+}
+
+/* 9) 移动端 */
+@media (max-width:640px){
+  .container::before, .container::after{ display:none; }
+  .hero::before{ width:78%; height:16px; }
+  #cdp{ background-size: 32px 32px, 32px 32px, 32px 32px, 32px 32px, 20px 20px, auto, auto; }
+}
+
+/* 10) 打印：只留纸色与单色细线 */
+@media print{
+  html, body{ background:var(--paper) !important; background-image:none !important; }
+  .container::before, .container::after{ display:none !important; }
+  .hero::before, footer::before{ display:none !important; }
+  .doc-chrome.doc-line::after{ display:none !important; }
+  #cdp{ background:var(--paper) !important; border-color:rgba(var(--ink-rgb),.35) !important; }
+  #cdp .cdp-row{ background:none !important; border-color:rgba(var(--ink-rgb),.35) !important; }
+}
+
+/* 11) 减少动效 */
+@media (prefers-reduced-motion: reduce){
+  .hero::before, footer::before, .section-number .sn-l::after, .section-number .sn-r::after{ transition:none !important; }
+}
+

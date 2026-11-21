@@ -1,0 +1,376 @@
+/* cdp base + sync + cards, order matters: base -> sync -> cards */
+  #cdp { margin: 4px 0 0; }
+  /* ==== 2026-11-22 UI 改造：地址栏 + 动画 ==== */
+#cdp .cdp-addr{
+  font-family:var(--font-mono,ui-monospace,monospace);
+  font-size:.72em;letter-spacing:.02em;color:var(--ink-3,#8a8577);
+  min-width:7em;min-height:1.5em;padding:1px 6px;border-radius:3px;
+  border:1px dashed transparent;transition:border-color .2s,background .2s,color .2s;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:16em;
+  cursor:text;outline:none;
+}
+#cdp .cdp-addr:hover{border-color:var(--rule,#d8d3c4);background:rgba(0,0,0,.02)}
+#cdp .cdp-addr:focus{border-color:var(--accent);background:rgba(0,0,0,.03);color:var(--ink,#2b2b2b)}
+#cdp .cdp-addr:empty::before{content:attr(data-ph);color:var(--ink-4,#b3aea2);font-style:italic}
+@media(max-width:640px){
+  #cdp .cdp-row{flex-wrap:wrap}
+  #cdp .cdp-addr{flex-basis:100%;margin-left:calc(18px + 1.9em + 20px);max-width:none}
+}
+/* 首屏入场（只挂 #cdp，不挂 row） */
+@keyframes cdpRise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+#cdp.cdp-boot .cdp-row{animation:cdpRise .52s cubic-bezier(.22,1,.36,1) both}
+#cdp.cdp-boot .cdp-row:nth-child(1){animation-delay:0s}
+#cdp.cdp-boot .cdp-row:nth-child(2){animation-delay:.05s}
+#cdp.cdp-boot .cdp-row:nth-child(3){animation-delay:.1s}
+#cdp.cdp-boot .cdp-row:nth-child(4){animation-delay:.15s}
+#cdp.cdp-boot .cdp-row:nth-child(5){animation-delay:.2s}
+#cdp.cdp-boot .cdp-row:nth-child(6){animation-delay:.25s}
+/* 新增条目 */
+@keyframes cdpIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+#cdp .cdp-row.is-enter{animation:cdpIn .38s cubic-bezier(.22,1,.36,1) both}
+/* 删除条目 */
+@keyframes cdpOut{to{opacity:0;transform:translateX(12px)}}
+#cdp .cdp-row.is-leaving{animation:cdpOut .28s cubic-bezier(.4,0,.2,1) both;pointer-events:none}
+/* 勾选反馈（复用已有 ::after 删除线，只加 box pop） */
+@keyframes cdpPop{50%{transform:scale(1.25)}}
+#cdp .cdp-row.is-done .cdp-box{animation:cdpPop .22s ease}
+/* 角标：去掉毛玻璃，用主题色 */
+#cdp .cdp-sync{transition:color .2s,background .2s}
+@media (prefers-reduced-motion: reduce){
+  #cdp .cdp-row,#cdp .cdp-row.is-enter,#cdp .cdp-row.is-leaving,#cdp .cdp-box{animation:none!important}
+}
+#cdp .cdp-head { display:flex; align-items:center; gap:14px; padding-bottom:14px; border-bottom:1px solid rgba(var(--ink-rgb),.16); }
+  #cdp .cdp-count { font-family: var(--font-mono); font-size:.78rem; letter-spacing:.02em; color: rgba(var(--ink-rgb),.6); white-space:nowrap; }
+  #cdp .cdp-count b { font-weight:600; font-size:.95rem; color: var(--fg); }
+  #cdp .cdp-sep { margin:0 4px; opacity:.45; }
+  #cdp .cdp-bar { position:relative; flex:1; height:2px; background: rgba(var(--ink-rgb),.12); overflow:hidden; }
+  #cdp .cdp-bar i { position:absolute; left:0; top:0; bottom:0; width:0; background: var(--accent); transition: width .42s cubic-bezier(.4,0,.2,1); }
+  #cdp .cdp-cap { font-family: var(--font-mono); font-size:.66rem; letter-spacing:.18em; text-transform:uppercase; color: rgba(var(--ink-rgb),.4); }
+  #cdp .cdp-list { list-style:none; margin:0; padding:0; }
+  #cdp .cdp-row { position:relative; display:flex; align-items:center; gap:12px; padding:15px 2px 15px 0; border-bottom:1px solid rgba(var(--ink-rgb),.1); cursor:pointer; transition: background .18s ease; }
+  #cdp .cdp-row:hover { background: rgba(var(--ink-rgb),.026); }
+  #cdp .cdp-tick { flex:0 0 auto; width:18px; height:18px; padding:0; border:0; background:none; cursor:pointer; }
+  #cdp .cdp-box { display:block; position:relative; width:16px; height:16px; border:1.5px solid rgba(var(--ink-rgb),.36); transition: border-color .18s ease, background .18s ease; }
+  #cdp .cdp-box::after { content:""; position:absolute; left:4px; top:0px; width:6px; height:10px; border-right:1.6px solid var(--paper); border-bottom:1.6px solid var(--paper); transform: rotate(40deg) scale(0); transition: transform .18s ease .04s; }
+  #cdp .is-done .cdp-box { background: var(--accent); border-color: var(--accent); }
+  #cdp .is-done .cdp-box::after { transform: rotate(40deg) scale(1); }
+  #cdp .cdp-idx { font-family: var(--font-mono); font-size:.7rem; letter-spacing:.1em; color: rgba(var(--ink-rgb),.32); width:1.9em; text-align:right; padding-right:2px; }
+  #cdp .cdp-name { position:relative; font-size:1.06rem; line-height:1.55; transition: color .3s ease; }
+  #cdp .cdp-name::after { content:""; position:absolute; left:-2px; top:58%; height:1px; width:0; background: currentColor; opacity:.85; transition: width .34s cubic-bezier(.4,0,.2,1); }
+  #cdp .is-done { background: rgba(var(--ink-rgb),.022); }
+  #cdp .is-done .cdp-name { color: rgba(var(--ink-rgb),.4); }
+  #cdp .is-done .cdp-name::after { width: calc(100% + 4px); }
+  #cdp .is-done .cdp-idx { color: rgba(var(--ink-rgb),.2); }
+  #cdp .cdp-flag { margin-left:auto; font-family: var(--font-mono); font-size:.62rem; letter-spacing:.16em; color: var(--accent); opacity:0; transform: translateX(-5px); transition: opacity .24s ease, transform .24s ease; }
+  #cdp .is-done .cdp-flag { opacity:.85; transform:none; }
+  #cdp .cdp-del { flex:0 0 auto; width:22px; height:22px; line-height:1; border:0; background:none; color: rgba(var(--ink-rgb),.3); font-size:1rem; cursor:pointer; opacity:0; transition: opacity .18s ease, color .18s ease; }
+  #cdp .cdp-row:hover .cdp-del, #cdp .cdp-del:focus-visible { opacity:1; }
+  #cdp .cdp-del:hover { color: var(--accent); }
+  #cdp .cdp-note { margin:22px 0 0; color: rgba(var(--ink-rgb),.62); }
+  #cdp .cdp-add { display:flex; align-items:center; gap:10px; margin:16px 0 0; padding:12px 14px; border:1px dashed rgba(var(--ink-rgb),.28); transition: border-color .2s ease, background .2s ease; }
+  #cdp .cdp-add:focus-within { border-color: var(--accent); background: rgba(var(--ink-rgb),.02); }
+  #cdp .cdp-add input { flex:1; min-width:0; border:0; background:none; font-family: var(--font-serif); font-size:.98rem; color: var(--fg); outline:none; padding:2px 0; }
+  #cdp .cdp-add input::placeholder { color: rgba(var(--ink-rgb),.32); }
+  #cdp .cdp-add button { flex:0 0 auto; border:0; background:none; font-family: var(--font-mono); font-size:.7rem; letter-spacing:.14em; color: var(--accent); cursor:pointer; }
+  #cdp .cdp-add button:hover { opacity:.7; }
+  #cdp .cdp-hint { margin:12px 0 0; font-family: var(--font-mono); font-size:.65rem; line-height:1.9; letter-spacing:.02em; color: rgba(var(--ink-rgb),.32); }
+  @media (max-width:640px) {
+    #cdp .cdp-row { padding:17px 0; gap:10px; }
+    #cdp .cdp-name { font-size:1rem; }
+    #cdp .cdp-add { flex-wrap:wrap; }
+    #cdp .cdp-add button { width:100%; text-align:right; padding-top:6px; }
+  }
+  @media print {
+    #cdp .cdp-add, #cdp .cdp-hint, #cdp .cdp-del { display:none !important; }
+    #cdp .cdp-tick { pointer-events:none; }
+    #cdp .cdp-row { break-inside:avoid; }
+  }
+  /* 成品页不保留字体/配色设置按钮，避免任何在线字体入口 */
+  .hf-fab, .toc, .toc-scrim, .toc-toggle { display: none !important; }
+
+  /* ==== 2026-11-22 第二轮：同步正确性 + 动画编排 + 角标主题化（追加覆盖区） ==== */
+  /* 地址栏：颜色改走 ink-rgb（--ink-3/--ink-4 全文未定义，--rule 是 border 简写不是颜色） */
+  #cdp .cdp-addr{color:rgba(var(--ink-rgb),.55);box-shadow:none!important}
+  #cdp .cdp-addr:hover{border-color:rgba(var(--ink-rgb),.22);background:rgba(var(--ink-rgb),.03)}
+  #cdp .cdp-addr:focus{border-color:var(--accent);background:rgba(var(--ink-rgb),.04);color:var(--fg,var(--ink));box-shadow:none!important}
+  #cdp .cdp-addr:empty::before{color:rgba(var(--ink-rgb),.3)}
+  /* 重建时抑制重放：只关 box pop 与删除线过渡，不关 row 级入场/退场动画 */
+  #cdp .cdp-list.no-anim .cdp-box{animation:none!important}
+  #cdp .cdp-list.no-anim .cdp-name::after{transition:none!important}
+  #cdp .cdp-list.no-anim .cdp-name{transition:none!important}
+  #cdp .cdp-list.no-anim .cdp-flag{transition:none!important}
+  /* 角标：四态走主题 token（浅色） */
+  #cdp .cdp-sync{
+    margin-left:auto;font-size:11px;padding:2px 9px;border-radius:20px;white-space:nowrap;cursor:pointer;
+    border:1px solid rgba(var(--ink-rgb),.14);color:rgba(var(--ink-rgb),.62);background:rgba(var(--ink-rgb),.06);
+    transition:color .2s,background .2s,border-color .2s;
+  }
+  #cdp .cdp-sync[data-state="busy"]{color:var(--accent-ink);background:rgba(var(--accent-rgb),.10);border-color:rgba(var(--accent-rgb),.30)}
+  #cdp .cdp-sync[data-state="ok"]{color:#1d6f47;background:rgba(29,111,71,.10);border-color:rgba(29,111,71,.30)}
+  #cdp .cdp-sync[data-state="fail"]{color:#9a4a12;background:rgba(154,74,18,.10);border-color:rgba(154,74,18,.32)}
+  /* 角标：深色主题（midnight-ink）单独抬高对比 */
+  [data-scheme="dark"] #cdp .cdp-sync{color:rgba(var(--ink-rgb),.74);background:rgba(var(--ink-rgb),.10);border-color:rgba(var(--ink-rgb),.22)}
+  [data-scheme="dark"] #cdp .cdp-sync[data-state="busy"]{color:var(--accent-ink);background:rgba(var(--accent-rgb),.18);border-color:rgba(var(--accent-rgb),.40)}
+  [data-scheme="dark"] #cdp .cdp-sync[data-state="ok"]{color:#7fd6a3;background:rgba(127,214,163,.14);border-color:rgba(127,214,163,.34)}
+  [data-scheme="dark"] #cdp .cdp-sync[data-state="fail"]{color:#f0b27a;background:rgba(240,178,122,.14);border-color:rgba(240,178,122,.36)}
+  /* 触屏：没有 hover，删除按钮必须可见 */
+  @media (hover:none){
+    #cdp .cdp-del{opacity:.45}
+    #cdp .cdp-row.is-done .cdp-del{opacity:.35}
+  }
+  /* 打印：地址完整带出去，去框去底，空地址不占位，角标不打印 */
+  @media print{
+    #cdp .cdp-sync{display:none!important}
+    #cdp .cdp-addr{
+      border:0!important;background:none!important;box-shadow:none!important;color:var(--fg)!important;
+      padding:0!important;min-width:0;max-width:none!important;white-space:normal!important;
+      overflow:visible!important;text-overflow:clip!important;
+    }
+    #cdp .cdp-addr:focus{border:0!important}
+    #cdp .cdp-addr:empty{display:none!important}
+    #cdp .cdp-addr:empty::before{content:""!important}
+    #cdp .cdp-row{column-gap:8px;flex-wrap:nowrap!important}
+    #cdp .cdp-addr{flex-basis:auto!important;margin-left:0!important}
+    .hero h1{margin-bottom:0!important}
+  }
+  /* 删副标题后收紧 hero 空洞（32+36=68px -> 4+12=16px）；只覆盖，不改 GZ:TOKENS 与 magazine 原文 */
+  .hero h1{margin-bottom:4px}
+  .hero::after{margin-top:12px}
+
+
+  /* ==== 2026-11-22 第三轮：菜单卡片 · 书页开合 · 节奏（追加覆盖区，后写优先） ==== */
+  /* 1) 菜单纸容器：纸纹 + 双细框 + 左上角花 */
+  #cdp{
+    position:relative;
+    margin:6px 0 0;
+    padding:22px 20px 18px;
+    background:
+      radial-gradient(120% 80% at 0% 0%, rgba(var(--accent-rgb),.050), transparent 62%),
+      radial-gradient(140% 90% at 100% 100%, rgba(var(--ink-rgb),.045), transparent 58%),
+      repeating-linear-gradient(0deg, rgba(var(--ink-rgb),.022) 0 1px, transparent 1px 26px);
+    border:1px solid rgba(var(--ink-rgb),.16);
+    border-radius:2px;
+    box-shadow:inset 0 0 0 1px var(--paper), inset 0 0 0 2px rgba(var(--ink-rgb),.05);
+  }
+  #cdp::before{
+    content:""; position:absolute; left:6px; top:6px; right:6px; bottom:6px;
+    border:1px dashed rgba(var(--ink-rgb),.10); pointer-events:none;
+  }
+  #cdp::after{
+    content:""; position:absolute; left:6px; top:6px; width:14px; height:14px;
+    border-left:1px solid rgba(var(--accent-rgb),.45); border-top:1px solid rgba(var(--accent-rgb),.45);
+    pointer-events:none;
+  }
+  [data-scheme="dark"] #cdp{
+    background:
+      radial-gradient(120% 80% at 0% 0%, rgba(var(--accent-rgb),.11), transparent 64%),
+      radial-gradient(140% 90% at 100% 100%, rgba(255,255,255,.045), transparent 58%),
+      repeating-linear-gradient(0deg, rgba(var(--ink-rgb),.020) 0 1px, transparent 1px 24px);
+    border-color:rgba(var(--ink-rgb),.18);
+    box-shadow:inset 0 0 0 1px rgba(var(--paper-rgb),1), inset 0 0 0 2px rgba(var(--ink-rgb),.07);
+  }
+  [data-scheme="dark"] #cdp::before{ border-color:rgba(var(--ink-rgb),.12); }
+  [data-scheme="dark"] #cdp::after{ border-color:rgba(var(--accent-rgb),.60); }
+
+  /* 2) 列表：卡片堆叠 + 书页开合（默认展开） */
+  #cdp .cdp-list{
+    display:grid; gap:9px; margin:0; padding:0; list-style:none;
+    max-height:2600px; overflow:hidden;
+    transform-origin:top center;
+    transition:max-height .58s cubic-bezier(.22,1,.36,1), opacity .34s ease, transform .58s cubic-bezier(.22,1,.36,1);
+  }
+  #cdp.is-folded .cdp-list{
+    max-height:0; opacity:0;
+    transform:perspective(900px) rotateX(-10deg) translateY(-6px);
+  }
+  /* 3) 卡片本体：七列网格 + 双层线 + 角花 */
+  #cdp .cdp-row{
+    position:relative;
+    display:grid;
+    grid-template-columns:18px 1.9em minmax(0,1fr) 7.5em 22px auto 24px;
+    column-gap:10px;
+    align-items:center;
+    padding:13px 12px;
+    cursor:pointer;
+    background:linear-gradient(180deg, rgba(var(--ink-rgb),.028), rgba(var(--ink-rgb),.010));
+    border:1px solid rgba(var(--ink-rgb),.20);
+    border-radius:3px;
+    transition:background .2s ease, border-color .2s ease;
+  }
+  #cdp .cdp-row:hover{
+    background:linear-gradient(180deg, rgba(var(--ink-rgb),.055), rgba(var(--ink-rgb),.020));
+    border-color:rgba(var(--ink-rgb),.34);
+  }
+  #cdp .cdp-row::before,
+  #cdp .cdp-row::after{
+    content:""; position:absolute; width:9px; height:9px;
+    border:1px solid rgba(var(--accent-rgb),.50); pointer-events:none;
+  }
+  #cdp .cdp-row::before{ left:4px; top:4px; border-right:0; border-bottom:0; }
+  #cdp .cdp-row::after{ right:4px; bottom:4px; border-left:0; border-top:0; }
+  #cdp .cdp-row.is-done{ background:linear-gradient(180deg, rgba(var(--ink-rgb),.020), rgba(var(--ink-rgb),.008)); }
+  #cdp .cdp-row.is-done::before,
+  #cdp .cdp-row.is-done::after{ border-color:rgba(var(--ink-rgb),.20); }
+  [data-scheme="dark"] #cdp .cdp-row{
+    border-color:rgba(var(--ink-rgb),.26);
+    background:linear-gradient(180deg, rgba(var(--ink-rgb),.050), rgba(var(--ink-rgb),.020));
+  }
+  [data-scheme="dark"] #cdp .cdp-row::before,
+  [data-scheme="dark"] #cdp .cdp-row::after{ border-color:rgba(var(--accent-rgb),.60); }
+  [data-scheme="dark"] #cdp .cdp-row.is-done{ background:linear-gradient(180deg, rgba(var(--ink-rgb),.030), rgba(var(--ink-rgb),.012)); }
+
+  /* 4) 七列定位 */
+  #cdp .cdp-tick{ grid-column:1; justify-self:start; }
+  #cdp .cdp-idx{ grid-column:2; width:auto; text-align:right; padding-right:0; }
+  #cdp .cdp-name{ grid-column:3; min-width:0; }
+  #cdp .cdp-addr{ grid-column:4; justify-self:stretch; width:100%; min-width:0; max-width:none; }
+  #cdp .cdp-map{ grid-column:5; justify-self:center; align-self:center; }
+  #cdp .cdp-flag{ grid-column:6; margin-left:0; justify-self:end; }
+  #cdp .cdp-del{ grid-column:7; justify-self:end; opacity:0; }
+  #cdp .cdp-row:hover .cdp-del,
+  #cdp .cdp-del:focus-visible{ opacity:1; }
+
+  /* 5) 地图入口 */
+  #cdp .cdp-map{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:22px; height:22px; border:1px solid rgba(var(--ink-rgb),.16); border-radius:50%;
+    color:rgba(var(--ink-rgb),.42); text-decoration:none;
+    transition:color .2s ease, border-color .2s ease, background .2s ease;
+  }
+  #cdp .cdp-map:hover{
+    color:var(--accent-ink,var(--accent));
+    border-color:rgba(var(--accent-rgb),.50);
+    background:rgba(var(--accent-rgb),.08);
+  }
+  #cdp .cdp-map:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  @media (hover:none){ #cdp .cdp-map{ color:rgba(var(--ink-rgb),.55); } #cdp .cdp-del{ opacity:.45; } }
+
+  /* 6) 书页开合按钮 */
+  #cdp .cdp-fold-btn{
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    width:100%; margin:2px 0 12px; padding:7px 10px;
+    border:1px solid rgba(var(--ink-rgb),.16); background:rgba(var(--ink-rgb),.03);
+    border-radius:2px; cursor:pointer;
+    font-family:var(--font-mono); font-size:.68rem; letter-spacing:.18em;
+    color:rgba(var(--ink-rgb),.62);
+  }
+  #cdp .cdp-fold-btn:hover{ color:var(--accent-ink,var(--accent)); border-color:rgba(var(--accent-rgb),.45); }
+  #cdp .cdp-fold-btn:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  #cdp .cdp-fold-ico{
+    width:7px; height:7px;
+    border-right:1.5px solid currentColor; border-bottom:1.5px solid currentColor;
+    transform:rotate(45deg) translateY(-1px); transition:transform .3s ease;
+  }
+  #cdp.is-folded .cdp-fold-ico{ transform:rotate(-135deg) translateY(-1px); }
+
+  /* 7) 首屏取数状态：角标转圈，不动列表 */
+  #cdp.is-booting .cdp-sync::before{
+    content:""; display:inline-block; width:7px; height:7px; border-radius:50%;
+    border:1.5px solid currentColor; border-top-color:transparent;
+    margin-right:5px; vertical-align:-1px; animation:cdpSpin .7s linear infinite;
+  }
+  @keyframes cdpSpin{ to{ transform:rotate(360deg); } }
+
+  /* 8) 节奏：入场更慢、更有层次（keyframes 名称沿用，JS 兜底同步放宽） */
+  @keyframes cdpRise{ from{ opacity:0; transform:translateY(22px); } to{ opacity:1; transform:none; } }
+  #cdp.cdp-boot .cdp-row{ animation:cdpRise .78s cubic-bezier(.22,1,.36,1) both; }
+  #cdp.cdp-boot .cdp-row:nth-child(1){ animation-delay:0s; }
+  #cdp.cdp-boot .cdp-row:nth-child(2){ animation-delay:.09s; }
+  #cdp.cdp-boot .cdp-row:nth-child(3){ animation-delay:.18s; }
+  #cdp.cdp-boot .cdp-row:nth-child(4){ animation-delay:.27s; }
+  #cdp.cdp-boot .cdp-row:nth-child(5){ animation-delay:.36s; }
+  #cdp.cdp-boot .cdp-row:nth-child(6){ animation-delay:.45s; }
+  #cdp.cdp-boot .cdp-row:nth-child(7){ animation-delay:.54s; }
+  #cdp.cdp-boot .cdp-row:nth-child(8){ animation-delay:.63s; }
+  @keyframes cdpIn{ from{ opacity:0; transform:translateX(-16px); } to{ opacity:1; transform:none; } }
+  #cdp .cdp-row.is-enter{ animation:cdpIn .52s cubic-bezier(.22,1,.36,1) both; }
+  @keyframes cdpOut{ to{ opacity:0; transform:translateX(20px) scale(.97); } }
+  #cdp .cdp-row.is-leaving{ animation:cdpOut .40s cubic-bezier(.4,0,.2,1) both; pointer-events:none; }
+  @keyframes cdpPop{ 0%{ transform:scale(1); } 45%{ transform:scale(1.28); } 100%{ transform:scale(1); } }
+  #cdp .cdp-row.is-done .cdp-box{ animation:cdpPop .34s cubic-bezier(.22,1,.36,1); }
+  #cdp .cdp-name::after{ transition:width .48s cubic-bezier(.22,1,.36,1) .06s; }
+  #cdp .cdp-bar i{ transition:width .56s cubic-bezier(.4,0,.2,1); }
+
+  /* 9) 重建抑制（补 row 级 transition） */
+  #cdp .cdp-list.no-anim .cdp-row{ transition:none!important; }
+  #cdp .cdp-list.no-anim .cdp-box{ animation:none!important; }
+  #cdp .cdp-list.no-anim .cdp-name::after{ transition:none!important; }
+  #cdp .cdp-list.no-anim .cdp-name{ transition:none!important; }
+  #cdp .cdp-list.no-anim .cdp-flag{ transition:none!important; }
+
+  /* 10) 上方留白收紧（只覆盖；doc-chrome 原规则带 !important，覆盖也必须带） */
+  @media screen{
+    .doc-chrome.doc-line{ padding:18px 0 10px !important; }
+    .hero{ padding:24px 0 14px; }
+    .hero h1{ margin-bottom:2px; }
+    .hero::after{ width:14px; height:14px; margin-top:8px; }
+    .section{ padding:20px 0 26px; }
+    .section-number{ margin-bottom:10px; }
+    .section > h2{ margin-bottom:18px; }
+  }
+  @media screen and (max-width:640px){
+    .doc-chrome.doc-line{ padding:12px 4px 8px !important; font-size:12px; line-height:1.9; }
+    .hero{ padding:14px 0 10px; }
+    .hero::after{ width:12px; height:12px; margin-top:6px; }
+    .section{ padding:12px 0 20px; }
+    .section-number{ margin-bottom:8px; }
+    .section > h2{ margin-bottom:14px; }
+  }
+
+  /* 11) 移动端：两行卡片（名字一行、地址一行） */
+  @media (max-width:640px){
+    #cdp{ padding:16px 10px 14px; }
+    #cdp::before{ left:4px; top:4px; right:4px; bottom:4px; }
+    #cdp .cdp-row{
+      grid-template-columns:18px 1.9em minmax(0,1fr) 22px 24px;
+      column-gap:9px; row-gap:6px; padding:12px 10px;
+    }
+    #cdp .cdp-tick{ grid-area:1/1; }
+    #cdp .cdp-idx{ grid-area:1/2; }
+    #cdp .cdp-name{ grid-area:1/3; font-size:1rem; }
+    #cdp .cdp-flag{ display:none; }
+    #cdp .cdp-del{ grid-area:1/5; justify-self:end; }
+    #cdp .cdp-addr{ grid-area:2/2/3/5; justify-self:stretch; width:auto; min-width:0; max-width:none; }
+    #cdp .cdp-map{ grid-area:2/5; justify-self:end; }
+  }
+
+  /* 12) 减少动效：动画与过渡全关，状态仍切换 */
+  @media (prefers-reduced-motion: reduce){
+    #cdp .cdp-row,#cdp .cdp-row.is-enter,#cdp .cdp-row.is-leaving,
+    #cdp .cdp-box,#cdp.cdp-boot .cdp-row{ animation:none!important; }
+    #cdp .cdp-list,#cdp .cdp-name,#cdp .cdp-name::after,#cdp .cdp-flag,#cdp .cdp-bar i{ transition:none!important; }
+    #cdp.is-folded .cdp-list{ transform:none; }
+    #cdp .cdp-fold-ico{ transition:none!important; }
+    #cdp.is-booting .cdp-sync::before{ animation:none; }
+  }
+
+  /* 13) 打印：菜单花纹全部撤掉，地址完整带出去 */
+  @media print{
+    #cdp{
+      background:none!important; box-shadow:none!important;
+      border-color:rgba(var(--ink-rgb),.30)!important; padding:0!important;
+    }
+    #cdp::before,#cdp::after{ display:none!important; }
+    #cdp .cdp-list{
+      display:block!important; max-height:none!important; overflow:visible!important;
+      opacity:1!important; transform:none!important;
+    }
+    #cdp .cdp-row{
+      display:flex!important; flex-wrap:nowrap!important; gap:8px!important;
+      background:none!important; box-shadow:none!important; border:0!important;
+      border-bottom:1px solid rgba(var(--ink-rgb),.45)!important;
+      border-radius:0!important; padding:8px 0!important;
+    }
+    #cdp .cdp-row::before,#cdp .cdp-row::after{ display:none!important; }
+    #cdp .cdp-map,#cdp .cdp-fold-btn,#cdp .cdp-sync,#cdp .cdp-del{ display:none!important; }
+    #cdp .cdp-flag{ display:inline!important; margin-left:auto!important; }
+    #cdp .cdp-addr{
+      border:0!important; background:none!important; box-shadow:none!important;
+      color:var(--fg)!important; padding:0!important; min-width:0;
+      max-width:none!important; white-space:normal!important; overflow:visible!important; text-overflow:clip!important;
+    }
+    #cdp .cdp-addr:focus{ border:0!important; }
+    #cdp .cdp-addr:empty{ display:none!important; }
+    #cdp .cdp-addr:empty::before{ content:""!important; }
+  }
+
