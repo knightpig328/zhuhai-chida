@@ -263,8 +263,9 @@
   #cdp .cdp-addr{ grid-column:2 / 6; grid-row:2; width:auto; min-width:0; max-width:100%; box-sizing:border-box; font-size:.72em; padding:1px 4px; }
   /* 评分面板：左边界对齐名字列（第3列起），整体往上贴 */
   #cdp .cdp-score{ padding-left:calc(18px + 1.9em + 9px); margin-top:-2px; padding-top:4px; }
-  #cdp .score-row{ flex-direction:row; align-items:center; }
-  #cdp .score-who{ min-width:2.2em; margin:0 2px 0 0; font-size:.78rem; }
+  #cdp .score-row{ flex-direction:column; align-items:flex-start; margin:0; }
+  #cdp .score-who{ min-width:0; margin:0 0 1px 0; font-size:.74rem; line-height:1.2; }
+  #cdp .cdp-score{ margin-top:-6px; }
   #cdp .cdp-rate{ grid-column:6; grid-row:1; align-self:center; margin-top:-12px; }
   #cdp .cdp-del{ grid-column:5; grid-row:1; align-self:center; margin-top:-6px; opacity:.55; }
   #cdp .cdp-map{ grid-column:6; grid-row:2; align-self:center; margin-top:-4px; }
