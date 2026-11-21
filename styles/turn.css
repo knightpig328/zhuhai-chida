@@ -200,7 +200,7 @@
 #cdp .cdp-rate{
   grid-column:7; justify-self:end; width:24px; height:24px; padding:0;
   background:none; border:0; cursor:pointer; line-height:1;
-  font-size:1.25rem; color:rgba(var(--ink-rgb),.38);
+  font-size:1.45rem; color:rgba(var(--ink-rgb),.38);
   transition:color .18s ease, transform .18s ease;
 }
 #cdp .cdp-rate:hover{ color:rgba(var(--accent-rgb),.85); transform:scale(1.12); }
@@ -217,7 +217,7 @@
 #cdp .score-stars{ display:flex; gap:2px; justify-content:flex-start; }
 #cdp .cdp-star{
   width:20px; height:20px; padding:0; background:none; border:0; cursor:pointer;
-  font-size:1.25rem; line-height:1; color:rgba(var(--ink-rgb),.32);
+  font-size:1.35rem; line-height:1; color:rgba(var(--ink-rgb),.32);
   transition:color .15s ease, transform .15s ease;
 }
 #cdp .cdp-star:hover{ transform:scale(1.15); }
