@@ -165,7 +165,7 @@ body::before{
   background-size:1600px 1600px, 980px 980px;
   background-position: right -640px center, left -380px bottom -280px;
   background-repeat:no-repeat, no-repeat;
-  opacity:.20;
+  opacity:.27;
   mix-blend-mode:multiply;
 }
 [data-scheme="dark"] body::before{ opacity:.20; mix-blend-mode:screen; }
