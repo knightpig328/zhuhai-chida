@@ -260,11 +260,11 @@
 #cdp .cdp-addr{ min-width:0; max-width:100%; width:100%; box-sizing:border-box; }
 @media (max-width:640px){
   /* 全部交给 app.css 的 6 列制，这里只调字号与垂直微调，不再写 grid-area */
-  #cdp .cdp-addr{ grid-column:2 / 6; grid-row:2; width:auto; min-width:0; max-width:100%; box-sizing:border-box; font-size:.72em; padding:1px 4px; }
+  #cdp .cdp-addr{ grid-column:2 / 6; grid-row:2; width:auto; min-width:0; max-width:100%; box-sizing:border-box; font-size:.72em; padding:1px 4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   /* 评分面板：左边界对齐名字列（第3列起），整体往上贴 */
   #cdp .cdp-score{ padding-left:calc(18px + 1.9em + 9px); margin:-12px -2px 0; padding-top:2px; }
-  #cdp .score-row{ flex-direction:column; align-items:flex-start; margin:0; }
-  #cdp .score-who{ min-width:0; margin:0 0 1px 0; font-size:.74rem; line-height:1.2; }
+  #cdp .cdp-score .score-row{ flex-direction:column; align-items:flex-start; justify-content:flex-start; margin:0; text-align:left; }
+  #cdp .cdp-score .score-row .score-who{ min-width:0; width:auto; margin:0 0 1px 0; font-size:.74rem; line-height:1.2; text-align:left; align-self:flex-start; }
   #cdp .cdp-score{ margin-top:-12px; }
   #cdp .cdp-rate{ grid-column:6; grid-row:1; align-self:center; margin-top:-12px; }
   #cdp .cdp-del{ grid-column:5; grid-row:1; align-self:center; margin-top:-6px; opacity:.55; }
