@@ -27,7 +27,7 @@
   var TOKEN = "w", ETAG = "";
   var WORKER = "https://liqianshiqianjin.pages.dev";
   var WKEY = "zhuhai-2026-liqianwoainikeshinizongshichaowowozhendehaonanguo";
-  var TS = { done: {}, extra: {}, del: {}, addr: {} };
+  var TS = { done: {}, extra: {}, del: {}, addr: {}, score: {} };
   var ADDR = {};
   var CACHE = { done: {}, extra: [] };
   var state = { done: {}, extra: [] };
@@ -302,7 +302,7 @@
 
 
   function mergeState(a, b) {
-    var out = { v: 3, rev: 0, updatedAt: new Date().toISOString(), done: {}, extra: {}, del: {}, addr: {} };
+    var out = { v: 3, rev: 0, updatedAt: new Date().toISOString(), done: {}, extra: {}, del: {}, addr: {}, score: {} };
     ["done", "extra", "del"].forEach(function (f) {
       var x = (a && a[f]) || {}, y = (b && b[f]) || {}, m = out[f];
       Object.keys(x).forEach(function (k) { var xv = Number(x[k]); if (isFinite(xv) && xv) m[k] = xv; });
@@ -323,6 +323,14 @@
     var ax = (a && a.addr) || {}, ay = (b && b.addr) || {};
     Object.keys(ax).forEach(function (k) { var n = normAddr(ax[k]); if (n) out.addr[k] = n; });
     Object.keys(ay).forEach(function (k) { var n = pickAddr(out.addr[k], ay[k]); if (n) out.addr[k] = n; });
+    // score 合并：按 t 取新
+    var sx = (a && a.score) || {}, sy = (b && b.score) || {};
+    Object.keys(sx).forEach(function (k) { out.score[k] = sx[k]; });
+    Object.keys(sy).forEach(function (k) {
+      var x = out.score[k], y = sy[k];
+      if (!x) { out.score[k] = y; return; }
+      out.score[k] = ((y.t || 0) >= (x.t || 0)) ? y : x;
+    });
     out.rev = Math.max((a && a.rev) || 0, (b && b.rev) || 0) + 1;
     return out;
   }
@@ -583,6 +591,11 @@
     li.appendChild(addr);
     li.appendChild(map);
     li.appendChild(flag);
+    var rate = document.createElement("button");
+    rate.type = "button"; rate.className = "cdp-rate"; rate.textContent = "★";
+    rate.setAttribute("aria-label", "给 " + text + " 评分");
+    rate.addEventListener("click", function (ev) { ev.stopPropagation(); toggleScore(li, text); });
+    li.appendChild(rate);
     var del = document.createElement("button");
     del.type = "button"; del.className = "cdp-del"; del.textContent = "×";
     del.setAttribute("aria-label", "删掉 " + text);
@@ -631,6 +644,65 @@
     if (typeof d !== "number") return false;
     var add = TS.extra && TS.extra[t];
     return !(typeof add === "number" && add > d);
+  }
+
+  /* ===== 评分：两人各 0.5–5 星（1–10 分），面板在卡片下方展开，不撑宽 ===== */
+  var SCORE_WHO = [["me", "我"], ["her", "老婆"]];
+  function scoreOf(t) { return (TS.score && TS.score[t]) || {}; }
+  function starOn(v, i) { return v >= (i + 1) * 2 ? 2 : (v >= i * 2 + 1 ? 1 : 0); }
+  function paintStars(box, v, who, text) {
+    box.textContent = "";
+    for (var i = 0; i < 5; i++) {
+      var s = document.createElement("button");
+      s.type = "button";
+      s.className = "cdp-star" + (starOn(v, i) === 2 ? " is-full" : starOn(v, i) === 1 ? " is-half" : "");
+      s.textContent = "★";
+      s.setAttribute("aria-label", who + " " + (i + 1) + " 星");
+      s.addEventListener("click", (function (idx) {
+        return function (ev) {
+          ev.stopPropagation();
+          var r = this.getBoundingClientRect();
+          var half = (ev.clientX - r.left) < r.width / 2;
+          var val = idx * 2 + (half ? 1 : 2);
+          if (!TS.score) TS.score = {};
+          if (!TS.score[text]) TS.score[text] = {};
+          TS.score[text][who] = val;
+          TS.score[text].t = tsNow();
+          save(); push();
+          paintStars(box, val, who, text);
+          paintScoreTag(li_of(box), text);
+        };
+      })(i));
+      box.appendChild(s);
+    }
+  }
+  function li_of(n) { while (n && !(n.classList && n.classList.contains("cdp-row"))) n = n.parentNode; return n; }
+  function paintScoreTag(li, text) {
+    if (!li) return;
+    var sc = scoreOf(text), on = (sc.me || 0) + (sc.her || 0);
+    var btn = li.querySelector(".cdp-rate");
+    if (btn) btn.classList.toggle("is-on", on > 0);
+  }
+  function toggleScore(li, text) {
+    var panel = li.querySelector(".cdp-score");
+    if (panel) { panel.parentNode.removeChild(panel); return; }
+    var sc = scoreOf(text);
+    panel = document.createElement("div");
+    panel.className = "cdp-score";
+    panel.addEventListener("click", function (ev) { ev.stopPropagation(); });
+    SCORE_WHO.forEach(function (w) {
+      var row = document.createElement("div");
+      row.className = "score-row";
+      var lab = document.createElement("span");
+      lab.className = "score-who"; lab.textContent = w[1];
+      var box = document.createElement("span");
+      box.className = "score-stars";
+      row.appendChild(lab); row.appendChild(box);
+      panel.appendChild(row);
+      paintStars(box, sc[w[0]] || 0, w[0], text);
+    });
+    li.appendChild(panel);
+    li.classList.add("has-score");
   }
 
   function render(opts) {

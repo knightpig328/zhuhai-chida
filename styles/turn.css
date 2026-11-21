@@ -187,3 +187,37 @@
 .poem-r{ text-align:right; padding-right:6%; }
 .poem-line.is-fading{ opacity:0; transform:translateY(3px); }
 @media print{ .tail-rule::after{ background:transparent; } }
+
+
+/* 16) 评分：★ 按钮 + 展开面板（不增加卡片宽度） */
+#cdp .cdp-rate{
+  grid-column:7; justify-self:end; width:24px; height:24px; padding:0;
+  background:none; border:0; cursor:pointer; line-height:1;
+  font-size:.85rem; color:rgba(var(--ink-rgb),.22);
+  transition:color .18s ease, transform .18s ease;
+}
+#cdp .cdp-rate:hover{ color:rgba(var(--accent-rgb),.85); transform:scale(1.12); }
+#cdp .cdp-rate.is-on{ color:rgba(var(--accent-rgb),.9); }
+#cdp .cdp-row.has-score{ grid-auto-rows:auto; }
+#cdp .cdp-score{
+  grid-column:1 / -1; margin:8px 0 2px; padding-top:8px;
+  border-top:1px dashed rgba(var(--ink-rgb),.16);
+  display:flex; flex-direction:column; gap:4px;
+}
+#cdp .score-row{ display:flex; align-items:center; gap:8px; }
+#cdp .score-who{ font-family:var(--font-sans); font-size:.72rem; color:rgba(var(--ink-rgb),.55); min-width:2.4em; }
+#cdp .score-stars{ display:flex; gap:2px; }
+#cdp .cdp-star{
+  width:20px; height:20px; padding:0; background:none; border:0; cursor:pointer;
+  font-size:.9rem; line-height:1; color:rgba(var(--ink-rgb),.18);
+  transition:color .15s ease, transform .15s ease;
+}
+#cdp .cdp-star:hover{ transform:scale(1.15); }
+#cdp .cdp-star.is-full{ color:rgba(var(--accent-rgb),.92); }
+#cdp .cdp-star.is-half{
+  color:rgba(var(--ink-rgb),.18);
+  background:linear-gradient(90deg, rgba(var(--accent-rgb),.92) 50%, transparent 50%);
+  -webkit-background-clip:text; background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+@media print{ #cdp .cdp-rate, #cdp .cdp-score{ display:none !important; } }
