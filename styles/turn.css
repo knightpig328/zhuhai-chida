@@ -242,7 +242,7 @@
   #cdp .cdp-score{ width:100%; box-sizing:border-box; margin-left:-2px; margin-right:-2px; }
   #cdp .score-row{ gap:4px; flex-wrap:nowrap; }
   #cdp .score-stars{ gap:2px; flex-wrap:nowrap; justify-content:flex-start; }
-  #cdp .score-who{ min-width:auto; font-size:.76rem; margin:0 4px 0 0; }
+  #cdp .score-who{ min-width:2.6em; white-space:nowrap; font-size:.76rem; margin:0 6px 0 0; }
 
 }
 
