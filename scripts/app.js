@@ -1,4 +1,4 @@
-  var BUILD_VER = "20261128r";
+  var BUILD_VER = "20261128u";
 (function () {
   var root = document.getElementById("cdp");
   if (!root) return;
@@ -338,6 +338,11 @@
   /* 探测 Worker 是否已支持 order 字段（结果缓存到 localStorage，成功才上传） */
   var ORDER_OK = null;
   function probeOrder() {
+    /* Gist 直连不需要探测 Worker 能力；此前探测已死的 pages.dev 每次留 2 条 CORS error */
+    ORDER_OK = true;
+    return Promise.resolve(true);
+  }
+  function probeOrderUnused() {
     if (ORDER_OK !== null) return Promise.resolve(ORDER_OK);
     try {
       var c = window.localStorage.getItem("cdp-order-ok");

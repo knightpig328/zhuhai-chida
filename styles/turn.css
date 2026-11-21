@@ -255,6 +255,9 @@
   #cdp .cdp-name{ grid-column:3 / 5; font-size:1.35rem; letter-spacing:.02em; white-space:normal; overflow-wrap:anywhere; max-width:6.2em; }
   #cdp .cdp-rate{ grid-column:6; grid-row:1; align-self:center; margin-top:-12px; }
   #cdp .cdp-del{ grid-column:5; grid-row:1; align-self:center; margin-top:-6px; opacity:.55; }
+  /* × 命中区扩到 44×44（视觉仍是 22px，只是可点范围变大） */
+  #cdp .cdp-del{ position:relative; }
+  #cdp .cdp-del::after{ content:""; position:absolute; top:-11px; bottom:-11px; left:-11px; right:-11px; }
   #cdp .cdp-map{ grid-column:6; grid-row:2; align-self:center; margin-top:-4px; }
   #cdp .cdp-idx{ font-size:.8em; }
 }
