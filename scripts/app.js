@@ -1,4 +1,4 @@
-﻿(function () {
+(function () {
   var root = document.getElementById("cdp");
   if (!root) return;
   var KEY = "guizang-zhuhai-chida-v1";
@@ -210,7 +210,8 @@
 
   function api(url, opt) {
     opt = opt || {}; opt.cache = "no-store";
-    opt.headers = Object.assign({ "Accept": "application/vnd.github+json", "Authorization": "Bearer " + TOKEN, "Content-Type": "application/json" }, opt.headers || {});
+    opt.headers = Object.assign({ "Accept": "application/vnd.github+json", "Content-Type": "application/json" }, opt.headers || {});
+    if (TOKEN) opt.headers.Authorization = "Bearer " + TOKEN;
     var ctl = null, timer = 0;
     try { if (window.AbortController) { ctl = new AbortController(); opt.signal = ctl.signal; } } catch (e) {}
     if (ctl) timer = window.setTimeout(function () { try { ctl.abort(); } catch (e) {} }, 12000);
@@ -236,20 +237,31 @@
     try { return JSON.parse(f.content); } catch (e) { return null; }
   }
 
+  function parseDoc(j) {
+    if (!j) return null;
+    if (j.notModified) return { unchanged: true };
+    var doc = readDoc(j);
+    if (!doc) { lastErr = { kind: "invalid", msg: "文档解析失败" }; return null; }
+    lastErr = null;
+    return { doc: doc };
+  }
+
+  /* 读取不需要 token：secret gist 匿名可读；401 时自动丢掉旧 token 降级重读 */
   function fetchData() {
-    if (!TOKEN) return Promise.resolve(null);
     if (net.get) return net.get;
+    var hadToken = !!TOKEN;
     var h = ETAG ? { "If-None-Match": ETAG } : {};
+    var gid = "https://api.github.com/gists/" + GIST.id;
     net.getAt = Date.now();
-    var base = api("https://api.github.com/gists/" + GIST.id, { headers: h })
-      .then(function (j) {
-        if (j.notModified) return { unchanged: true };
-        var doc = readDoc(j);
-        if (!doc) { lastErr = { kind: "invalid", msg: "文档解析失败" }; return null; }
-        lastErr = null;
-        return { doc: doc };
-      })
-      .catch(function (e) { lastErr = e || null; return null; });
+    var base = api(gid, { headers: h }).then(parseDoc).catch(function (e) {
+      lastErr = e || null;
+      if (hadToken && e && e.code === 401) {
+        TOKEN = ""; ETAG = "";
+        saveCfg({ gist: GIST.id, token: "" });
+        return api(gid, { headers: {} }).then(parseDoc).catch(function (e2) { lastErr = e2 || null; return null; });
+      }
+      return null;
+    });
     net.get = base.then(function (r) { net.get = null; return r; }, function () { net.get = null; return null; });
     return net.get;
   }
@@ -345,7 +357,7 @@
   }
 
   function saveData() {
-    if (!TOKEN) return Promise.resolve(false);
+    if (!TOKEN) { setBadge("只读·点我绑定", "warn"); return Promise.resolve(false); }
     if (net.patch) { net.dirty = true; markPending(true); return net.patch; }
     net.dirty = false; net.pending = true; markPending(true);
     var chain = (function loop() {
@@ -367,7 +379,7 @@
   }
 
   function push() {
-    if (!TOKEN) { setBadge("已存本机", "local"); saveTs(); return; }
+    if (!TOKEN) { setBadge("只读·点我绑定", "warn"); saveTs(); return; }
     net.pending = true; markPending(true);
     var now = Date.now();
     if (!pushFirstAt) pushFirstAt = now;
@@ -407,19 +419,18 @@
 
   /* ===== 强制刷新 ===== */
   function forceRefresh() {
-    if (!TOKEN) { setBadge("仅本机", "local"); return Promise.resolve(false); }
     flushNow();
     ETAG = ""; net.get = null; net.getAt = 0; failCount = 0;
-    setBadge("强制拉取中", "busy");
+    setBadge(TOKEN ? "强制拉取中" : "正在读最新", "busy");
     return fetchData().then(function (res) {
       if (res && res.doc) {
         hydrated = true;
         applyDoc(res.doc);
-        setBadge("已取最新", "ok");
+        setBadge(TOKEN ? "已取最新" : "只读·点我绑定", TOKEN ? "ok" : "warn");
         window.setTimeout(function () { if (badge && badge.textContent === "已取最新") setBadge("已同步", "ok"); }, 1600);
         return true;
       }
-      if (res && res.unchanged) { setBadge("已是最新", "ok"); return true; }
+      if (res && res.unchanged) { setBadge(TOKEN ? "已是最新" : "只读·点我绑定", TOKEN ? "ok" : "warn"); return true; }
       setBadge(failText(lastErr), failState(lastErr));
       if (badge) badge.setAttribute("title", errTitle(lastErr));
       return false;
@@ -687,17 +698,12 @@
       TOKEN = cfg.token;
       if (cfg.gist) GIST.id = cfg.gist;
     }
-    if (!TOKEN) {
-      bootDone();
-      setBadge("仅本机", "local");
-      return;
-    }
-    setBadge("正在取最新", "busy");
+    setBadge(TOKEN ? "正在取最新" : "正在读最新", "busy");
     fetchData().then(function (res) {
       if (res && res.doc) {
         applyDoc(res.doc);
         bootDone();
-        setBadge("已同步", "ok");
+        setBadge(TOKEN ? "已同步" : "只读·点我绑定", TOKEN ? "ok" : "warn");
       } else if (res && res.unchanged) {
         if (Object.keys(CACHE.done).length || CACHE.extra.length) {
           state.done = CACHE.done; state.extra = CACHE.extra;
@@ -705,7 +711,7 @@
           render({ force: true });
         }
         bootDone();
-        setBadge("已同步", "ok");
+        setBadge(TOKEN ? "已同步" : "只读·点我绑定", TOKEN ? "ok" : "warn");
       } else {
         bootOffline();
       }
@@ -736,4 +742,5 @@
   if (document.readyState === "complete") clearTokenFromUrl();
   else addEventListener("load", clearTokenFromUrl);
 })();
+
 
