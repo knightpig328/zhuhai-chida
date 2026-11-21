@@ -1136,6 +1136,7 @@
       SORT.startY = ev.clientY; SORT.dy = 0;
       SORT.from = Array.prototype.indexOf.call(list.children, li);
       SORT.scrollBase = 0;
+      SORT.names = Array.prototype.map.call(list.children, function (r) { return r.getAttribute("data-text"); });
       SORT.to = SORT.from;
       li.classList.add("is-dragging");
       li.classList.add("is-drag-src");
@@ -1203,7 +1204,9 @@
       if (!li || to < 0 || to === from) return;
 
       /* 基于当前 DOM 全量顺序重排：先摘出自己，再插到目标位置 */
-      var names = Array.prototype.map.call(list.children, function (r) { return r.getAttribute("data-text"); });
+      var names = (SORT.names && SORT.names.length)
+        ? SORT.names.slice()
+        : Array.prototype.map.call(list.children, function (r) { return r.getAttribute("data-text"); });
       var at = names.indexOf(text);
       if (at >= 0) names.splice(at, 1);
       var tgt = Math.max(0, Math.min(names.length, to > at ? to - 1 : to));
