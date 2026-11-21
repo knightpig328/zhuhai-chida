@@ -213,7 +213,7 @@
 }
 #cdp .score-row{ display:flex; align-items:center; gap:8px; }
 #cdp .score-who{ font-family:var(--font-sans); font-size:.72rem; color:rgba(var(--ink-rgb),.55); min-width:2.4em; }
-#cdp .score-stars{ display:flex; gap:2px; }
+#cdp .score-stars{ display:flex; gap:2px; justify-content:flex-start; }
 #cdp .cdp-star{
   width:20px; height:20px; padding:0; background:none; border:0; cursor:pointer;
   font-size:1.25rem; line-height:1; color:rgba(var(--ink-rgb),.32);
@@ -236,11 +236,11 @@
     display:flex; align-items:center; justify-content:center;
     font-size:1.5rem;
   }
-  #cdp .cdp-star{ width:36px; height:36px; font-size:1.45rem; }
+  #cdp .cdp-star{ flex:0 0 40px; width:40px; height:40px; font-size:1.6rem; }
   #cdp .score-stars{ gap:4px; }
   #cdp .cdp-score{ width:100%; box-sizing:border-box; margin-left:-2px; margin-right:-2px; }
   #cdp .score-row{ gap:6px; flex-wrap:wrap; }
-  #cdp .score-stars{ gap:3px; flex-wrap:nowrap; }
+  #cdp .score-stars{ gap:2px; flex-wrap:nowrap; justify-content:flex-start; }
   #cdp .score-who{ min-width:100%; font-size:.8rem; margin-bottom:2px; }
   #cdp .score-who{ font-size:.78rem; }
 }
