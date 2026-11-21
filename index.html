@@ -2230,7 +2230,7 @@
   #cdp .cdp-row{
     position:relative;
     display:grid;
-    grid-template-columns:18px 1.9em minmax(0,1fr) 9.5em 22px auto 24px;
+    grid-template-columns:18px 1.9em minmax(0,1fr) 7.5em 22px auto 24px;
     column-gap:10px;
     align-items:center;
     padding:13px 12px;
@@ -3303,7 +3303,7 @@
       if (net.get && Date.now() - net.getAt > 20000) net.get = null;
       if (net.patch) return;
       fetchData().then(function (res) { if (res && res.doc) applyDoc(res.doc); });
-    }, 5000);
+    }, 4000);
     addEventListener("pagehide", function () { leaveOnce(true); });
     addEventListener("visibilitychange", function () {
       if (document.hidden) { leaveOnce(false); }
