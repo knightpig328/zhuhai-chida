@@ -294,10 +294,10 @@
   }
 
   function snapshot() {
-    return { v: 3, rev: (TS.rev || 0) + 1, updatedAt: new Date().toISOString(), done: TS.done || {}, extra: TS.extra || {}, del: TS.del || {}, addr: TS.addr || {} };
+    return { v: 3, rev: (TS.rev || 0) + 1, updatedAt: new Date().toISOString(), done: TS.done || {}, extra: TS.extra || {}, del: TS.del || {}, addr: TS.addr || {}, score: TS.score || {} };
   }
   function contentKey(d) {
-    return JSON.stringify({ d: d.done || {}, e: d.extra || {}, x: d.del || {}, a: d.addr || {} });
+    return JSON.stringify({ d: d.done || {}, e: d.extra || {}, x: d.del || {}, a: d.addr || {}, s: d.score || {} });
   }
 
 
