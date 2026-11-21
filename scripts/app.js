@@ -838,7 +838,7 @@
     var tailRows = state.extra.filter(function (t) { return baseVisible.indexOf(t) === -1; });
     var _all = baseVisible.concat(tailRows);
     var _ov = (TS.order && TS.order.v) || [];
-    var _ranked = _ov.filter(function (t) { return _all.indexOf(t) >= 0; });
+    var _ranked = _ov.length >= 2 ? _ov.filter(function (t) { return _all.indexOf(t) >= 0; }) : [];
     var _rest = _all.filter(function (t) { return _ranked.indexOf(t) === -1; });
     _ranked.concat(_rest).forEach(function (t) { list.appendChild(rowEl(t)); });
     paint();
