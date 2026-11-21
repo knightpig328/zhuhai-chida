@@ -301,6 +301,60 @@
   }
 
 
+  function mergeState(a, b) {
+    var out = { v: 3, rev: 0, updatedAt: new Date().toISOString(), done: {}, extra: {}, del: {}, addr: {} };
+    ["done", "extra", "del"].forEach(function (f) {
+      var x = (a && a[f]) || {}, y = (b && b[f]) || {}, m = out[f];
+      Object.keys(x).forEach(function (k) { var xv = Number(x[k]); if (isFinite(xv) && xv) m[k] = xv; });
+      Object.keys(y).forEach(function (k) {
+        var yv = Number(y[k]);
+        if (!isFinite(yv) || yv === 0) return;
+        if (!own(m, k)) { m[k] = yv; return; }
+        var mv = Number(m[k]);
+        if (!isFinite(mv) || mv === 0) { m[k] = yv; return; }
+        var ay = Math.abs(yv), am = Math.abs(mv);
+        if (ay > am) { m[k] = yv; return; }
+        if (ay < am) return;
+        if (f === "done" && yv < 0 && mv >= 0) { m[k] = yv; return; }
+        if (f === "done" && mv < 0 && yv >= 0) return;
+        if (String(yv) > String(mv)) m[k] = yv;
+      });
+    });
+    var ax = (a && a.addr) || {}, ay = (b && b.addr) || {};
+    Object.keys(ax).forEach(function (k) { var n = normAddr(ax[k]); if (n) out.addr[k] = n; });
+    Object.keys(ay).forEach(function (k) { var n = pickAddr(out.addr[k], ay[k]); if (n) out.addr[k] = n; });
+    out.rev = Math.max((a && a.rev) || 0, (b && b.rev) || 0) + 1;
+    return out;
+  }
+
+
+  function buildState(doc) {
+    var st = { done: {}, extra: [], addr: {} };
+    Object.keys(doc.done || {}).forEach(function (k) { if (doc.done[k] > 0) st.done[k] = 1; });
+    Object.keys(doc.extra || {}).forEach(function (k) {
+      var d = doc.del && doc.del[k];
+      if (!(typeof d === "number" && Math.abs(d) >= Math.abs(doc.extra[k]))) st.extra.push(k);
+    });
+    st.extra.sort(function (x, y) { return (doc.extra[x] - doc.extra[y]) || (x < y ? -1 : x > y ? 1 : 0); });
+    Object.keys(doc.addr || {}).forEach(function (k) {
+      var a = normAddr(doc.addr[k]);
+      if (!a) return;
+      var d = doc.del && doc.del[k];
+      if (typeof d === "number" && d >= a.t) return;
+      if (a.v) st.addr[k] = a.v;
+    });
+    return st;
+  }
+
+
+  function isEditing() {
+    var a = document.activeElement;
+    if (!a || a === document.body) return false;
+    if (a === input) return true;
+    try { return !!(a.isContentEditable && root.contains(a)); } catch (e) { return false; }
+  }
+
+
   function patchOnce(retry) {
     return fetchData().then(function (res) {
       if (res && res.doc) applyDoc(res.doc, true);
