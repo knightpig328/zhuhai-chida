@@ -602,7 +602,7 @@
     del.addEventListener("click", function (ev) { ev.stopPropagation(); removeRow(li, text); });
     li.appendChild(del);
     li.addEventListener("click", function (ev) {
-      if (ev.target && ev.target.closest && ev.target.closest(".cdp-del, .cdp-addr, .cdp-map")) return;
+      if (ev.target && ev.target.closest && ev.target.closest(".cdp-del, .cdp-addr, .cdp-map, .cdp-score, .cdp-rate")) return;
       if (li.classList.contains("is-leaving")) return;
       if (state.done[text]) { delete state.done[text]; TS.done[text] = -tsNow(); }
       else { state.done[text] = 1; TS.done[text] = tsNow(); }
@@ -647,7 +647,8 @@
   }
 
   /* ===== 评分：两人各 0.5–5 星（1–10 分），面板在卡片下方展开，不撑宽 ===== */
-  var SCORE_WHO = [["me", "我"], ["her", "老婆"]];
+  var openScore = {};   /* text -> true，面板展开状态，重绘后恢复 */
+  var SCORE_WHO = [["me", "程程"], ["her", "倩倩"]];
   function scoreOf(t) { return (TS.score && TS.score[t]) || {}; }
   function starOn(v, i) { return v >= (i + 1) * 2 ? 2 : (v >= i * 2 + 1 ? 1 : 0); }
   function paintStars(box, v, who, text) {
@@ -685,7 +686,8 @@
   }
   function toggleScore(li, text) {
     var panel = li.querySelector(".cdp-score");
-    if (panel) { panel.parentNode.removeChild(panel); return; }
+    if (panel) { panel.parentNode.removeChild(panel); delete openScore[text]; li.classList.remove("has-score"); return; }
+    openScore[text] = true;
     var sc = scoreOf(text);
     panel = document.createElement("div");
     panel.className = "cdp-score";
@@ -716,6 +718,11 @@
     var tailRows = state.extra.filter(function (t) { return baseVisible.indexOf(t) === -1; });
     baseVisible.concat(tailRows).forEach(function (t) { list.appendChild(rowEl(t)); });
     paint();
+    Object.keys(openScore).forEach(function (t) {
+      if (!openScore[t]) return;
+      var li2 = list.querySelector('.cdp-row[data-text="' + (window.CSS && CSS.escape ? CSS.escape(t) : t.replace(/"/g, '\\"')) + '"]');
+      if (li2 && !li2.querySelector(".cdp-score")) toggleScore(li2, t);
+    });
     if (opts.enter) {
       var rows = list.querySelectorAll(".cdp-row");
       for (var i = 0; i < rows.length; i++) {
