@@ -275,7 +275,7 @@
       var stamp = Math.floor(Date.now() / 60000);
       return fetch("data.json?m=" + stamp, { cache: "no-store" })
         .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (doc) { if (!doc) return null; lastErr = null; return { doc: doc }; })
+        .then(function (doc) { if (!doc) return null; lastErr = null; doc.__mirror = true; return { doc: doc }; })
         .catch(function () { return null; });
     });
     net.get = base.then(function (r) { net.get = null; return r; }, function () { net.get = null; return null; });
@@ -284,6 +284,15 @@
 
   function applyDoc(doc, silent) {
     if (!doc) return false;
+    /* 静态镜像只用于看一眼：不并入 TS、不计 hydrated，避免用旧数据覆盖云端 */
+    if (doc.__mirror) {
+      var mst = buildState(doc);
+      state.done = mst.done; state.extra = mst.extra; ADDR = mst.addr || {};
+      if (root.classList.contains("cdp-boot")) root.classList.remove("cdp-boot");
+      render();
+      try { setBadge("只读·未连上"); } catch (e) {}
+      return false;
+    }
     TS = mergeState(TS, doc);
     scanMax();
     var st = buildState(TS);
@@ -324,7 +333,7 @@
   }
 
   function snapshot() {
-    var _snap = { v: 3, rev: (TS.rev || 0) + 1, updatedAt: new Date().toISOString(), done: TS.done || {}, extra: TS.extra || {}, del: TS.del || {}, addr: TS.addr || {}, score: TS.score || {} };
+    var _snap = { v: 3, rev: TS.rev || 0, updatedAt: new Date().toISOString(), done: TS.done || {}, extra: TS.extra || {}, del: TS.del || {}, addr: TS.addr || {}, score: TS.score || {} };
   if (ORDER_OK) _snap.order = TS.order || { v: [], t: 0 };
   return _snap;
   }
