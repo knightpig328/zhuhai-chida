@@ -277,9 +277,6 @@
   #cdp .cdp-score .score-row{ flex-direction:row; align-items:center; justify-content:flex-start; margin:0; }
   #cdp .cdp-score .score-row .score-who{ min-width:0; width:auto; margin:0 3px 0 -10px; font-size:calc(.74rem + 1.5px); line-height:1; align-self:center; transform:translateY(4px); }
   #cdp .cdp-score{ margin-top:-12px; }
-  #cdp .cdp-rate{ grid-column:6; grid-row:1; align-self:center; margin-top:-12px; }
-  #cdp .cdp-del{ grid-column:5; grid-row:1; align-self:center; margin-top:-6px; opacity:.55; }
-  #cdp .cdp-map{ grid-column:6; grid-row:2; align-self:center; margin-top:-4px; }
 }
 
 @keyframes cdpScoreIn{
