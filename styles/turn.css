@@ -4,9 +4,9 @@
   --brk-r: 13px;
   --brk-a: .52;
   --brk-lt: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 13 13'%3E%3Cpath d='M.75.75H12.25M.75.75V12.25' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
-  --brk-rt: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M7.25.75H.75M7.25.75V7.25' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  --brk-rt: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 13 13'%3E%3Cpath d='M12.25.75H.75M12.25.75V12.25' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
   --brk-lb: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 13 13'%3E%3Cpath d='M.75 12.25H12.25M.75.75V12.25' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
-  --brk-rb: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M7.25 7.25H.75M7.25.75V7.25' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  --brk-rb: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 13 13'%3E%3Cpath d='M12.25 12.25H.75M12.25.75V12.25' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
 }
 
 /* 1) 卡片四角空心角括：左 13 / 右 8，单线 L，离开卡片边框 4px */
@@ -161,7 +161,6 @@
 /* 12) 悬停时角标轻微放大外扩（增量动效） */
 #cdp .cdp-row:hover::before,
 #cdp .cdp-row:focus-within::before{ transform:scale(.955); }
-@media (max-width:640px){ :root{ --brk-l:13px; --brk-r:13px; } }
 @media (prefers-reduced-motion: reduce){ #cdp .cdp-row:hover::before{ transform:none; } }
 
 
