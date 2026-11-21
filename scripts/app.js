@@ -337,14 +337,18 @@
     Object.keys(sx).forEach(function (k) { out.score[k] = Object.assign({}, sx[k]); });
     Object.keys(sy).forEach(function (k) {
       var x = out.score[k], y = sy[k];
-      if (!x) { out.score[k] = Object.assign({}, y); return; }
-      var merged = Object.assign({}, x);
+      if (!x) {
+        var m0 = {};
+        ["me", "her"].forEach(function (who) { if (typeof y[who] === "number") m0[who] = y[who]; });
+        m0.t = y.t || 0;
+        out.score[k] = m0;
+        return;
+      }
+      var merged = {};
       ["me", "her"].forEach(function (who) {
         var xv = x[who], yv = y[who];
-        if (typeof yv !== "number") return;
-        if (typeof xv !== "number") { merged[who] = yv; return; }
-        /* 只有对方更新（t 更大）且分数不同才覆盖该字段 */
-        if ((y.t || 0) > (x.t || 0) && yv !== xv) merged[who] = yv;
+        if (typeof yv === "number" && (typeof xv !== "number" || (y.t || 0) > (x.t || 0))) merged[who] = yv;
+        else if (typeof xv === "number") merged[who] = xv;
       });
       merged.t = Math.max(x.t || 0, y.t || 0);
       out.score[k] = merged;
