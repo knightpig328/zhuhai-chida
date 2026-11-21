@@ -1,4 +1,4 @@
-/* ==== 2026-11-22 第六轮：四角空心角括号 / 铅笔斜杠 / 书页翻开 · 在 deco.css 之后 ==== */
+﻿/* ==== 2026-11-22 第六轮：四角空心角括号 / 铅笔斜杠 / 书页翻开 · 在 deco.css 之后 ==== */
 :root{
   --brk-l: 13px;
   --brk-r: 13px;
@@ -193,7 +193,7 @@
 #cdp .cdp-rate{
   grid-column:7; justify-self:end; width:24px; height:24px; padding:0;
   background:none; border:0; cursor:pointer; line-height:1;
-  font-size:.85rem; color:rgba(var(--ink-rgb),.22);
+  font-size:.9rem; color:rgba(var(--ink-rgb),.42);
   transition:color .18s ease, transform .18s ease;
 }
 #cdp .cdp-rate:hover{ color:rgba(var(--accent-rgb),.85); transform:scale(1.12); }
@@ -209,7 +209,7 @@
 #cdp .score-stars{ display:flex; gap:2px; }
 #cdp .cdp-star{
   width:20px; height:20px; padding:0; background:none; border:0; cursor:pointer;
-  font-size:.9rem; line-height:1; color:rgba(var(--ink-rgb),.18);
+  font-size:.95rem; line-height:1; color:rgba(var(--ink-rgb),.30);
   transition:color .15s ease, transform .15s ease;
 }
 #cdp .cdp-star:hover{ transform:scale(1.15); }
