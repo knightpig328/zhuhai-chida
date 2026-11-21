@@ -126,10 +126,13 @@
 }
 
 
-/* 10) 全站统一楷体（turn.css 最后加载，变量覆盖 token 区） */
-:root{
-  --font-serif:'KaiTi Web','KaiTi','STKaiti','Kaiti SC','楷体',serif;
-  --font-sans:'KaiTi Web','KaiTi','STKaiti','Kaiti SC','楷体',serif;
-  --font-mono:'KaiTi Web','KaiTi','STKaiti','Kaiti SC','楷体',serif;
-  --font-display:'KaiTi Web','KaiTi','STKaiti','Kaiti SC','楷体',serif;
+
+/* 10) 菜单名字用行楷；其余恢复原字体栈，地址栏用衬线（楷体笔画倾斜，地址会看着上下扭曲） */
+#cdp .cdp-name{
+  font-family:'Xingkai Web','STXingkai','华文行楷','KaiTi','Kaiti SC',var(--font-serif);
+  font-size:1.14rem;
+  letter-spacing:.04em;
 }
+#cdp .cdp-idx{ font-family:var(--font-mono); }
+#cdp .cdp-addr{ font-family:var(--font-serif); font-size:.78em; letter-spacing:.01em; }
+#cdp .cdp-tick, #cdp .cdp-del, #cdp .cdp-map{ font-family:var(--font-sans); }
