@@ -49,6 +49,9 @@
     if (!b) return a;
     if (b.t > a.t) return b;
     if (b.t < a.t) return a;
+    if (!a.t && !b.t) return String(b.v) > String(a.v) ? b : a;
+    if (!b.v) return b;
+    if (!a.v) return a;
     return String(b.v) > String(a.v) ? b : a;
   }
   function own(o, k) { return Object.prototype.hasOwnProperty.call(o, k); }
@@ -276,9 +279,19 @@
     var out = { v: 3, rev: 0, updatedAt: new Date().toISOString(), done: {}, extra: {}, del: {}, addr: {} };
     ["done", "extra", "del"].forEach(function (f) {
       var x = (a && a[f]) || {}, y = (b && b[f]) || {}, m = out[f];
-      Object.keys(x).forEach(function (k) { m[k] = x[k]; });
+      Object.keys(x).forEach(function (k) { var xv = Number(x[k]); if (isFinite(xv) && xv) m[k] = xv; });
       Object.keys(y).forEach(function (k) {
-        if (!own(m, k) || Math.abs(y[k]) > Math.abs(m[k]) || (Math.abs(y[k]) === Math.abs(m[k]) && String(y[k]) > String(m[k]))) m[k] = y[k];
+        var yv = Number(y[k]);
+        if (!isFinite(yv) || yv === 0) return;
+        if (!own(m, k)) { m[k] = yv; return; }
+        var mv = Number(m[k]);
+        if (!isFinite(mv) || mv === 0) { m[k] = yv; return; }
+        var ay = Math.abs(yv), am = Math.abs(mv);
+        if (ay > am) { m[k] = yv; return; }
+        if (ay < am) return;
+        if (f === "done" && yv < 0 && mv >= 0) { m[k] = yv; return; }
+        if (f === "done" && mv < 0 && yv >= 0) return;
+        if (String(yv) > String(mv)) m[k] = yv;
       });
     });
     var ax = (a && a.addr) || {}, ay = (b && b.addr) || {};
