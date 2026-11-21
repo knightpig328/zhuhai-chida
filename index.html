@@ -2180,6 +2180,243 @@
   .hero h1{margin-bottom:4px}
   .hero::after{margin-top:12px}
 
+
+  /* ==== 2026-11-22 第三轮：菜单卡片 · 书页开合 · 节奏（追加覆盖区，后写优先） ==== */
+  /* 1) 菜单纸容器：纸纹 + 双细框 + 左上角花 */
+  #cdp{
+    position:relative;
+    margin:6px 0 0;
+    padding:22px 20px 18px;
+    background:
+      radial-gradient(120% 80% at 0% 0%, rgba(var(--accent-rgb),.050), transparent 62%),
+      radial-gradient(140% 90% at 100% 100%, rgba(var(--ink-rgb),.045), transparent 58%),
+      repeating-linear-gradient(0deg, rgba(var(--ink-rgb),.022) 0 1px, transparent 1px 26px);
+    border:1px solid rgba(var(--ink-rgb),.16);
+    border-radius:2px;
+    box-shadow:inset 0 0 0 1px var(--paper), inset 0 0 0 2px rgba(var(--ink-rgb),.05);
+  }
+  #cdp::before{
+    content:""; position:absolute; left:6px; top:6px; right:6px; bottom:6px;
+    border:1px dashed rgba(var(--ink-rgb),.10); pointer-events:none;
+  }
+  #cdp::after{
+    content:""; position:absolute; left:6px; top:6px; width:14px; height:14px;
+    border-left:1px solid rgba(var(--accent-rgb),.45); border-top:1px solid rgba(var(--accent-rgb),.45);
+    pointer-events:none;
+  }
+  [data-scheme="dark"] #cdp{
+    background:
+      radial-gradient(120% 80% at 0% 0%, rgba(var(--accent-rgb),.11), transparent 64%),
+      radial-gradient(140% 90% at 100% 100%, rgba(255,255,255,.045), transparent 58%),
+      repeating-linear-gradient(0deg, rgba(var(--ink-rgb),.020) 0 1px, transparent 1px 24px);
+    border-color:rgba(var(--ink-rgb),.18);
+    box-shadow:inset 0 0 0 1px rgba(var(--paper-rgb),1), inset 0 0 0 2px rgba(var(--ink-rgb),.07);
+  }
+  [data-scheme="dark"] #cdp::before{ border-color:rgba(var(--ink-rgb),.12); }
+  [data-scheme="dark"] #cdp::after{ border-color:rgba(var(--accent-rgb),.60); }
+
+  /* 2) 列表：卡片堆叠 + 书页开合（默认展开） */
+  #cdp .cdp-list{
+    display:grid; gap:9px; margin:0; padding:0; list-style:none;
+    max-height:2600px; overflow:hidden;
+    transform-origin:top center;
+    transition:max-height .58s cubic-bezier(.22,1,.36,1), opacity .34s ease, transform .58s cubic-bezier(.22,1,.36,1);
+  }
+  #cdp.is-folded .cdp-list{
+    max-height:0; opacity:0;
+    transform:perspective(900px) rotateX(-10deg) translateY(-6px);
+  }
+  /* 3) 卡片本体：七列网格 + 双层线 + 角花 */
+  #cdp .cdp-row{
+    position:relative;
+    display:grid;
+    grid-template-columns:18px 1.9em minmax(0,1fr) 9.5em 22px auto 24px;
+    column-gap:10px;
+    align-items:center;
+    padding:13px 12px;
+    cursor:pointer;
+    background:linear-gradient(180deg, rgba(var(--ink-rgb),.028), rgba(var(--ink-rgb),.010));
+    border:1px solid rgba(var(--ink-rgb),.20);
+    border-radius:3px;
+    transition:background .2s ease, border-color .2s ease;
+  }
+  #cdp .cdp-row:hover{
+    background:linear-gradient(180deg, rgba(var(--ink-rgb),.055), rgba(var(--ink-rgb),.020));
+    border-color:rgba(var(--ink-rgb),.34);
+  }
+  #cdp .cdp-row::before,
+  #cdp .cdp-row::after{
+    content:""; position:absolute; width:9px; height:9px;
+    border:1px solid rgba(var(--accent-rgb),.50); pointer-events:none;
+  }
+  #cdp .cdp-row::before{ left:4px; top:4px; border-right:0; border-bottom:0; }
+  #cdp .cdp-row::after{ right:4px; bottom:4px; border-left:0; border-top:0; }
+  #cdp .cdp-row.is-done{ background:linear-gradient(180deg, rgba(var(--ink-rgb),.020), rgba(var(--ink-rgb),.008)); }
+  #cdp .cdp-row.is-done::before,
+  #cdp .cdp-row.is-done::after{ border-color:rgba(var(--ink-rgb),.20); }
+  [data-scheme="dark"] #cdp .cdp-row{
+    border-color:rgba(var(--ink-rgb),.26);
+    background:linear-gradient(180deg, rgba(var(--ink-rgb),.050), rgba(var(--ink-rgb),.020));
+  }
+  [data-scheme="dark"] #cdp .cdp-row::before,
+  [data-scheme="dark"] #cdp .cdp-row::after{ border-color:rgba(var(--accent-rgb),.60); }
+  [data-scheme="dark"] #cdp .cdp-row.is-done{ background:linear-gradient(180deg, rgba(var(--ink-rgb),.030), rgba(var(--ink-rgb),.012)); }
+
+  /* 4) 七列定位 */
+  #cdp .cdp-tick{ grid-column:1; justify-self:start; }
+  #cdp .cdp-idx{ grid-column:2; width:auto; text-align:right; padding-right:0; }
+  #cdp .cdp-name{ grid-column:3; min-width:0; }
+  #cdp .cdp-addr{ grid-column:4; justify-self:stretch; width:100%; min-width:0; max-width:none; }
+  #cdp .cdp-map{ grid-column:5; justify-self:center; align-self:center; }
+  #cdp .cdp-flag{ grid-column:6; margin-left:0; justify-self:end; }
+  #cdp .cdp-del{ grid-column:7; justify-self:end; opacity:0; }
+  #cdp .cdp-row:hover .cdp-del,
+  #cdp .cdp-del:focus-visible{ opacity:1; }
+
+  /* 5) 地图入口 */
+  #cdp .cdp-map{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:22px; height:22px; border:1px solid rgba(var(--ink-rgb),.16); border-radius:50%;
+    color:rgba(var(--ink-rgb),.42); text-decoration:none;
+    transition:color .2s ease, border-color .2s ease, background .2s ease;
+  }
+  #cdp .cdp-map:hover{
+    color:var(--accent-ink,var(--accent));
+    border-color:rgba(var(--accent-rgb),.50);
+    background:rgba(var(--accent-rgb),.08);
+  }
+  #cdp .cdp-map:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  @media (hover:none){ #cdp .cdp-map{ color:rgba(var(--ink-rgb),.55); } #cdp .cdp-del{ opacity:.45; } }
+
+  /* 6) 书页开合按钮 */
+  #cdp .cdp-fold-btn{
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    width:100%; margin:2px 0 12px; padding:7px 10px;
+    border:1px solid rgba(var(--ink-rgb),.16); background:rgba(var(--ink-rgb),.03);
+    border-radius:2px; cursor:pointer;
+    font-family:var(--font-mono); font-size:.68rem; letter-spacing:.18em;
+    color:rgba(var(--ink-rgb),.62);
+  }
+  #cdp .cdp-fold-btn:hover{ color:var(--accent-ink,var(--accent)); border-color:rgba(var(--accent-rgb),.45); }
+  #cdp .cdp-fold-btn:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  #cdp .cdp-fold-ico{
+    width:7px; height:7px;
+    border-right:1.5px solid currentColor; border-bottom:1.5px solid currentColor;
+    transform:rotate(45deg) translateY(-1px); transition:transform .3s ease;
+  }
+  #cdp.is-folded .cdp-fold-ico{ transform:rotate(-135deg) translateY(-1px); }
+
+  /* 7) 首屏取数状态：角标转圈，不动列表 */
+  #cdp.is-booting .cdp-sync::before{
+    content:""; display:inline-block; width:7px; height:7px; border-radius:50%;
+    border:1.5px solid currentColor; border-top-color:transparent;
+    margin-right:5px; vertical-align:-1px; animation:cdpSpin .7s linear infinite;
+  }
+  @keyframes cdpSpin{ to{ transform:rotate(360deg); } }
+
+  /* 8) 节奏：入场更慢、更有层次（keyframes 名称沿用，JS 兜底同步放宽） */
+  @keyframes cdpRise{ from{ opacity:0; transform:translateY(22px); } to{ opacity:1; transform:none; } }
+  #cdp.cdp-boot .cdp-row{ animation:cdpRise .78s cubic-bezier(.22,1,.36,1) both; }
+  #cdp.cdp-boot .cdp-row:nth-child(1){ animation-delay:0s; }
+  #cdp.cdp-boot .cdp-row:nth-child(2){ animation-delay:.09s; }
+  #cdp.cdp-boot .cdp-row:nth-child(3){ animation-delay:.18s; }
+  #cdp.cdp-boot .cdp-row:nth-child(4){ animation-delay:.27s; }
+  #cdp.cdp-boot .cdp-row:nth-child(5){ animation-delay:.36s; }
+  #cdp.cdp-boot .cdp-row:nth-child(6){ animation-delay:.45s; }
+  #cdp.cdp-boot .cdp-row:nth-child(7){ animation-delay:.54s; }
+  #cdp.cdp-boot .cdp-row:nth-child(8){ animation-delay:.63s; }
+  @keyframes cdpIn{ from{ opacity:0; transform:translateX(-16px); } to{ opacity:1; transform:none; } }
+  #cdp .cdp-row.is-enter{ animation:cdpIn .52s cubic-bezier(.22,1,.36,1) both; }
+  @keyframes cdpOut{ to{ opacity:0; transform:translateX(20px) scale(.97); } }
+  #cdp .cdp-row.is-leaving{ animation:cdpOut .40s cubic-bezier(.4,0,.2,1) both; pointer-events:none; }
+  @keyframes cdpPop{ 0%{ transform:scale(1); } 45%{ transform:scale(1.28); } 100%{ transform:scale(1); } }
+  #cdp .cdp-row.is-done .cdp-box{ animation:cdpPop .34s cubic-bezier(.22,1,.36,1); }
+  #cdp .cdp-name::after{ transition:width .48s cubic-bezier(.22,1,.36,1) .06s; }
+  #cdp .cdp-bar i{ transition:width .56s cubic-bezier(.4,0,.2,1); }
+
+  /* 9) 重建抑制（补 row 级 transition） */
+  #cdp .cdp-list.no-anim .cdp-row{ transition:none!important; }
+  #cdp .cdp-list.no-anim .cdp-box{ animation:none!important; }
+  #cdp .cdp-list.no-anim .cdp-name::after{ transition:none!important; }
+  #cdp .cdp-list.no-anim .cdp-name{ transition:none!important; }
+  #cdp .cdp-list.no-anim .cdp-flag{ transition:none!important; }
+
+  /* 10) 上方留白收紧（只覆盖；doc-chrome 原规则带 !important，覆盖也必须带） */
+  @media screen{
+    .doc-chrome.doc-line{ padding:18px 0 10px !important; }
+    .hero{ padding:24px 0 14px; }
+    .hero h1{ margin-bottom:2px; }
+    .hero::after{ width:14px; height:14px; margin-top:8px; }
+    .section{ padding:20px 0 26px; }
+    .section-number{ margin-bottom:10px; }
+    .section > h2{ margin-bottom:18px; }
+  }
+  @media screen and (max-width:640px){
+    .doc-chrome.doc-line{ padding:12px 4px 8px !important; font-size:12px; line-height:1.9; }
+    .hero{ padding:14px 0 10px; }
+    .hero::after{ width:12px; height:12px; margin-top:6px; }
+    .section{ padding:12px 0 20px; }
+    .section-number{ margin-bottom:8px; }
+    .section > h2{ margin-bottom:14px; }
+  }
+
+  /* 11) 移动端：两行卡片（名字一行、地址一行） */
+  @media (max-width:640px){
+    #cdp{ padding:16px 10px 14px; }
+    #cdp::before{ left:4px; top:4px; right:4px; bottom:4px; }
+    #cdp .cdp-row{
+      grid-template-columns:18px 1.9em minmax(0,1fr) 22px 24px;
+      column-gap:9px; row-gap:6px; padding:12px 10px;
+    }
+    #cdp .cdp-tick{ grid-area:1/1; }
+    #cdp .cdp-idx{ grid-area:1/2; }
+    #cdp .cdp-name{ grid-area:1/3; font-size:1rem; }
+    #cdp .cdp-flag{ display:none; }
+    #cdp .cdp-del{ grid-area:1/5; justify-self:end; }
+    #cdp .cdp-addr{ grid-area:2/2/3/5; justify-self:stretch; width:auto; min-width:0; max-width:none; }
+    #cdp .cdp-map{ grid-area:2/5; justify-self:end; }
+  }
+
+  /* 12) 减少动效：动画与过渡全关，状态仍切换 */
+  @media (prefers-reduced-motion: reduce){
+    #cdp .cdp-row,#cdp .cdp-row.is-enter,#cdp .cdp-row.is-leaving,
+    #cdp .cdp-box,#cdp.cdp-boot .cdp-row{ animation:none!important; }
+    #cdp .cdp-list,#cdp .cdp-name,#cdp .cdp-name::after,#cdp .cdp-flag,#cdp .cdp-bar i{ transition:none!important; }
+    #cdp.is-folded .cdp-list{ transform:none; }
+    #cdp .cdp-fold-ico{ transition:none!important; }
+    #cdp.is-booting .cdp-sync::before{ animation:none; }
+  }
+
+  /* 13) 打印：菜单花纹全部撤掉，地址完整带出去 */
+  @media print{
+    #cdp{
+      background:none!important; box-shadow:none!important;
+      border-color:rgba(var(--ink-rgb),.30)!important; padding:0!important;
+    }
+    #cdp::before,#cdp::after{ display:none!important; }
+    #cdp .cdp-list{
+      display:block!important; max-height:none!important; overflow:visible!important;
+      opacity:1!important; transform:none!important;
+    }
+    #cdp .cdp-row{
+      display:flex!important; flex-wrap:nowrap!important; gap:8px!important;
+      background:none!important; box-shadow:none!important; border:0!important;
+      border-bottom:1px solid rgba(var(--ink-rgb),.45)!important;
+      border-radius:0!important; padding:8px 0!important;
+    }
+    #cdp .cdp-row::before,#cdp .cdp-row::after{ display:none!important; }
+    #cdp .cdp-map,#cdp .cdp-fold-btn,#cdp .cdp-sync,#cdp .cdp-del{ display:none!important; }
+    #cdp .cdp-flag{ display:inline!important; margin-left:auto!important; }
+    #cdp .cdp-addr{
+      border:0!important; background:none!important; box-shadow:none!important;
+      color:var(--fg)!important; padding:0!important; min-width:0;
+      max-width:none!important; white-space:normal!important; overflow:visible!important; text-overflow:clip!important;
+    }
+    #cdp .cdp-addr:focus{ border:0!important; }
+    #cdp .cdp-addr:empty{ display:none!important; }
+    #cdp .cdp-addr:empty::before{ content:""!important; }
+  }
+
 </style>
 </head>
 <body>
@@ -2367,6 +2604,7 @@
   var root = document.getElementById("cdp");
   if (!root) return;
   var KEY = "guizang-zhuhai-chida-v1";
+  var TS_KEY = KEY + ":ts";
   var list = document.getElementById("cdp-list");
   var form = document.getElementById("cdp-form");
   var input = document.getElementById("cdp-input");
@@ -2391,11 +2629,14 @@
   var TOKEN = "", ETAG = "";
   var TS = { done: {}, extra: {}, del: {}, addr: {} };
   var ADDR = {};
+  var CACHE = { done: {}, extra: [] };
   var state = { done: {}, extra: [] };
+  var hydrated = false, bootSettled = false;
   var pushTimer = 0, pollTimer = 0, failCount = 0, pendingRender = false, leaving = 0, maxTs = 0;
+  var pushFirstAt = 0, leaveSent = 0, lastErr = null;
+  var PUSH_DELAY = 1800, PUSH_MAXWAIT = 4000;
   var net = { get: null, getAt: 0, patch: null, dirty: false, pending: false };
 
-  /* --- 地址归一化：{t,v} / 旧字符串 / 垃圾 --- */
   function normAddr(e) {
     if (typeof e === "string") return { t: 0, v: e };
     if (e && typeof e === "object" && typeof e.v === "string") {
@@ -2415,33 +2656,37 @@
   function own(o, k) { return Object.prototype.hasOwnProperty.call(o, k); }
   function has(arr, v) { return arr.indexOf(v) !== -1; }
 
-  /* --- 本地装载 --- */
+  function readTs(o) {
+    if (!o || typeof o !== "object") return;
+    TS.done = o.done && typeof o.done === "object" ? o.done : TS.done;
+    TS.extra = o.extra && typeof o.extra === "object" ? o.extra : TS.extra;
+    TS.del = o.del && typeof o.del === "object" ? o.del : TS.del;
+    if (typeof o.rev === "number") TS.rev = o.rev;
+    var a = o.addr && typeof o.addr === "object" ? o.addr : {};
+    Object.keys(a).forEach(function (k) { var n = normAddr(a[k]); if (n) TS.addr[k] = n; });
+  }
+
+  /* 本地只作「上次真相的副本 + 未发送意图」；内容进 CACHE，不直接上屏 */
   try {
     var raw = window.localStorage.getItem(KEY);
     if (raw) {
       var p = JSON.parse(raw);
       if (p && typeof p === "object") {
-        state.done = p.done && typeof p.done === "object" ? p.done : {};
-        state.extra = Array.isArray(p.extra) ? p.extra.filter(function (t) { return typeof t === "string" && t; }) : [];
-        if (p.TS && typeof p.TS === "object") {
-          TS.done = p.TS.done && typeof p.TS.done === "object" ? p.TS.done : {};
-          TS.extra = p.TS.extra && typeof p.TS.extra === "object" ? p.TS.extra : {};
-          TS.del = p.TS.del && typeof p.TS.del === "object" ? p.TS.del : {};
-          if (typeof p.TS.rev === "number") TS.rev = p.TS.rev;
-          var savedAddr = p.TS.addr && typeof p.TS.addr === "object" ? p.TS.addr : {};
-          Object.keys(savedAddr).forEach(function (k) {
-            var n = normAddr(savedAddr[k]);
-            if (n) TS.addr[k] = n;
-          });
-        }
+        if (p.done && typeof p.done === "object") CACHE.done = p.done;
+        if (Array.isArray(p.extra)) CACHE.extra = p.extra.filter(function (t) { return typeof t === "string" && t; });
+        if (p.TS && typeof p.TS === "object") readTs(p.TS);
       }
+    }
+    if (!Object.keys(TS.done).length && !TS.rev) {
+      var rawTs = window.localStorage.getItem(TS_KEY);
+      if (rawTs) readTs(JSON.parse(rawTs));
     }
   } catch (e) {}
 
-  /* 迁移：无 done 时间戳时按现状 seed */
-  if (!Object.keys(TS.done).length) {
-    Object.keys(state.done).forEach(function (k) { if (state.done[k]) TS.done[k] = Date.now() - 1000; });
-    state.extra.forEach(function (t, i) { if (!TS.extra[t]) TS.extra[t] = Date.now() - 1000 + i; });
+  /* 老缓存迁移：seed=1，永远输给任何真实时间戳，只在远端缺键时兜底 */
+  if (!Object.keys(TS.done).length && Object.keys(CACHE.done).length) {
+    Object.keys(CACHE.done).forEach(function (k) { if (CACHE.done[k]) TS.done[k] = 1; });
+    CACHE.extra.forEach(function (t) { if (!TS.extra[t]) TS.extra[t] = 1; });
   }
 
   function scanMax() {
@@ -2461,24 +2706,72 @@
       if (!a) return;
       var d = TS.del && TS.del[k];
       if (typeof d === "number" && d >= a.t) return;
-      ADDR[k] = a.v;
+      if (a.v) ADDR[k] = a.v;
     });
   }
 
+  function saveTs() { try { window.localStorage.setItem(TS_KEY, JSON.stringify(TS)); } catch (e) {} }
   function save() {
-    try { window.localStorage.setItem(KEY, JSON.stringify({ done: state.done, extra: state.extra, TS: TS })); } catch (e) {}
+    try {
+      if (!hydrated) { saveTs(); return; }
+      window.localStorage.setItem(KEY, JSON.stringify({ done: state.done, extra: state.extra, TS: TS }));
+      window.localStorage.removeItem(TS_KEY);
+    } catch (e) {}
   }
   function markPending(v) {
     try { if (v) window.localStorage.setItem(KEY + ":pending", "1"); else window.localStorage.removeItem(KEY + ":pending"); } catch (e) {}
   }
   function readPending() { try { return window.localStorage.getItem(KEY + ":pending") === "1"; } catch (e) { return false; } }
 
-  /* --- 同步状态角标（配色交给 CSS 的 data-state） --- */
+  /* ===== 失败分类 ===== */
+  var FAIL_TXT = {
+    token_bad: "token 失效·换一个", token_scope: "无 gist 写权限", forbidden: "被拒·查 gist",
+    rate_limited: "限流·稍后自愈", abuse: "请求太密·稍后自愈", gist_missing: "gist 找不到",
+    invalid: "内容被拒", server: "GitHub 服务器问题", offline: "离线·已存本机",
+    timeout: "超时·已存本机", conflict: "冲突·重试中", http: "同步失败"
+  };
+  var FAIL_STATE = {
+    rate_limited: "warn", abuse: "warn", server: "warn", offline: "warn",
+    timeout: "warn", conflict: "warn",
+    token_bad: "fail", token_scope: "fail", forbidden: "fail",
+    gist_missing: "fail", invalid: "fail", http: "fail"
+  };
+  function failText(e) { return FAIL_TXT[(e && e.kind) || "http"] || FAIL_TXT.http; }
+  function failState(e) { return FAIL_STATE[(e && e.kind) || "http"] || "fail"; }
+  function errTitle(e) {
+    if (!e) return "同步状态";
+    return failText(e) + (e.msg ? "｜" + String(e.msg).slice(0, 70) : "") + (e.code ? "｜HTTP " + e.code : "");
+  }
+  function classify(r, txt) {
+    if (r.status === 401) return "token_bad";
+    if (r.status === 403) {
+      if (r.headers.get("X-RateLimit-Remaining") === "0") return "rate_limited";
+      return "forbidden";
+    }
+    if (r.status === 404) return "gist_missing";
+    if (r.status === 409) return "conflict";
+    if (r.status === 422) return /spam|rate/i.test(txt || "") ? "abuse" : "invalid";
+    if (r.status >= 500) return "server";
+    return "http";
+  }
+  function mkErr(r, txt) {
+    var e = new Error("http " + r.status);
+    e.code = r.status;
+    e.kind = classify(r, txt);
+    var m = "";
+    try { m = (JSON.parse(txt) || {}).message || ""; } catch (x) { m = String(txt || "").slice(0, 110); }
+    e.msg = m;
+    return e;
+  }
+
+  /* ===== 状态角标 ===== */
   var badge = document.createElement("span");
   badge.className = "cdp-sync";
   badge.setAttribute("role", "status");
   badge.setAttribute("aria-live", "polite");
-  badge.setAttribute("title", "同步状态，点我重试");
+  badge.setAttribute("tabindex", "0");
+  badge.setAttribute("title", "同步状态｜点一下重试｜按住 800ms 强制拉最新｜Shift+回车 同上");
+  badge.setAttribute("aria-label", "同步状态。回车重试，Shift 加回车强制拉取最新");
   badge.setAttribute("data-state", "local");
   var head = root.querySelector(".cdp-head");
   if (head) head.appendChild(badge);
@@ -2490,7 +2783,30 @@
     badge.setAttribute("data-state", st);
   }
 
-  /* --- 配置读写 --- */
+  /* ===== 书页开合 ===== */
+  var foldBtn = document.createElement("button");
+  foldBtn.type = "button";
+  foldBtn.className = "cdp-fold-btn";
+  foldBtn.setAttribute("aria-controls", "cdp-list");
+  foldBtn.setAttribute("aria-expanded", "true");
+  var foldIco = document.createElement("span");
+  foldIco.className = "cdp-fold-ico";
+  foldIco.setAttribute("aria-hidden", "true");
+  var foldTxt = document.createElement("span");
+  foldTxt.textContent = "收起菜单";
+  foldBtn.appendChild(foldIco);
+  foldBtn.appendChild(foldTxt);
+  if (head && head.parentNode) head.parentNode.insertBefore(foldBtn, head.nextSibling);
+  function setFold(on) {
+    if (on) root.classList.add("is-folded"); else root.classList.remove("is-folded");
+    foldBtn.setAttribute("aria-expanded", on ? "false" : "true");
+    foldTxt.textContent = on ? "翻开菜单" : "收起菜单";
+    if (on) { try { list.setAttribute("inert", ""); } catch (e) {} }
+    else { try { list.removeAttribute("inert"); } catch (e) {} }
+  }
+  foldBtn.addEventListener("click", function () { setFold(!root.classList.contains("is-folded")); });
+
+  /* ===== 配置 ===== */
   function loadCfg() { try { return JSON.parse(window.localStorage.getItem(CFG_KEY) || "null"); } catch (e) { return null; } }
   function saveCfg(c) { try { window.localStorage.setItem(CFG_KEY, JSON.stringify(c)); } catch (e) {} }
 
@@ -2504,11 +2820,15 @@
     return fetch(url, opt).then(function (r) {
       stop();
       if (r.status === 304) return { notModified: true };
-      if (r.status === 409 || r.status === 422) { var e = new Error("conflict"); e.code = 409; throw e; }
-      if (!r.ok) { var e2 = new Error("http " + r.status); e2.code = r.status; throw e2; }
-      ETAG = r.headers.get("ETag") || ETAG;
-      return r.json();
-    }, function (err) { stop(); throw err; });
+      if (r.ok) { ETAG = r.headers.get("ETag") || ETAG; return r.json(); }
+      return r.text().then(function (txt) { throw mkErr(r, txt); }, function () { throw mkErr(r, ""); });
+    }, function (err) {
+      stop();
+      var e = err || new Error("network");
+      e.kind = (e.name === "AbortError") ? "timeout" : "offline";
+      e.msg = "";
+      throw e;
+    });
   }
 
   function readDoc(j) {
@@ -2518,7 +2838,6 @@
     try { return JSON.parse(f.content); } catch (e) { return null; }
   }
 
-  /* 单飞拉取：5s 轮询 / focus / 可见性 / 点击 共用一次请求 */
   function fetchData() {
     if (!TOKEN) return Promise.resolve(null);
     if (net.get) return net.get;
@@ -2528,9 +2847,11 @@
       .then(function (j) {
         if (j.notModified) return { unchanged: true };
         var doc = readDoc(j);
-        return doc ? { doc: doc } : null;
+        if (!doc) { lastErr = { kind: "invalid", msg: "文档解析失败" }; return null; }
+        lastErr = null;
+        return { doc: doc };
       })
-      .catch(function () { return null; });
+      .catch(function (e) { lastErr = e || null; return null; });
     net.get = base.then(function (r) { net.get = null; return r; }, function () { net.get = null; return null; });
     return net.get;
   }
@@ -2563,8 +2884,8 @@
       var a = normAddr(doc.addr[k]);
       if (!a) return;
       var d = doc.del && doc.del[k];
-      if (typeof d === "number" && d >= a.t) return;   /* 删得比填得晚 => 作废 */
-      st.addr[k] = a.v;                                /* 空串也保留，压住旧值防回灌 */
+      if (typeof d === "number" && d >= a.t) return;
+      if (a.v) st.addr[k] = a.v;
     });
     return st;
   }
@@ -2577,23 +2898,28 @@
   }
 
   function applyDoc(doc, silent) {
-    if (!doc) return;
+    if (!doc) return false;
     TS = mergeState(TS, doc);
     scanMax();
     var st = buildState(TS);
     state.done = st.done;
     state.extra = st.extra;
-    save();
-    if (silent) return;
-    if (isEditing()) { pendingRender = true; return; }
+    if (silent) { save(); return false; }
+    hydrated = true;
     ADDR = st.addr || {};
+    save();
+    if (isEditing()) { pendingRender = true; return false; }
     pendingRender = false;
     if (root.classList.contains("cdp-boot")) root.classList.remove("cdp-boot");
     render();
+    return true;
   }
 
   function snapshot() {
     return { v: 3, rev: (TS.rev || 0) + 1, updatedAt: new Date().toISOString(), done: TS.done || {}, extra: TS.extra || {}, del: TS.del || {}, addr: TS.addr || {} };
+  }
+  function contentKey(d) {
+    return JSON.stringify({ d: d.done || {}, e: d.extra || {}, x: d.del || {}, a: d.addr || {} });
   }
 
   function patchOnce(retry) {
@@ -2602,12 +2928,18 @@
       var doc = snapshot();
       var body = { files: {} };
       body.files[GIST.file] = { content: JSON.stringify(doc, null, 1) };
+      if (net.lastBody === contentKey(doc) && retry === 0) { setBadge("已同步", "ok"); return true; }
       setBadge("同步中", "busy");
-      return api("https://api.github.com/gists/" + GIST.id, { method: "PATCH", body: JSON.stringify(body), keepalive: true })
-        .then(function () { failCount = 0; setBadge("已同步", "ok"); return true; }, function (e) {
-          if (e && e.code === 409 && retry < 3) {
-            setBadge("同步中·重试", "busy");
-            return new Promise(function (r) { window.setTimeout(r, 400 * Math.pow(2, retry)); }).then(function () { return patchOnce(retry + 1); });
+      return api("https://api.github.com/gists/" + GIST.id, { method: "PATCH", body: JSON.stringify(body) })
+        .then(function () {
+          failCount = 0; lastErr = null; net.lastBody = contentKey(doc);
+          setBadge("已同步", "ok");
+          return true;
+        }, function (e) {
+          if (e && e.kind === "conflict" && retry < 2) {
+            setBadge("冲突·重试中", "warn");
+            return new Promise(function (r) { window.setTimeout(r, 400 * Math.pow(2, retry)); })
+              .then(function () { return patchOnce(retry + 1); });
           }
           throw (e || new Error("push failed"));
         });
@@ -2623,10 +2955,12 @@
         net.pending = false; markPending(false);
         if (net.dirty) { net.dirty = false; return loop(); }
         return ok;
-      }, function () {
+      }, function (e) {
         net.pending = true; markPending(true);
         failCount++;
-        setBadge(failCount >= 3 ? "同步不上·点我重试" : "待同步·点我重试", "fail");
+        lastErr = e || null;
+        setBadge(failText(e), failState(e));
+        if (badge) badge.setAttribute("title", errTitle(e));
         return false;
       });
     })();
@@ -2635,31 +2969,97 @@
   }
 
   function push() {
-    if (!TOKEN) { setBadge("已存本机", "local"); return; }
-    net.dirty = true; net.pending = true; markPending(true);
-    setBadge("待同步", "busy");
+    if (!TOKEN) { setBadge("已存本机", "local"); saveTs(); return; }
+    net.pending = true; markPending(true);
+    var now = Date.now();
+    if (!pushFirstAt) pushFirstAt = now;
+    var wait = Math.max(0, Math.min(PUSH_DELAY, PUSH_MAXWAIT - (now - pushFirstAt)));
     window.clearTimeout(pushTimer);
-    pushTimer = window.setTimeout(function () { pushTimer = 0; saveData(); }, 1200);
+    setBadge(wait > 0 ? "待同步" : "同步中", "busy");
+    pushTimer = window.setTimeout(function () { pushTimer = 0; pushFirstAt = 0; saveData(); }, wait);
   }
+  function dirtyNow() { return !!(net.pending || net.dirty || pushTimer || readPending()); }
   function flushNow() {
+    window.clearTimeout(pushTimer); pushTimer = 0; pushFirstAt = 0;
     if (!TOKEN) return;
-    window.clearTimeout(pushTimer); pushTimer = 0;
+    if (!dirtyNow()) return;
     if (net.patch) { net.dirty = true; markPending(true); return; }
     saveData();
   }
+  function sendKeepalive() {
+    try {
+      var files = {}; files[GIST.file] = { content: JSON.stringify(snapshot(), null, 1) };
+      var body = JSON.stringify({ files: files });
+      if (body.length > 60000) { setBadge("改动太大·未上传", "fail"); return; }
+      fetch("https://api.github.com/gists/" + GIST.id, {
+        method: "PATCH", keepalive: true,
+        headers: { "Accept": "application/vnd.github+json", "Authorization": "Bearer " + TOKEN, "Content-Type": "application/json" },
+        body: body
+      }).then(function () { markPending(false); net.lastBody = null; }, function () {});
+    } catch (e) {}
+  }
+  function leaveOnce(stopPoll) {
+    if (stopPoll && pollTimer) { window.clearInterval(pollTimer); pollTimer = 0; }
+    if (!TOKEN || !dirtyNow()) return;
+    var now = Date.now();
+    if (!stopPoll && now - leaveSent < 2000) return;
+    leaveSent = now;
+    sendKeepalive();
+  }
+
+  /* ===== 强制刷新 ===== */
+  function forceRefresh() {
+    if (!TOKEN) { setBadge("仅本机", "local"); return Promise.resolve(false); }
+    flushNow();
+    ETAG = ""; net.get = null; net.getAt = 0; failCount = 0;
+    setBadge("强制拉取中", "busy");
+    return fetchData().then(function (res) {
+      if (res && res.doc) {
+        hydrated = true;
+        applyDoc(res.doc);
+        setBadge("已取最新", "ok");
+        window.setTimeout(function () { if (badge && badge.textContent === "已取最新") setBadge("已同步", "ok"); }, 1600);
+        return true;
+      }
+      if (res && res.unchanged) { setBadge("已是最新", "ok"); return true; }
+      setBadge(failText(lastErr), failState(lastErr));
+      if (badge) badge.setAttribute("title", errTitle(lastErr));
+      return false;
+    });
+  }
+
+  var holdTimer = 0, holdFired = false;
+  function holdStart() {
+    if (holdTimer) return;
+    holdFired = false;
+    holdTimer = window.setTimeout(function () { holdTimer = 0; holdFired = true; forceRefresh(); }, 800);
+  }
+  function holdEnd() { if (holdTimer) { window.clearTimeout(holdTimer); holdTimer = 0; } }
+  badge.addEventListener("pointerdown", holdStart);
+  badge.addEventListener("pointerup", holdEnd);
+  badge.addEventListener("pointerleave", holdEnd);
+  badge.addEventListener("pointercancel", holdEnd);
+  badge.addEventListener("keydown", function (ev) {
+    if (ev.key !== "Enter" && ev.key !== " ") return;
+    ev.preventDefault();
+    if (ev.shiftKey) { forceRefresh(); return; }
+    if (badge) badge.click();
+  });
+
   if (badge) badge.addEventListener("click", function () {
+    if (holdFired) { holdFired = false; return; }
     if (!TOKEN) { setBadge("仅本机", "local"); return; }
     failCount = 0;
     if (net.pending || net.dirty) { setBadge("重试中", "busy"); saveData(); return; }
     setBadge("检测中", "busy");
     fetchData().then(function (res) {
       if (res && res.doc) { applyDoc(res.doc); setBadge("已同步", "ok"); }
-      else if (res && res.unchanged) { setBadge("已同步·无变化", "ok"); }
-      else { setBadge("拉取失败·点我重试", "fail"); }
+      else if (res && res.unchanged) { setBadge("已同步", "ok"); }
+      else { setBadge(failText(lastErr), failState(lastErr)); }
     });
   });
 
-  /* --- 渲染 --- */
+  /* ===== 渲染 ===== */
   function rowEl(text, isExtra) {
     var li = document.createElement("li");
     li.className = "cdp-row";
@@ -2676,8 +3076,8 @@
     addr.className = "cdp-addr";
     addr.setAttribute("contenteditable", "true");
     addr.setAttribute("role", "textbox");
-    addr.setAttribute("aria-label", text + " 的地址");
-    addr.setAttribute("data-ph", "加地址");
+    addr.setAttribute("aria-label", text + " 的地址，可输入");
+    addr.setAttribute("data-ph", "地址");
     addr.textContent = ADDR[text] || "";
     addr.addEventListener("click", function (ev) { ev.stopPropagation(); });
     addr.addEventListener("mousedown", function (ev) { ev.stopPropagation(); });
@@ -2697,11 +3097,33 @@
           save(); push();
         }
       }
+      applyMapHref();
       if (pendingRender) window.setTimeout(function () {
         if (pendingRender && !isEditing()) { pendingRender = false; render(); }
       }, 0);
     });
-    li.appendChild(tick); li.appendChild(idx); li.appendChild(name); li.appendChild(addr); li.appendChild(flag);
+
+    var map = document.createElement("a");
+    map.className = "cdp-map";
+    map.setAttribute("target", "_blank");
+    map.setAttribute("rel", "noopener noreferrer");
+    map.setAttribute("aria-label", "在地图里搜 " + text);
+    map.setAttribute("title", "在地图里搜 " + text);
+    map.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>';
+    function applyMapHref() {
+      var q = (addr.textContent || "").replace(/\s+/g, " ").trim() || text;
+      map.setAttribute("href", "https://uri.amap.com/search?keyword=" + encodeURIComponent(q) + "&city=" + encodeURIComponent("珠海") + "&view=map&callnative=0");
+    }
+    applyMapHref();
+    map.addEventListener("mousedown", function (ev) { ev.preventDefault(); ev.stopPropagation(); });
+    map.addEventListener("click", function (ev) { ev.stopPropagation(); });
+
+    li.appendChild(tick);
+    li.appendChild(idx);
+    li.appendChild(name);
+    li.appendChild(addr);
+    li.appendChild(map);
+    li.appendChild(flag);
     if (isExtra) {
       var del = document.createElement("button");
       del.type = "button"; del.className = "cdp-del"; del.textContent = "×";
@@ -2710,7 +3132,7 @@
       li.appendChild(del);
     }
     li.addEventListener("click", function (ev) {
-      if (ev.target && ev.target.closest && ev.target.closest(".cdp-del, .cdp-addr")) return;
+      if (ev.target && ev.target.closest && ev.target.closest(".cdp-del, .cdp-addr, .cdp-map")) return;
       if (li.classList.contains("is-leaving")) return;
       if (state.done[text]) { delete state.done[text]; TS.done[text] = -tsNow(); }
       else { state.done[text] = 1; TS.done[text] = tsNow(); }
@@ -2722,7 +3144,6 @@
   function removeRow(li, text) {
     if (li.__leaving) return;
     li.__leaving = true;
-    /* 先提交状态（避免轮询窗口里条目复活） */
     var now = tsNow();
     var prev = Math.abs(Number(TS.done[text]) || 0);
     state.extra = state.extra.filter(function (t) { return t !== text; });
@@ -2745,12 +3166,13 @@
     };
     var onEnd = function (e) { if (e && e.animationName && e.animationName !== "cdpOut") return; fin(); };
     li.addEventListener("animationend", onEnd);
-    window.setTimeout(fin, 340);
+    window.setTimeout(fin, 460);
   }
 
   function render(opts) {
     opts = opts || {};
     if (leaving > 0 && !opts.force) { pendingRender = true; return; }
+    if (opts.enter && root.classList.contains("is-folded")) setFold(false);
     var sy = window.pageYOffset || 0;
     list.classList.add("no-anim");
     list.textContent = "";
@@ -2763,7 +3185,7 @@
       }
       window.setTimeout(function () {
         Array.prototype.forEach.call(list.querySelectorAll(".is-enter"), function (n) { n.classList.remove("is-enter"); });
-      }, 480);
+      }, 620);
     }
     void list.offsetHeight;
     if (sy) window.scrollTo(0, sy);
@@ -2808,40 +3230,73 @@
   if (hint) hint.removeAttribute("contenteditable");
   if (note) note.removeAttribute("contenteditable");
 
-  scanMax();
-  hydrateAddr();
-  render({ force: true });
-
-  /* 首屏入场：等 no-anim 退场后再挂 cdp-boot */
-  window.setTimeout(function () {
-    root.classList.add("cdp-boot");
-    window.setTimeout(function () { root.classList.remove("cdp-boot"); }, 1000);
-  }, 70);
-
-  /* ===== 启动协同 ===== */
-  function clearTokenFromUrl() {
-    try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+  function bootSkeleton() {
+    root.classList.add("is-booting");
+    scanMax();
+    render({ force: true });
+    window.setTimeout(function () {
+      root.classList.add("cdp-boot");
+      window.setTimeout(function () { root.classList.remove("cdp-boot"); }, 1500);
+    }, 70);
   }
+  function bootDone() {
+    if (bootSettled) return;
+    bootSettled = true;
+    root.classList.remove("is-booting");
+  }
+  function bootOffline() {
+    if (bootSettled) return;
+    bootSettled = true;
+    root.classList.remove("is-booting");
+    if (Object.keys(CACHE.done).length || CACHE.extra.length) {
+      state.done = CACHE.done;
+      state.extra = CACHE.extra;
+      hydrated = true;
+      hydrateAddr();
+      render({ force: true });
+      setBadge("离线·上次内容", "warn");
+    } else {
+      setBadge("离线·拿不到内容", "fail");
+    }
+  }
+
   function boot() {
     var cfg = loadCfg();
-    if (cfg && cfg.token) { TOKEN = cfg.token; if (cfg.gist) GIST.id = cfg.gist; }
-    else {
-      var m = (location.hash || "").match(/[#&]t=([^&]+)/) || (location.search || "").match(/[?&]t=([^&]+)/);
-      if (m) {
-        try {
-          var packed = JSON.parse(decodeURIComponent(m[1]));
-          TOKEN = packed.token || "";
-          if (packed.gist) GIST.id = packed.gist;
-          saveCfg({ gist: GIST.id, token: TOKEN });
-          clearTokenFromUrl();
-        } catch (e) {}
-      }
+    var m = (location.hash || "").match(/[#&]t=([^&]+)/) || (location.search || "").match(/[?&]t=([^&]+)/);
+    if (m) {
+      try {
+        var packed = JSON.parse(decodeURIComponent(m[1]));
+        TOKEN = packed.token || "";
+        if (packed.gist) GIST.id = packed.gist;
+        saveCfg({ gist: GIST.id, token: TOKEN });
+        clearTokenFromUrl();
+      } catch (e) {}
+    } else if (cfg && cfg.token) {
+      TOKEN = cfg.token;
+      if (cfg.gist) GIST.id = cfg.gist;
     }
-    if (!TOKEN) { setBadge("仅本机", "local"); return; }
-    setBadge("连接中", "busy");
+    if (!TOKEN) {
+      bootDone();
+      setBadge("仅本机", "local");
+      return;
+    }
+    setBadge("正在取最新", "busy");
     fetchData().then(function (res) {
-      if (res && res.doc) { applyDoc(res.doc); setBadge("已同步", "ok"); }
-      else setBadge("已存本机", "local");
+      if (res && res.doc) {
+        applyDoc(res.doc);
+        bootDone();
+        setBadge("已同步", "ok");
+      } else if (res && res.unchanged) {
+        if (Object.keys(CACHE.done).length || CACHE.extra.length) {
+          state.done = CACHE.done; state.extra = CACHE.extra;
+          hydrateAddr(); hydrated = true;
+          render({ force: true });
+        }
+        bootDone();
+        setBadge("已同步", "ok");
+      } else {
+        bootOffline();
+      }
     });
     pollTimer = setInterval(function () {
       if (document.hidden) return;
@@ -2849,22 +3304,9 @@
       if (net.patch) return;
       fetchData().then(function (res) { if (res && res.doc) applyDoc(res.doc); });
     }, 5000);
-    addEventListener("pagehide", flushNow);
-    addEventListener("pagehide", function () { if (pollTimer) clearInterval(pollTimer); });
-    addEventListener("pagehide", function () {
-      if (!TOKEN) return;
-      try {
-        var doc = snapshot();
-        var files = {}; files[GIST.file] = { content: JSON.stringify(doc, null, 1) };
-        fetch("https://api.github.com/gists/" + GIST.id, {
-          method: "PATCH", keepalive: true,
-          headers: { "Accept": "application/vnd.github+json", "Authorization": "Bearer " + TOKEN, "Content-Type": "application/json" },
-          body: JSON.stringify({ files: files })
-        });
-      } catch (e) {}
-    });
+    addEventListener("pagehide", function () { leaveOnce(true); });
     addEventListener("visibilitychange", function () {
-      if (document.hidden) { flushNow(); }
+      if (document.hidden) { leaveOnce(false); }
       else if (TOKEN && !net.patch) { fetchData().then(function (res) { if (res && res.doc) applyDoc(res.doc); }); }
     });
     addEventListener("focus", function () {
@@ -2872,6 +3314,12 @@
     });
     if (readPending()) saveData();
   }
+
+  function clearTokenFromUrl() {
+    try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+  }
+
+  bootSkeleton();
   boot();
   if (document.readyState === "complete") clearTokenFromUrl();
   else addEventListener("load", clearTokenFromUrl);
