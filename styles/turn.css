@@ -251,7 +251,12 @@
 
 /* 16c) 手机名字不换行：字号与字距收一点，6 字名一行放得下 */
 @media (max-width:640px){
-  #cdp .cdp-name{ font-size:1.35rem; letter-spacing:.02em; white-space:nowrap; }
+  /* 手机端名字：不省略、允许换行，并跨到第 4 列（原第 3 列只有 42.7px，2 个字都放不下） */
+  #cdp .cdp-name{
+    grid-column:3 / 5; font-size:1.35rem; letter-spacing:.02em;
+    white-space:normal; overflow-wrap:anywhere; word-break:break-word;
+    max-width:100%;
+  }
   #cdp .cdp-idx{ font-size:.8em; }
 }
 
@@ -340,3 +345,8 @@
 }
 :root[data-scheme="dark"] body{ background-color:var(--paper); color:var(--ink); }
 :root[data-scheme="dark"] #cdp{ background-color:var(--paper); border-color:rgba(var(--ink-rgb),.22); }
+
+/* 21) 名称不省略（省略=看不见，用户明确反对）；超长改用换行 */
+@media (max-width:640px){
+  #cdp .cdp-name{ max-width:100%; }
+}
