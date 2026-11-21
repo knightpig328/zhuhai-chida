@@ -640,63 +640,150 @@
     raf(function () { list.classList.remove("no-anim"); });
   }
 
-  /* ===== 铅笔涂鸦：按行实测宽度生成斜杠，角度锁 8–20° ===== */
-  var SCR_ANGLES = [14, -9, 17, 11];
-  function scR(n) { return Math.round(n * 10) / 10; }
-  function scBend(x0, y0, x1, y1, bend) {
+  /* ===== 铅笔涂抹 v2：5–8 道交错斜杠 + 淡晕 + 碎点 + 回描 ===== */
+  var SVGNS = "http://www.w3.org/2000/svg";
+  var SCR_ANG = [13, -9, 16, -12, 8, -15, 11, -8];
+  var scStatic = false;
+
+  function scR(v) { return Math.round(v * 10) / 10; }
+  function scCount(w) { if (w <= 46) return 5; if (w <= 60) return 6; if (w <= 96) return 7; return 8; }
+  function scHash(str) { var h = 2166136261, i; for (i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = (h * 16777619) >>> 0; } return h % 9973; }
+  function scRand(seed, i) { var v = Math.sin((seed + 1) * 12.9898 + i * 78.233) * 43758.5453; return v - Math.floor(v); }
+  function scStroke(x0, y0, x1, y1, bend) {
     var dx = x1 - x0, dy = y1 - y0;
     return "M" + scR(x0) + " " + scR(y0) +
-      "C" + scR(x0 + dx * .30) + " " + scR(y0 + dy * .30 + bend) +
-      " " + scR(x0 + dx * .68) + " " + scR(y0 + dy * .68 - bend * .8) +
+      "C" + scR(x0 + dx * .26) + " " + scR(y0 + dy * .26 + bend) +
+      " " + scR(x0 + dx * .72) + " " + scR(y0 + dy * .72 - bend * .72) +
       " " + scR(x1) + " " + scR(y1);
   }
+  function scEl(tag, attrs) {
+    var e = document.createElementNS(SVGNS, tag), k;
+    for (k in attrs) if (Object.prototype.hasOwnProperty.call(attrs, k)) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+  function ensureScDefs() {
+    if (document.getElementById("cdpScDefs")) return;
+    var svg = scEl("svg", { id: "cdpScDefs", class: "cdp-defs", width: "0", height: "0", "aria-hidden": "true", focusable: "false" });
+    var defs = scEl("defs", {});
+    var smudge = scEl("filter", { id: "cdpScSmudge", x: "-30%", y: "-80%", width: "160%", height: "260%", "color-interpolation-filters": "sRGB" });
+    smudge.appendChild(scEl("feGaussianBlur", { "in": "SourceGraphic", stdDeviation: "3.2", result: "b" }));
+    smudge.appendChild(scEl("feTurbulence", { type: "fractalNoise", baseFrequency: "0.62 0.9", numOctaves: "2", seed: "11", result: "n" }));
+    smudge.appendChild(scEl("feDisplacementMap", { "in": "b", "in2": "n", scale: "7", xChannelSelector: "R", yChannelSelector: "G" }));
+    var dust = scEl("filter", { id: "cdpScDust", x: "-10%", y: "-60%", width: "120%", height: "220%" });
+    dust.appendChild(scEl("feTurbulence", { type: "fractalNoise", baseFrequency: "1.15 0.65", numOctaves: "2", seed: "5", result: "dn" }));
+    dust.appendChild(scEl("feDisplacementMap", { "in": "SourceGraphic", "in2": "dn", scale: "1.6", xChannelSelector: "R", yChannelSelector: "G" }));
+    defs.appendChild(smudge); defs.appendChild(dust);
+    svg.appendChild(defs);
+    document.body.appendChild(svg);
+  }
+
   function buildScratch(li) {
     if (li.querySelector(".cdp-scratch")) return;
     if (!li.classList.contains("is-done")) return;
     var name = li.querySelector(".cdp-name");
-    var idx = li.querySelector(".cdp-idx");
-    var addr = li.querySelector(".cdp-addr");
     if (!name) return;
-    var W = li.clientWidth, H = li.clientHeight;
-    if (!W || !H || W < 80) return;
-    var x0 = (idx ? idx.offsetLeft : name.offsetLeft) - 3;
-    var textRight = name.offsetLeft + name.offsetWidth;
-    var guard = (addr && Math.abs(addr.offsetTop - name.offsetTop) < 4) ? addr.offsetLeft - 10 : W - 40;
-    var x1 = Math.max(x0 + 30, Math.min(textRight + 22, guard));
-    var top = name.offsetTop, h = name.offsetHeight, yMid = top + h / 2;
-    var n = (x1 - x0) < 90 ? 2 : ((x1 - x0) < 210 ? 3 : 4);
-    var seg = (x1 - x0) / n;
-    var dMain = "", dTrace = "", dTail = "";
-    for (var i = 0; i < n; i++) {
-      var deg = SCR_ANGLES[i % SCR_ANGLES.length];
-      var t = Math.tan(Math.abs(deg) * Math.PI / 180);
-      var sy = yMid + h * (i % 2 ? .20 : -.20);
-      var sx = x0 + seg * i + (i ? seg * .12 : 0);
-      var avail = x1 + 6 - sx;
-      var span = Math.min(h * (.72 + .06 * (i % 2)) / t, avail);
-      if (span < 10) continue;
-      var ex = sx + span;
-      var ey = sy + span * t * (deg < 0 ? -1 : 1);
-      dMain += scBend(sx, sy, ex, ey, i % 2 ? -1.6 : 1.6);
-      dTrace += scBend(sx + 1.2, sy + 1.7, ex, ey + 1.3, i % 2 ? 1.2 : -1.2);
-      dTail += scBend(ex - span * .14, ey - span * .14 * t * (deg < 0 ? -1 : 1), ex, ey, .5);
+    var nw = name.clientWidth, nh = name.clientHeight;
+    if (nw < 16 || nh < 10) return;
+
+    var seed = scHash(li.getAttribute("data-text") || "");
+    var OX = Math.max(3, Math.min(6, nw * .06));
+    var OY = Math.max(5, Math.min(10, nh * .34));
+    var W = nw + OX * 2, H = nh + OY * 2;
+    var x0 = OX, span = nw;
+    var yTop = OY - 2, band = nh + 4;
+    var n = scCount(nw);
+    var angK = nw > 80 ? .62 : (nw > 62 ? .84 : 1);
+    var stag = n <= 6 ? 62 : 50;
+    var DUR = 190;
+    var retStart = (n - 1) * stag + DUR + 40;
+
+    ensureScDefs();
+
+    var gHaze = scEl("g", { class: "sc-haze" });
+    for (var hh = 0; hh < 2; hh++) {
+      gHaze.appendChild(scEl("ellipse", {
+        cx: scR(OX + nw * (.46 + .10 * hh)), cy: scR(OY + nh * (.44 + .12 * hh)),
+        rx: scR(nw * (.56 - .06 * hh)), ry: scR(nh * (.66 - .10 * hh)),
+        opacity: hh ? ".055" : ".085"
+      }));
     }
-    if (!dMain) return;
-    var NS = "http://www.w3.org/2000/svg";
-    var svg = document.createElementNS(NS, "svg");
-    svg.setAttribute("class", "cdp-scratch");
-    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
-    svg.setAttribute("preserveAspectRatio", "none");
-    svg.setAttribute("aria-hidden", "true");
-    [["sc-main", dMain], ["sc-trace", dTrace], ["sc-tail", dTail]].forEach(function (p) {
-      if (!p[1]) return;
-      var el = document.createElementNS(NS, "path");
-      el.setAttribute("d", p[1]);
-      el.setAttribute("class", p[0]);
-      el.setAttribute("pathLength", "1");
-      svg.appendChild(el);
+
+    var gDust = scEl("g", { class: "sc-dust" });
+    gDust.style.setProperty("--d", String((n - 1) * stag + 90));
+    for (var k = 0; k < 2; k++) {
+      var dy = yTop + band * (.32 + .34 * k);
+      gDust.appendChild(scEl("path", { d: scStroke(x0 + span * .05, scR(dy), x0 + span * .95, scR(dy + (k ? 2.4 : -2)), k ? .8 : -.8) }));
+    }
+
+    var gInk = scEl("g", { class: "sc-ink" });
+    var gRet = scEl("g", { class: "sc-retrace" });
+    for (var i = 0; i < n; i++) {
+      var deg = SCR_ANG[i % SCR_ANG.length] * angK;
+      if (Math.abs(deg) < 8) deg = deg < 0 ? -8 : 8;
+      var t = Math.tan(Math.abs(deg) * Math.PI / 180);
+      var down = deg > 0 ? 1 : -1;
+      var run = span * (i === n - 1 ? .62 : .84 + .22 * scRand(seed, i));
+      var rise = run * t;
+      var sx = x0 + (span - run) * (.08 + .84 * scRand(seed, i + 9));
+      var sy = yTop + band * (i + .5) / n - down * rise / 2 + (scRand(seed, i + 3) - .5) * 1.6;
+      var ex = sx + run, ey = sy + down * rise;
+      var bend = (i % 2 ? -1 : 1) * (1.1 + 1.0 * scRand(seed, i + 17));
+
+      var main = scEl("path", { class: "sc-main", d: scStroke(sx, sy, ex, ey, bend), pathLength: "1" });
+      main.style.setProperty("--d", String(i * stag));
+      main.style.setProperty("--dur", DUR + "ms");
+      gInk.appendChild(main);
+
+      if (i % 2) {
+        var back = run * .12;
+        var tail = scEl("path", { class: "sc-tail", d: scStroke(ex - back, ey - down * back * t, ex, ey, i % 4 ? -.4 : .4), pathLength: "1" });
+        tail.style.setProperty("--d", String(i * stag + 130));
+        tail.style.setProperty("--dur", "120ms");
+        gInk.appendChild(tail);
+      }
+
+      if (i % 3 === 1) {
+        var ret = scEl("path", { class: "sc-ret", d: scStroke(sx + 1.1, sy + 1.5, ex - 1.2, ey + 1.2, -bend * .6), pathLength: "1" });
+        ret.style.setProperty("--d", String(retStart + (i % 6) * 8));
+        ret.style.setProperty("--dur", "170ms");
+        gRet.appendChild(ret);
+      }
+    }
+
+    var svg = scEl("svg", { class: "cdp-scratch", viewBox: "0 0 " + W + " " + H, preserveAspectRatio: "none", "aria-hidden": "true", focusable: "false" });
+    if (scStatic) svg.setAttribute("data-static", "");
+    svg.style.left = (-OX) + "px";
+    svg.style.top = (-OY) + "px";
+    svg.style.width = W + "px";
+    svg.style.height = H + "px";
+    svg.appendChild(gHaze);
+    svg.appendChild(gDust);
+    svg.appendChild(gInk);
+    svg.appendChild(gRet);
+
+    li.classList.add("has-scratch");
+    name.appendChild(svg);
+  }
+
+  function syncScratch(li) {
+    if (!li.classList.contains("is-done")) {
+      var old = li.querySelector(".cdp-scratch");
+      if (old) old.parentNode.removeChild(old);
+      li.classList.remove("has-scratch");
+      return;
+    }
+    buildScratch(li);
+  }
+
+  function rebuildScratches() {
+    Array.prototype.forEach.call(list.querySelectorAll(".cdp-row"), function (li) {
+      var sc = li.querySelector(".cdp-scratch");
+      if (sc) sc.parentNode.removeChild(sc);
+      li.classList.remove("has-scratch");
     });
-    li.appendChild(svg);
+    scStatic = true;
+    paint();
+    scStatic = false;
   }
 
   function paint() {
@@ -706,7 +793,7 @@
       var t = li.getAttribute("data-text");
       var on = !!state.done[t];
       li.classList.toggle("is-done", on);
-      buildScratch(li);
+      syncScratch(li);
       var tick = li.querySelector(".cdp-tick");
       if (tick) tick.setAttribute("aria-pressed", on ? "true" : "false");
       var idx = li.querySelector(".cdp-idx");
@@ -834,21 +921,11 @@
   }
 
   if (window.ResizeObserver) {
-    var _ro = new ResizeObserver(function () {
-      Array.prototype.forEach.call(list.querySelectorAll(".cdp-row"), function (li) {
-        var sc = li.querySelector(".cdp-scratch"); if (sc) sc.parentNode.removeChild(sc);
-      });
-      paint();
-    });
+    var _ro = new ResizeObserver(function () { rebuildScratches(); });
     _ro.observe(list);
   }
   if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(function () {
-      Array.prototype.forEach.call(list.querySelectorAll(".cdp-row"), function (li) {
-        var sc = li.querySelector(".cdp-scratch"); if (sc) sc.parentNode.removeChild(sc);
-      });
-      paint();
-    });
+    document.fonts.ready.then(rebuildScratches);
   }
 
   bootSkeleton();
