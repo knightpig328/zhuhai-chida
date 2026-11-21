@@ -300,9 +300,31 @@
     return true;
   }
 
+  /* 探测 Worker 是否已支持 order 字段（结果缓存到 localStorage，成功才上传） */
+  var ORDER_OK = null;
+  function probeOrder() {
+    if (ORDER_OK !== null) return Promise.resolve(ORDER_OK);
+    try {
+      var c = window.localStorage.getItem("cdp-order-ok");
+      if (c === "1") { ORDER_OK = true; return Promise.resolve(true); }
+      /* 失败不缓存：Worker 更新后下一次启动会自动重探 */
+    } catch (e) {}
+    return fetch(WORKER + "/data?dry=1", {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + WKEY, "Content-Type": "text/plain;charset=UTF-8" },
+      body: JSON.stringify({ v: 3, order: { v: [], t: 0 } }),
+      cache: "no-store"
+    }).then(function (r) {
+      ORDER_OK = (r.status === 200);
+      try { if (ORDER_OK) window.localStorage.setItem("cdp-order-ok", "1"); } catch (e) {}
+      return ORDER_OK;
+    }).catch(function () { return false; });
+  }
+
   function snapshot() {
-    /* TODO(Worker 支持 order 后开启): order: TS.order || { v: [], t: 0 }, */
-  return { v: 3, rev: (TS.rev || 0) + 1, updatedAt: new Date().toISOString(), done: TS.done || {}, extra: TS.extra || {}, del: TS.del || {}, addr: TS.addr || {}, score: TS.score || {} };
+    var _snap = { v: 3, rev: (TS.rev || 0) + 1, updatedAt: new Date().toISOString(), done: TS.done || {}, extra: TS.extra || {}, del: TS.del || {}, addr: TS.addr || {}, score: TS.score || {} };
+  if (ORDER_OK) _snap.order = TS.order || { v: [], t: 0 };
+  return _snap;
   }
   function contentKey(d) {
     return JSON.stringify({ d: d.done || {}, e: d.extra || {}, x: d.del || {}, a: d.addr || {}, s: d.score || {}, o: (d.order && d.order.v) || [] });
@@ -1192,6 +1214,7 @@
 
   bootSkeleton();
   initSortEngine();
+  probeOrder();
   boot();
   if (document.readyState === "complete") clearTokenFromUrl();
   else addEventListener("load", clearTokenFromUrl);
