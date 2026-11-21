@@ -163,7 +163,8 @@ body::before{
   content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
   background-image:
     repeating-radial-gradient(circle at 18% 12%, transparent 0 17px, rgba(var(--ink-rgb),.085) 17px 18px, transparent 18px 36px),
-    repeating-radial-gradient(circle at 4% 26%, transparent 0 29px, rgba(var(--ink-rgb),.05) 29px 30px, transparent 30px 60px);
+    repeating-radial-gradient(circle at 4% 26%, transparent 0 29px, rgba(var(--ink-rgb),.05) 29px 30px, transparent 30px 60px),
+    repeating-radial-gradient(circle at 82% 74%, transparent 0 23px, rgba(var(--ink-rgb),.04) 23px 24px, transparent 24px 48px);
   opacity:1;
   mix-blend-mode:multiply;
   -webkit-mask-image:linear-gradient(to bottom, #000 0 80%, rgba(0,0,0,.25) 94%, transparent 100%);

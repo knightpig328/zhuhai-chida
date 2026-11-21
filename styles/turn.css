@@ -228,3 +228,15 @@
   -webkit-text-fill-color:transparent;
 }
 @media print{ #cdp .cdp-rate, #cdp .cdp-score{ display:none !important; } }
+
+/* 16b) 手机触控：★ 视觉不变但点击区 44px，星星加大，面板铺满整行 */
+@media (max-width:640px){
+  #cdp .cdp-rate{
+    width:44px; height:44px; margin:-10px -10px -10px 0;
+    display:flex; align-items:center; justify-content:center;
+  }
+  #cdp .cdp-star{ width:28px; height:28px; font-size:1.1rem; }
+  #cdp .score-stars{ gap:4px; }
+  #cdp .cdp-score{ width:100%; box-sizing:border-box; }
+  #cdp .score-who{ font-size:.78rem; }
+}
