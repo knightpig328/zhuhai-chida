@@ -208,6 +208,7 @@
 #cdp .cdp-row.has-score{ grid-auto-rows:auto; }
 #cdp .cdp-score{
   grid-column:1 / -1; margin:8px -2px 2px; padding-top:8px;
+  animation:cdpScoreIn .22s cubic-bezier(.2,.7,.3,1) both;
   border-top:1px dashed rgba(var(--ink-rgb),.16);
   display:flex; flex-direction:column; gap:4px;
 }
@@ -259,3 +260,9 @@
   #cdp .cdp-addr{ font-size:.74em; padding:1px 4px; grid-column:1 / -1; width:100%; }
   #cdp .cdp-map{ grid-area:3 / 5 / 4 / 6; justify-self:end; }
 }
+
+@keyframes cdpScoreIn{
+  from{ opacity:0; transform:translateY(-4px); }
+  to  { opacity:1; transform:translateY(0); }
+}
+@media (prefers-reduced-motion: reduce){ #cdp .cdp-score{ animation:none; } }
