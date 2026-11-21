@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
   var root = document.getElementById("cdp");
   if (!root) return;
   var KEY = "guizang-zhuhai-chida-v1";
@@ -123,7 +123,7 @@
 
   /* ===== 失败分类 ===== */
   var FAIL_TXT = {
-    token_bad: "token 失效·换一个", token_scope: "无 gist 写权限", forbidden: "被拒·查 gist",
+    token_bad: "token 失效·点我换", token_scope: "无 gist 写权限", forbidden: "被拒·查 gist",
     rate_limited: "限流·稍后自愈", abuse: "请求太密·稍后自愈", gist_missing: "gist 找不到",
     invalid: "内容被拒", server: "GitHub 服务器问题", offline: "离线·已存本机",
     timeout: "超时·已存本机", conflict: "冲突·重试中", http: "同步失败"
@@ -444,9 +444,22 @@
     if (badge) badge.click();
   });
 
+  function askToken() {
+    var tip = TOKEN ? "当前 token 已失效。粘贴新的 GitHub token（只存本机，不上传）：" : "粘贴 GitHub token（只存本机，不上传）：";
+    var t = window.prompt(tip, "");
+    if (t === null) return;
+    t = String(t).trim();
+    if (!t) return;
+    TOKEN = t; ETAG = ""; net.get = null; net.getAt = 0; lastErr = null; failCount = 0;
+    saveCfg({ gist: GIST.id, token: TOKEN });
+    setBadge("新 token·验证中", "busy");
+    forceRefresh();
+  }
+  window.cdpAskToken = askToken;
+
   if (badge) badge.addEventListener("click", function () {
     if (holdFired) { holdFired = false; return; }
-    if (!TOKEN) { setBadge("仅本机", "local"); return; }
+    if (!TOKEN || (lastErr && (lastErr.kind === "token_bad" || lastErr.kind === "gist_missing"))) { askToken(); return; }
     failCount = 0;
     if (net.pending || net.dirty) { setBadge("重试中", "busy"); saveData(); return; }
     setBadge("检测中", "busy");
@@ -646,15 +659,16 @@
     if (bootSettled) return;
     bootSettled = true;
     root.classList.remove("is-booting");
+    var tokenProblem = !!(lastErr && (lastErr.kind === "token_bad" || lastErr.kind === "gist_missing"));
     if (Object.keys(CACHE.done).length || CACHE.extra.length) {
       state.done = CACHE.done;
       state.extra = CACHE.extra;
       hydrated = true;
       hydrateAddr();
       render({ force: true });
-      setBadge("离线·上次内容", "warn");
+      setBadge(tokenProblem ? "token 失效·点我换" : "离线·上次内容", tokenProblem ? "fail" : "warn");
     } else {
-      setBadge("离线·拿不到内容", "fail");
+      setBadge(tokenProblem ? "token 失效·点我换" : "离线·拿不到内容", tokenProblem ? "fail" : "fail");
     }
   }
 
@@ -722,3 +736,4 @@
   if (document.readyState === "complete") clearTokenFromUrl();
   else addEventListener("load", clearTokenFromUrl);
 })();
+
