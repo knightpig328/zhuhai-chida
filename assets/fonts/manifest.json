@@ -1,6 +1,6 @@
 {
   "count": 12,
-  "totalBytes": 3221420,
+  "totalBytes": 2180224,
   "faces": [
     {
       "family": "ibm-plex-mono-400-normal.woff2",
@@ -23,7 +23,7 @@
       "bytes": 79780
     },
     {
-      "family": "kaiti-400-normal.woff2",
+      "family": "KaiTi Web",
       "file": "kaiti-400-normal.woff2",
       "bytes": 78288
     },
@@ -60,7 +60,7 @@
     {
       "family": "Xingkai Web",
       "file": "xingkai-400-normal.woff2",
-      "bytes": 2224400
+      "bytes": 1183204
     }
   ]
 }
