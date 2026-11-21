@@ -162,8 +162,8 @@ footer::before{
 body::before{
   content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
   background-image:var(--orn-wood);
-  background-size:cover;
-  background-position:center;
+  background-size:1600px 1600px;
+  background-position:center top;
   background-repeat:no-repeat;
   opacity:.24;
   mix-blend-mode:multiply;
@@ -172,11 +172,5 @@ body::before{
 @media print{ body::before{ display:none; } }
 
 
-/* 14) 手机端木纹：单幅缩放到屏宽，避免 cover 拉伸出现接缝 */
-@media (max-width:640px){
-  body::before{
-    background-size: 900px 900px;
-    background-position: center top;
-    opacity:.20;
-  }
-}
+/* 14) 窄屏不显示木纹（cover 拉伸会把年轮压成竖条） */
+@media (max-width:1200px){ body::before{ display:none; } }
