@@ -210,11 +210,11 @@
   grid-column:1 / -1; margin:4px -2px 0; padding-top:6px;
   animation:cdpScoreIn .22s cubic-bezier(.2,.7,.3,1) both;
   border-top:1px dashed rgba(var(--ink-rgb),.16);
-  display:flex; flex-direction:column; gap:2px;
+  display:block;
 }
-#cdp .score-row{ display:flex; align-items:center; gap:8px; }
-#cdp .score-who{ font-family:var(--font-sans); font-size:.72rem; color:rgba(var(--ink-rgb),.55); min-width:2.4em; }
-#cdp .score-stars{ display:flex; gap:2px; justify-content:flex-start; }
+#cdp .score-row{ display:flex; align-items:center; }
+#cdp .score-who{ font-family:var(--font-sans); font-size:.72rem; color:rgba(var(--ink-rgb),.55); min-width:2.4em; margin-right:8px; }
+#cdp .score-stars{ display:flex; justify-content:flex-start; }
 #cdp .cdp-star{
   flex:0 0 auto; width:28px; height:28px; padding:0; background:none; border:0; cursor:pointer;
   font-size:1.35rem; line-height:1; color:rgba(var(--ink-rgb),.32);
@@ -237,11 +237,11 @@
     display:flex; align-items:center; justify-content:center;
     font-size:1.5rem;
   }
-  #cdp .cdp-star{ flex:0 0 32px; width:32px; height:32px; font-size:1.35rem; }
-  #cdp .score-stars{ gap:4px; }
+  #cdp .cdp-star{ flex:0 0 32px; width:32px; height:32px; font-size:1.35rem; margin:0 2px 0 0; }
+
   #cdp .cdp-score{ width:100%; box-sizing:border-box; margin-left:-2px; margin-right:-2px; }
-  #cdp .score-row{ gap:4px; flex-wrap:nowrap; }
-  #cdp .score-stars{ gap:2px; flex-wrap:nowrap; justify-content:flex-start; }
+  #cdp .score-row{ flex-wrap:nowrap; }
+  #cdp .score-stars{ flex-wrap:nowrap; justify-content:flex-start; }
   #cdp .score-who{ min-width:2.6em; white-space:nowrap; font-size:.76rem; margin:0 6px 0 0; }
 
 }
@@ -268,3 +268,8 @@
   to  { opacity:1; transform:translateY(0); }
 }
 @media (prefers-reduced-motion: reduce){ #cdp .cdp-score{ animation:none; } }
+
+/* 兼容：用 margin 代替 flex gap（旧内核不支持 gap） */
+#cdp .score-stars .cdp-star:last-child{ margin-right:0; }
+#cdp .cdp-score{ display:block; }
+#cdp .cdp-score .score-row + .score-row{ margin-top:2px; }
