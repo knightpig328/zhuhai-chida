@@ -25,7 +25,7 @@
   var CFG_KEY = "cdp-sync-cfg-v1";
   var GIST = { id: "4bb6f3b536c05a65de7132179a8826e9", file: "zhuhai-chida.json" };
   var TOKEN = "w", ETAG = "";
-  var WORKER = "https://liqianshiqianjin.zkc1014102029.workers.dev";
+  var WORKER = "https://liqianshiqianjin.pages.dev";
   var WKEY = "zhuhai-2026-liqianwoainikeshinizongshichaowowozhendehaonanguo";
   var TS = { done: {}, extra: {}, del: {}, addr: {} };
   var ADDR = {};
