@@ -482,7 +482,7 @@
   });
 
   /* ===== 渲染 ===== */
-  function rowEl(text, isExtra) {
+  function rowEl(text) {
     var li = document.createElement("li");
     li.className = "cdp-row";
     li.setAttribute("data-text", text);
@@ -604,7 +604,8 @@
     list.classList.add("no-anim");
     list.textContent = "";
     var baseVisible = BASE.filter(function (t) { return !isBaseDeleted(t); });
-    baseVisible.concat(state.extra).forEach(function (t) { list.appendChild(rowEl(t, has(state.extra, t))); });
+    var tailRows = state.extra.filter(function (t) { return baseVisible.indexOf(t) === -1; });
+    baseVisible.concat(tailRows).forEach(function (t) { list.appendChild(rowEl(t)); });
     paint();
     if (opts.enter) {
       var rows = list.querySelectorAll(".cdp-row");
@@ -620,6 +621,65 @@
     raf(function () { list.classList.remove("no-anim"); });
   }
 
+  /* ===== 铅笔涂鸦：按行实测宽度生成斜杠，角度锁 8–20° ===== */
+  var SCR_ANGLES = [14, -9, 17, 11];
+  function scR(n) { return Math.round(n * 10) / 10; }
+  function scBend(x0, y0, x1, y1, bend) {
+    var dx = x1 - x0, dy = y1 - y0;
+    return "M" + scR(x0) + " " + scR(y0) +
+      "C" + scR(x0 + dx * .30) + " " + scR(y0 + dy * .30 + bend) +
+      " " + scR(x0 + dx * .68) + " " + scR(y0 + dy * .68 - bend * .8) +
+      " " + scR(x1) + " " + scR(y1);
+  }
+  function buildScratch(li) {
+    if (li.querySelector(".cdp-scratch")) return;
+    if (!li.classList.contains("is-done")) return;
+    var name = li.querySelector(".cdp-name");
+    var idx = li.querySelector(".cdp-idx");
+    var addr = li.querySelector(".cdp-addr");
+    if (!name) return;
+    var W = li.clientWidth, H = li.clientHeight;
+    if (!W || !H || W < 80) return;
+    var x0 = (idx ? idx.offsetLeft : name.offsetLeft) - 3;
+    var textRight = name.offsetLeft + name.offsetWidth;
+    var guard = (addr && Math.abs(addr.offsetTop - name.offsetTop) < 4) ? addr.offsetLeft - 10 : W - 40;
+    var x1 = Math.max(x0 + 30, Math.min(textRight + 22, guard));
+    var top = name.offsetTop, h = name.offsetHeight, yMid = top + h / 2;
+    var n = (x1 - x0) < 90 ? 2 : ((x1 - x0) < 210 ? 3 : 4);
+    var seg = (x1 - x0) / n;
+    var dMain = "", dTrace = "", dTail = "";
+    for (var i = 0; i < n; i++) {
+      var deg = SCR_ANGLES[i % SCR_ANGLES.length];
+      var t = Math.tan(Math.abs(deg) * Math.PI / 180);
+      var sy = yMid + h * (i % 2 ? .20 : -.20);
+      var sx = x0 + seg * i + (i ? seg * .12 : 0);
+      var avail = x1 + 6 - sx;
+      var span = Math.min(h * (.72 + .06 * (i % 2)) / t, avail);
+      if (span < 10) continue;
+      var ex = sx + span;
+      var ey = sy + span * t * (deg < 0 ? -1 : 1);
+      dMain += scBend(sx, sy, ex, ey, i % 2 ? -1.6 : 1.6);
+      dTrace += scBend(sx + 1.2, sy + 1.7, ex, ey + 1.3, i % 2 ? 1.2 : -1.2);
+      dTail += scBend(ex - span * .14, ey - span * .14 * t * (deg < 0 ? -1 : 1), ex, ey, .5);
+    }
+    if (!dMain) return;
+    var NS = "http://www.w3.org/2000/svg";
+    var svg = document.createElementNS(NS, "svg");
+    svg.setAttribute("class", "cdp-scratch");
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    svg.setAttribute("preserveAspectRatio", "none");
+    svg.setAttribute("aria-hidden", "true");
+    [["sc-main", dMain], ["sc-trace", dTrace], ["sc-tail", dTail]].forEach(function (p) {
+      if (!p[1]) return;
+      var el = document.createElementNS(NS, "path");
+      el.setAttribute("d", p[1]);
+      el.setAttribute("class", p[0]);
+      el.setAttribute("pathLength", "1");
+      svg.appendChild(el);
+    });
+    li.appendChild(svg);
+  }
+
   function paint() {
     var rows = list.querySelectorAll(".cdp-row");
     var done = 0;
@@ -627,6 +687,7 @@
       var t = li.getAttribute("data-text");
       var on = !!state.done[t];
       li.classList.toggle("is-done", on);
+      buildScratch(li);
       var tick = li.querySelector(".cdp-tick");
       if (tick) tick.setAttribute("aria-pressed", on ? "true" : "false");
       var idx = li.querySelector(".cdp-idx");
@@ -644,7 +705,14 @@
       var v = (input && input.value ? input.value : "").replace(/\s+/g, " ").trim().slice(0, 16);
       if (input) input.value = "";
       if (!v) return;
-      if (has(BASE, v)) { setBadge("清单里已有", "fail"); return; }
+      if (has(BASE, v)) {
+        if (!isBaseDeleted(v)) { setBadge("清单里已有", "fail"); return; }
+        TS.extra[v] = tsNow();
+        save(); push();
+        render({ force: true, enter: v });
+        setBadge("已恢复", "ok");
+        return;
+      }
       if (has(state.extra, v)) { setBadge("已经有了", "fail"); return; }
       state.extra.push(v);
       TS.extra[v] = tsNow();
@@ -679,7 +747,12 @@
     var tokenProblem = !!(lastErr && (lastErr.kind === "token_bad" || lastErr.kind === "gist_missing"));
     if (Object.keys(CACHE.done).length || CACHE.extra.length) {
       state.done = CACHE.done;
-      state.extra = CACHE.extra;
+      state.extra = CACHE.extra.filter(function (t) {
+        var d = TS.del && TS.del[t];
+        if (typeof d !== "number") return true;
+        var add = TS.extra && TS.extra[t];
+        return typeof add === "number" && add > d;
+      });
       hydrated = true;
       hydrateAddr();
       render({ force: true });
@@ -741,6 +814,24 @@
 
   function clearTokenFromUrl() {
     try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+  }
+
+  if (window.ResizeObserver) {
+    var _ro = new ResizeObserver(function () {
+      Array.prototype.forEach.call(list.querySelectorAll(".cdp-row"), function (li) {
+        var sc = li.querySelector(".cdp-scratch"); if (sc) sc.parentNode.removeChild(sc);
+      });
+      paint();
+    });
+    _ro.observe(list);
+  }
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function () {
+      Array.prototype.forEach.call(list.querySelectorAll(".cdp-row"), function (li) {
+        var sc = li.querySelector(".cdp-scratch"); if (sc) sc.parentNode.removeChild(sc);
+      });
+      paint();
+    });
   }
 
   bootSkeleton();
