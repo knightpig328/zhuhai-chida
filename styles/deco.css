@@ -179,7 +179,13 @@ body::before{
 
 
 /* 14) 窄屏不显示木纹（cover 拉伸会把年轮压成竖条） */
-@media (max-width:900px){ body::before{ display:none; } }
+@media (max-width:900px){
+  body::before{
+    background-size:620px 443px;
+    background-position:left top;
+    opacity:.72;
+  }
+}
 
 
 /* 15) 收掉页脚后的大片空白 */
