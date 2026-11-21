@@ -14,6 +14,14 @@ for rel in ['index.html', 'scripts/app.js']:
 
 chars |= set('李千金的恋爱法则')
 chars |= set(chr(c) for c in range(32, 127))
+chars |= set('\u2726\u201c\u201d\u2014\u2713\u00b7\u2026\u3001\u3002\uff0c\uff1b\uff1a\uff1f\uff01\uff08\uff09\u300a\u300b\u3008\u3009\u3010\u3011\u300c\u300d\u300e\u300f\u3014\u3015\uff5e\uff01\uff05\uff06\uff0a\uff0b\uff1d\uff0f\uff3c\uff5c\uff1c\uff1e\uff20\uff03\uff5e\uff3f\uff3b\uff3d\uff5b\uff5d')
+# CSS content 与 JS 字面量里的符号
+import re as _re, os as _os
+for _rel in ['index.html','scripts/app.js','styles/base.css','styles/app.css','styles/deco.css','styles/turn.css']:
+    _p=_os.path.join(r'C:\李倩\倩倩收纳包-shouna\临时-linshi\zhuhai-chida-site',_rel)
+    if _os.path.exists(_p):
+        chars |= set(open(_p,encoding='utf-8').read())
+
 chars = {c for c in chars if ord(c) >= 32}
 
 with open(CHARS, 'w', encoding='utf-8', newline='') as f:
