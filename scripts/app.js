@@ -620,7 +620,7 @@
     var box = document.createElement("span"); box.className = "cdp-box"; box.setAttribute("aria-hidden", "true");
     tick.appendChild(box);
     var idx = document.createElement("span"); idx.className = "cdp-idx";
-    var name = document.createElement("span"); name.className = "cdp-name"; name.textContent = text;
+    var name = document.createElement("span"); name.className = "cdp-name"; name.textContent = text; name.title = text; name.setAttribute("aria-label", text);
     var flag = document.createElement("span"); flag.className = "cdp-flag"; flag.textContent = "已吃";
     var addr = document.createElement("span");
     addr.className = "cdp-addr";
