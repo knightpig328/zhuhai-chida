@@ -702,6 +702,7 @@
     state.extra = state.extra.filter(function (t) { return t !== text; });
     delete state.done[text];
     if (TS.order && TS.order.v) TS.order.v = TS.order.v.filter(function (x) { return x !== text; });
+    delete openScore[text];
     TS.del[text] = now;
     /* R7: 删除只写 del 墓碑，不抹地址；复活时地址原样保留 */
     TS.done[text] = -Math.max(now, prev + 1);
@@ -816,7 +817,12 @@
   function isSorting() { return SORT.active; }
 
   function hasOpenScore() {
-    for (var k in openScore) { if (openScore[k]) return true; }
+    for (var k in openScore) {
+      if (!openScore[k]) continue;
+      /* 只认「这一行还在列表里」的面板；删掉的行残留键不能永久阻塞结构重建 */
+      if (list && list.querySelector('.cdp-row[data-text="' + (window.CSS && CSS.escape ? CSS.escape(k) : k) + '"]')) return true;
+      delete openScore[k];
+    }
     return false;
   }
   function render(opts) {
@@ -1238,7 +1244,7 @@
         : Array.prototype.map.call(list.children, function (r) { return r.getAttribute("data-text"); });
       var at = names.indexOf(text);
       if (at >= 0) names.splice(at, 1);
-      var tgt = Math.max(0, Math.min(names.length, to > at ? to - 1 : to));
+      var tgt = Math.max(0, Math.min(names.length, to));
       names.splice(tgt, 0, text);
       TS.order = { v: names, t: tsNow() };
       save(); push();
