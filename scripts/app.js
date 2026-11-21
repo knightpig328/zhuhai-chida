@@ -1132,7 +1132,7 @@
       if (res && res.doc) {
         applyDoc(res.doc);
         bootDone();
-        setBadge(TOKEN ? "已同步" : "只读·点我绑定", TOKEN ? "ok" : "warn");
+        setBadge(res && res.viaWorker ? "已同步" : "只读·未连上", res && res.viaWorker ? "ok" : "warn");
       } else if (res && res.unchanged) {
         if (Object.keys(CACHE.done).length || CACHE.extra.length) {
           var _st = buildState(TS);
@@ -1141,7 +1141,7 @@
           render({ force: true });
         }
         bootDone();
-        setBadge(TOKEN ? "已同步" : "只读·点我绑定", TOKEN ? "ok" : "warn");
+        setBadge(res && res.viaWorker ? "已同步" : "只读·未连上", res && res.viaWorker ? "ok" : "warn");
       } else {
         bootOffline();
       }
