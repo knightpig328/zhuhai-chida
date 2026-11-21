@@ -1,4 +1,4 @@
-  var BUILD_VER = "20261128j";
+  var BUILD_VER = "20261128k";
 (function () {
   var root = document.getElementById("cdp");
   if (!root) return;
@@ -261,18 +261,24 @@
   function fetchData() {
     if (net.get) return net.get;
     net.getAt = Date.now();
+    /* 直连 GitHub Gist API（Worker 那层始终没生效，Pages 项目把 requests 回退成静态页） */
+    var tk = (TOKEN && TOKEN !== "w") ? TOKEN : "";
+    if (!tk) { lastErr = { kind: "token_bad" }; return Promise.resolve(null); }
     var ac = window.AbortController ? new AbortController() : null;
-    var timer = ac ? setTimeout(function () { try { ac.abort(); } catch (e) {} }, 10000) : 0;
-    var base = fetch(WORKER + "/data", {
-      headers: { "Authorization": "Bearer " + WKEY },
+    var timer = ac ? setTimeout(function () { try { ac.abort(); } catch (e) {} }, 12000) : 0;
+    var base = fetch("https://api.github.com/gists/" + encodeURIComponent(GIST.id), {
+      headers: { "Authorization": "token " + tk, "Accept": "application/vnd.github+json" },
       cache: "no-store",
       signal: ac ? ac.signal : undefined
     }).then(function (r) {
-      if (!r.ok) throw new Error("worker " + r.status);
-      return r.text();
-    }).then(function (t) {
+      if (r.status === 401 || r.status === 403) { var e1 = new Error("gh auth"); e1.kind = "token_bad"; throw e1; }
+      if (!r.ok) throw new Error("gh " + r.status);
+      return r.json();
+    }).then(function (j) {
       if (timer) clearTimeout(timer);
-      var doc = JSON.parse(t);
+      var f = j && j.files && j.files[GIST.file || "zhuhai-chida.json"];
+      if (!f || typeof f.content !== "string") throw new Error("gh no-content");
+      var doc = JSON.parse(f.content);
       lastErr = null;
       return { doc: doc, viaWorker: true };
     }).catch(function () {
@@ -449,10 +455,12 @@
       var text = JSON.stringify(doc, null, 1);
       if (net.lastBody === contentKey(doc) && retry === 0) { setBadge("已同步", "ok"); return true; }
       setBadge("同步中", "busy");
-      return fetch(WORKER + "/data", {
-        method: "POST",
-        headers: { "Authorization": "Bearer " + WKEY, "Content-Type": "text/plain;charset=UTF-8" },
-        body: text,
+      var tk2 = (TOKEN && TOKEN !== "w") ? TOKEN : "";
+      if (!tk2) { setBadge("未绑定 token", "warn"); markPending(true); return false; }
+      return fetch("https://api.github.com/gists/" + encodeURIComponent(GIST.id), {
+        method: "PATCH",
+        headers: { "Authorization": "token " + tk2, "Accept": "application/vnd.github+json", "Content-Type": "application/json" },
+        body: JSON.stringify({ files: (function () { var o = {}; o[GIST.file || "zhuhai-chida.json"] = { content: text }; return o; })() }),
         cache: "no-store"
       }).then(function (r) {
         if (!r.ok) {
