@@ -1,7 +1,7 @@
 /* ==== 2026-11-22 第六轮：四角空心角括号 / 铅笔斜杠 / 书页翻开 · 在 deco.css 之后 ==== */
 :root{
   --brk-l: 13px;
-  --brk-r: 8px;
+  --brk-r: 13px;
   --brk-a: .52;
   --brk-lt: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 13 13'%3E%3Cpath d='M.75.75H12.25M.75.75V12.25' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
   --brk-rt: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M7.25.75H.75M7.25.75V7.25' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
@@ -22,7 +22,8 @@
   mask-size:         var(--brk-l) var(--brk-l), var(--brk-r) var(--brk-r), var(--brk-l) var(--brk-l), var(--brk-r) var(--brk-r);
   -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
   pointer-events:none;
-  transition:background-color .2s ease;
+  transition:background-color .2s ease, transform .26s cubic-bezier(.2,.7,.3,1);
+  transform-origin:center;
 }
 #cdp .cdp-row::after{ content:none; display:none; }
 #cdp .cdp-name::after{ content:none; display:none; }
@@ -155,3 +156,10 @@
   #cdp .cdp-row:hover{ transform:none; }
 }
 @media print{ #cdp .cdp-row{ box-shadow:none !important; } }
+
+
+/* 12) 悬停时角标轻微放大外扩（增量动效） */
+#cdp .cdp-row:hover::before,
+#cdp .cdp-row:focus-within::before{ transform:scale(1.035); }
+@media (max-width:640px){ :root{ --brk-l:13px; --brk-r:13px; } }
+@media (prefers-reduced-motion: reduce){ #cdp .cdp-row:hover::before{ transform:none; } }
