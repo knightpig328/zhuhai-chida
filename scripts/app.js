@@ -1213,6 +1213,17 @@
   }
 
   bootSkeleton();
+  /* 主题：?dark=1 / ?light=1 或记住上次选择；默认浅色 */
+  (function () {
+    try {
+      var q = (location.search || "").match(/[?&](dark|light)=1/);
+      var want = q ? q[1] : window.localStorage.getItem("cdp-scheme");
+      if (q) window.localStorage.setItem("cdp-scheme", q[1]);
+      if (want === "dark") document.documentElement.setAttribute("data-scheme", "dark");
+      else if (want === "light") document.documentElement.setAttribute("data-scheme", "light");
+    } catch (e) {}
+  })();
+
   initSortEngine();
   probeOrder();
   boot();

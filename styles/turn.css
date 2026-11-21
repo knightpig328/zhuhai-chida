@@ -309,3 +309,25 @@
 }
 @media (prefers-reduced-motion: reduce){ #cdp .cdp-row.is-shift{ transition:none; } }
 @media print{ #cdp .cdp-idx{ cursor:auto; } }
+
+
+/* 20) 深色主题变量（补齐 :root 缺的一组，之前 21 条 dark 规则没有变量支撑） */
+:root[data-scheme="dark"]{
+  --paper:#141312;
+  --paper-2:#1c1a18;
+  --paper-rgb:20,19,18;
+  --ink:#ece7dd;
+  --ink-rgb:236,231,221;
+  --accent:#d4a04a;
+  --accent-rgb:212,160,74;
+  --accent-soft:#3a352c;
+  --accent-on:#141312;
+  --accent-on-rgb:20,19,18;
+  --accent-ink:#141312;
+  --accent-display:#d4a04a;
+  --accent-ink-inverse:#6a6258;
+  --accent-on-text:#141312;
+  --accent-on-text-rgb:20,19,18;
+}
+:root[data-scheme="dark"] body{ background-color:var(--paper); color:var(--ink); }
+:root[data-scheme="dark"] #cdp{ background-color:var(--paper); border-color:rgba(var(--ink-rgb),.22); }
