@@ -246,14 +246,14 @@
   #cdp .cdp-score{ width:100%; box-sizing:border-box; margin-left:-2px; margin-right:-2px; }
   #cdp .score-row{ flex-wrap:nowrap; }
   #cdp .score-stars{ flex-wrap:nowrap; justify-content:flex-start; }
-  #cdp .score-who{ min-width:2.6em; white-space:nowrap; font-size:.82rem; margin:0 2px 0 0; line-height:1; }
+  #cdp .score-who{ min-width:2.4em; white-space:nowrap; font-size:.9rem; margin:0 2px 0 0; line-height:1; }
 
 }
 
 
 /* 16c) 手机名字不换行：字号与字距收一点，6 字名一行放得下 */
 @media (max-width:640px){
-  #cdp .cdp-name{ font-size:1.12rem; letter-spacing:.01em; white-space:nowrap; }
+  #cdp .cdp-name{ font-size:1.35rem; letter-spacing:.02em; white-space:nowrap; }
   #cdp .cdp-idx{ font-size:.8em; }
 }
 
