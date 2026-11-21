@@ -251,17 +251,10 @@
 
 /* 16c) 手机名字不换行：字号与字距收一点，6 字名一行放得下 */
 @media (max-width:640px){
-  /* 手机端名字：跨到第 6 列（18+32.3+42.7+22+24+24 + 5×9 gap ≈ 140px，约 6 字/行），超过再换行 */
-  #cdp .cdp-name{
-    grid-area:1 / 3 / 2 / -1; justify-self:stretch; font-size:1.25rem; letter-spacing:.02em;
-    white-space:normal; overflow-wrap:anywhere; word-break:break-word;
-    max-width:100%;
-  }
-  /* ★ × 下移到第 2 行右侧，给名字让出整行宽度 */
-  #cdp .cdp-rate{ grid-area:2 / 5 / 3 / 6; align-self:center; margin:0; }
-  #cdp .cdp-del{ grid-area:2 / 6 / 3 / 7; align-self:center; margin:0; opacity:.55; }
-  #cdp .cdp-addr{ grid-area:2 / 2 / 3 / 5; }
-  #cdp .cdp-map{ grid-area:3 / 6 / 4 / 7; align-self:center; margin:0; }
+  #cdp .cdp-name{ font-size:1.35rem; letter-spacing:.02em; white-space:nowrap; }
+  #cdp .cdp-rate{ grid-column:6; grid-row:1; align-self:center; margin-top:-12px; }
+  #cdp .cdp-del{ grid-column:5; grid-row:1; align-self:center; margin-top:-6px; opacity:.55; }
+  #cdp .cdp-map{ grid-column:6; grid-row:2; align-self:center; margin-top:-4px; }
   #cdp .cdp-idx{ font-size:.8em; }
 }
 
