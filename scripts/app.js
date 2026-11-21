@@ -919,10 +919,11 @@
     });
     pollTimer = setInterval(function () {
       if (document.hidden) return;
+      if (document.hidden) return;
       if (net.get && Date.now() - net.getAt > 20000) net.get = null;
       if (net.patch) return;
       fetchData().then(function (res) { if (res && res.doc) applyDoc(res.doc); });
-    }, 4000);
+    }, 1500);
     addEventListener("pagehide", function () { leaveOnce(true); });
     addEventListener("visibilitychange", function () {
       if (document.hidden) { leaveOnce(false); }
