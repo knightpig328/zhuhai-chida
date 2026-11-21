@@ -4,7 +4,7 @@
 #cdp .cdp-addr{
   font-family:var(--font-mono,ui-monospace,monospace);
   font-size:.72em;letter-spacing:.02em;color:var(--ink-3,#8a8577);
-  min-width:7em;min-height:1.5em;padding:1px 6px;border-radius:3px;
+  min-width:0;max-width:100%;min-height:1.5em;padding:1px 6px;border-radius:3px;box-sizing:border-box;
   border:1px dashed transparent;transition:border-color .2s,background .2s,color .2s;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:16em;
   cursor:text;outline:none;

@@ -251,3 +251,10 @@
   #cdp .cdp-name{ font-size:1.12rem; letter-spacing:.01em; white-space:nowrap; }
   #cdp .cdp-idx{ font-size:.8em; }
 }
+
+
+/* 17) 地址不溢出：grid 子项必须能收缩，否则光标到末尾时整段被挤出卡片 */
+#cdp .cdp-addr{ min-width:0; max-width:100%; width:100%; box-sizing:border-box; }
+@media (max-width:640px){
+  #cdp .cdp-addr{ font-size:.74em; padding:1px 4px; }
+}
