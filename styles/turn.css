@@ -96,3 +96,20 @@
   #cdp .cdp-row::before{ transition:none !important; }
   #cdp .cdp-scratch path{ transition:none !important; }
 }
+
+/* 7) 悬停与立体：恢复 hover 渐变，卡片加薄阴影 */
+#cdp .cdp-row{
+  background-image:linear-gradient(180deg, rgba(var(--ink-rgb),.030), rgba(var(--ink-rgb),.012));
+  box-shadow:0 1px 2px rgba(var(--ink-rgb),.055), 0 1px 0 rgba(var(--ink-rgb),.035);
+  transition:background .18s ease, border-color .2s ease, box-shadow .2s ease;
+}
+#cdp .cdp-row:hover{
+  background-image:linear-gradient(180deg, rgba(var(--ink-rgb),.060), rgba(var(--ink-rgb),.022));
+  border-color:rgba(var(--ink-rgb),.34);
+  box-shadow:0 2px 6px rgba(var(--ink-rgb),.09), 0 1px 0 rgba(var(--ink-rgb),.04);
+}
+#cdp .cdp-row.is-done{
+  background-image:linear-gradient(180deg, rgba(var(--ink-rgb),.018), rgba(var(--ink-rgb),.006));
+  box-shadow:none;
+}
+@media print{ #cdp .cdp-row{ box-shadow:none !important; } }

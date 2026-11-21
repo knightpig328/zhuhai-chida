@@ -248,6 +248,13 @@
 
   /* 读取不需要 token：secret gist 匿名可读；401 时自动丢掉旧 token 降级重读 */
   function fetchData() {
+    if (!TOKEN) {
+      var stamp = Math.floor(Date.now() / 60000);
+      return fetch("data.json?m=" + stamp, { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (doc) { if (!doc) return null; lastErr = null; return { doc: doc }; })
+        .catch(function () { return null; });
+    }
     if (net.get) return net.get;
     var hadToken = !!TOKEN;
     var h = ETAG ? { "If-None-Match": ETAG } : {};
