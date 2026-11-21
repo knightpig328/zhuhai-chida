@@ -296,7 +296,7 @@
       var d = doc.del && doc.del[k];
       if (!(typeof d === "number" && Math.abs(d) >= Math.abs(doc.extra[k]))) st.extra.push(k);
     });
-    st.extra.sort(function (x, y) { return doc.extra[x] - doc.extra[y]; });
+    st.extra.sort(function (x, y) { return (doc.extra[x] - doc.extra[y]) || (x < y ? -1 : x > y ? 1 : 0); });
     Object.keys(doc.addr || {}).forEach(function (k) {
       var a = normAddr(doc.addr[k]);
       if (!a) return;
@@ -321,9 +321,9 @@
     var st = buildState(TS);
     state.done = st.done;
     state.extra = st.extra;
+    ADDR = st.addr || {};
     if (silent) { save(); return false; }
     hydrated = true;
-    ADDR = st.addr || {};
     save();
     if (isEditing()) { pendingRender = true; return false; }
     pendingRender = false;
@@ -386,7 +386,7 @@
   }
 
   function push() {
-    if (!TOKEN) { setBadge("只读·点我绑定", "warn"); saveTs(); return; }
+    if (!TOKEN) { setBadge("只读·改动不会同步", "fail"); saveTs(); markPending(true); return; }
     net.pending = true; markPending(true);
     var now = Date.now();
     if (!pushFirstAt) pushFirstAt = now;
@@ -792,8 +792,9 @@
         setBadge(TOKEN ? "已同步" : "只读·点我绑定", TOKEN ? "ok" : "warn");
       } else if (res && res.unchanged) {
         if (Object.keys(CACHE.done).length || CACHE.extra.length) {
-          state.done = CACHE.done; state.extra = CACHE.extra;
-          hydrateAddr(); hydrated = true;
+          var _st = buildState(TS);
+          state.done = _st.done; state.extra = _st.extra;
+          ADDR = _st.addr || {}; hydrated = true;
           render({ force: true });
         }
         bootDone();
