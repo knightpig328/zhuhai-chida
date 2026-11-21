@@ -131,8 +131,8 @@
 /* 10) 菜单名字用行楷；其余恢复原字体栈，地址栏用衬线（楷体笔画倾斜，地址会看着上下扭曲） */
 #cdp .cdp-name{
   font-family:'Xingkai Web','STXingkai','华文行楷','KaiTi','Kaiti SC',var(--font-serif);
-  font-size:1.3rem;
-  letter-spacing:.05em;
+  font-size:1.5rem;
+  letter-spacing:.06em;
 }
 #cdp .cdp-idx{ font-family:var(--font-mono); }
 #cdp .cdp-addr{ font-family:var(--font-serif); font-size:.78em; letter-spacing:.01em; }
@@ -221,7 +221,7 @@
 #cdp .score-stars{ display:flex; justify-content:flex-start; }
 #cdp .cdp-star{
   flex:0 0 auto; width:28px; height:28px; padding:0; background:none; border:0; cursor:pointer;
-  font-size:2rem; line-height:1; color:rgba(var(--ink-rgb),.32);
+  font-size:1.5rem; line-height:1; color:rgba(var(--ink-rgb),.32);
   transition:color .15s ease, transform .15s ease;
 }
 #cdp .cdp-star:hover{ transform:scale(1.15); }
