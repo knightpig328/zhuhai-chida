@@ -1155,13 +1155,13 @@
       SORT.active = false; SORT.li = null;
       if (!li || to < 0 || to === from) return;
 
+      /* 基于当前 DOM 全量顺序重排：先摘出自己，再插到目标位置 */
       var names = Array.prototype.map.call(list.children, function (r) { return r.getAttribute("data-text"); });
-      var order = ((TS.order && TS.order.v) || []).filter(function (x) { return x !== text; });
-      var target = names[to] && names[to] !== text ? names[to] : null;
-      var at = target ? order.indexOf(target) : order.length;
-      if (at < 0) at = order.length;
-      order.splice(at, 0, text);
-      TS.order = { v: order, t: tsNow() };
+      var at = names.indexOf(text);
+      if (at >= 0) names.splice(at, 1);
+      var tgt = Math.max(0, Math.min(names.length, to > at ? to - 1 : to));
+      names.splice(tgt, 0, text);
+      TS.order = { v: names, t: tsNow() };
       save(); push();
       li.__dragged = true;
       render({ force: true });
