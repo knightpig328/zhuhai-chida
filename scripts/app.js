@@ -546,13 +546,11 @@
     li.appendChild(addr);
     li.appendChild(map);
     li.appendChild(flag);
-    if (isExtra) {
-      var del = document.createElement("button");
-      del.type = "button"; del.className = "cdp-del"; del.textContent = "×";
-      del.setAttribute("aria-label", "删掉 " + text);
-      del.addEventListener("click", function (ev) { ev.stopPropagation(); removeRow(li, text); });
-      li.appendChild(del);
-    }
+    var del = document.createElement("button");
+    del.type = "button"; del.className = "cdp-del"; del.textContent = "×";
+    del.setAttribute("aria-label", "删掉 " + text);
+    del.addEventListener("click", function (ev) { ev.stopPropagation(); removeRow(li, text); });
+    li.appendChild(del);
     li.addEventListener("click", function (ev) {
       if (ev.target && ev.target.closest && ev.target.closest(".cdp-del, .cdp-addr, .cdp-map")) return;
       if (li.classList.contains("is-leaving")) return;
@@ -591,6 +589,13 @@
     window.setTimeout(fin, 460);
   }
 
+  function isBaseDeleted(t) {
+    var d = TS.del && TS.del[t];
+    if (typeof d !== "number") return false;
+    var add = TS.extra && TS.extra[t];
+    return !(typeof add === "number" && add > d);
+  }
+
   function render(opts) {
     opts = opts || {};
     if (leaving > 0 && !opts.force) { pendingRender = true; return; }
@@ -598,7 +603,8 @@
     var sy = window.pageYOffset || 0;
     list.classList.add("no-anim");
     list.textContent = "";
-    BASE.concat(state.extra).forEach(function (t) { list.appendChild(rowEl(t, has(state.extra, t))); });
+    var baseVisible = BASE.filter(function (t) { return !isBaseDeleted(t); });
+    baseVisible.concat(state.extra).forEach(function (t) { list.appendChild(rowEl(t, has(state.extra, t))); });
     paint();
     if (opts.enter) {
       var rows = list.querySelectorAll(".cdp-row");

@@ -1,4 +1,4 @@
-﻿/* ==== 整页装饰层 v2（2026-11-22） · 同心弧角 + 菱形竖纹 + 菱形分隔 · 纯 CSS/SVG ==== */
+/* ==== 整页装饰层 v2（2026-11-22） · 同心弧角 + 菱形竖纹 + 菱形分隔 · 纯 CSS/SVG ==== */
 :root{
   --orn-corner: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath d='M2 46A44 44 0 0 1 46 2' fill='none' stroke='%23111' stroke-width='1.25' stroke-linecap='round'/%3E%3Cpath d='M10 46A36 36 0 0 1 46 10' fill='none' stroke='%23111' stroke-width='.7' stroke-linecap='round'/%3E%3Cpath d='M46 2l3.2 3.2L46 8.4l-3.2-3.2z' fill='%23111'/%3E%3Cpath d='M2 46l3.2-3.2L8.4 46l-3.2 3.2z' fill='%23111'/%3E%3C/svg%3E");
   --orn-corner-tr: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cg transform='translate(48,0) scale(-1,1)'%3E%3Cpath d='M2 46A44 44 0 0 1 46 2' fill='none' stroke='%23111' stroke-width='1.25' stroke-linecap='round'/%3E%3Cpath d='M10 46A36 36 0 0 1 46 10' fill='none' stroke='%23111' stroke-width='.7' stroke-linecap='round'/%3E%3Cpath d='M46 2l3.2 3.2L46 8.4l-3.2-3.2z' fill='%23111'/%3E%3Cpath d='M2 46l3.2-3.2L8.4 46l-3.2 3.2z' fill='%23111'/%3E%3C/g%3E%3C/svg%3E");
@@ -40,14 +40,14 @@ body{
 /* 2) 页边菱形竖纹 */
 .container{ position:relative; }
 .container::before, .container::after{
-  content:""; position:absolute; top:8px; bottom:8px; width:28px;
-  background-color: rgba(var(--ink-rgb),.20);
-  -webkit-mask: var(--orn-vine) center top / 28px 140px repeat-y;
-  mask: var(--orn-vine) center top / 28px 140px repeat-y;
+  content:""; position:absolute; top:8px; bottom:8px; width:48px;
+  background-color: rgba(var(--ink-rgb),.26);
+  -webkit-mask: var(--orn-vine) center top / 48px 200px repeat-y;
+  mask: var(--orn-vine) center top / 48px 200px repeat-y;
   pointer-events:none; z-index:0;
 }
-.container::before{ left:22px; }
-.container::after{ right:22px; transform:scaleX(-1); }
+.container::before{ left:16px; }
+.container::after{ right:16px; transform:scaleX(-1); }
 
 /* 3) 报头：双线 + 右端菱形 */
 .doc-chrome.doc-line{
@@ -83,19 +83,16 @@ body{
 }
 .section-number .sn-r::after{ transform:scaleX(-1); }
 
-/* 6) 菜单框：四角同心弧 + 纸纹 + 光晕 */
+/* 6) 菜单框：纸纹 + 光晕（四角弧已删） */
 #cdp{
   background-color: var(--paper);
   background-image:
-    var(--orn-corner), var(--orn-corner-tr), var(--orn-corner-bl), var(--orn-corner-br),
     var(--orn-grain),
     radial-gradient(120% 80% at 0% 0%, rgba(var(--accent-rgb),.10), transparent 64%),
     radial-gradient(140% 90% at 100% 100%, rgba(var(--ink-rgb),.06), transparent 60%);
-  background-position:
-    left 5px top 5px, right 5px top 5px, left 5px bottom 5px, right 5px bottom 5px,
-    0 0, 0 0, 0 0;
-  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat, no-repeat, no-repeat;
-  background-size: 40px 40px, 40px 40px, 40px 40px, 40px 40px, 24px 24px, auto, auto;
+  background-position: 0 0, 0 0, 0 0;
+  background-repeat: repeat, no-repeat, no-repeat;
+  background-size: 24px 24px, auto, auto;
   border-color: rgba(var(--ink-rgb),.22);
 }
 #cdp::before{
@@ -105,28 +102,22 @@ body{
 #cdp::after{ display:none; }
 [data-scheme="dark"] #cdp{
   background-image:
-    var(--orn-corner), var(--orn-corner-tr), var(--orn-corner-bl), var(--orn-corner-br),
     var(--orn-grain),
     radial-gradient(120% 80% at 0% 0%, rgba(var(--accent-rgb),.20), transparent 64%),
     radial-gradient(140% 90% at 100% 100%, rgba(255,255,255,.05), transparent 60%);
   border-color: rgba(var(--ink-rgb),.24);
 }
 
-/* 7) 卡片：左上角小弧 + 右上角小弧（对角呼应，不压序号） */
-#cdp .cdp-row::before, #cdp .cdp-row::after{ display:none; content:none; }
+/* 7) 卡片：底色渐变（角由 turn.css 的括号承担） */
 #cdp .cdp-row{
-  background-image:
-    var(--orn-corner), var(--orn-corner-tr),
-    linear-gradient(180deg, rgba(var(--ink-rgb),.030), rgba(var(--ink-rgb),.012));
-  background-position: left 3px top 3px, right 3px top 3px, 0 0;
-  background-repeat: no-repeat, no-repeat, repeat;
-  background-size: 18px 18px, 18px 18px, auto;
+  background-image: linear-gradient(180deg, rgba(var(--ink-rgb),.030), rgba(var(--ink-rgb),.012));
+  background-position: 0 0;
+  background-repeat: repeat;
+  background-size: auto;
   border-color: rgba(var(--ink-rgb),.22);
 }
 #cdp .cdp-row.is-done{
-  background-image:
-    var(--orn-corner), var(--orn-corner-tr),
-    linear-gradient(180deg, rgba(var(--ink-rgb),.020), rgba(var(--ink-rgb),.008));
+  background-image: linear-gradient(180deg, rgba(var(--ink-rgb),.020), rgba(var(--ink-rgb),.008));
 }
 
 /* 8) 页脚：菱形分隔收尾 */
@@ -140,9 +131,11 @@ footer::before{
 
 /* 9) 移动端 */
 @media (max-width:640px){
-  .container::before, .container::after{ display:none; }
+  .container::before, .container::after{ width:20px; }
+  .container::before{ left:2px; }
+  .container::after{ right:2px; }
   .hero::before{ width:78%; height:16px; }
-  #cdp{ background-size: 32px 32px, 32px 32px, 32px 32px, 32px 32px, 20px 20px, auto, auto; }
+  #cdp{ background-size: 20px 20px, auto, auto; }
 }
 
 /* 10) 打印：只留纸色与单色细线 */
