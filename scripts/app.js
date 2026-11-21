@@ -1158,7 +1158,9 @@
     list.addEventListener("pointerdown", function (ev) {
       var idx = ev.target && ev.target.closest && ev.target.closest(".cdp-idx");
       if (!idx) return;
-      if (isEditing() || isSorting()) return;
+      if (isSorting()) return;
+      /* 输入框聚焦时先失焦再拖，否则第一次拖拽会被 isEditing 吞掉 */
+      if (isEditing()) { try { document.activeElement && document.activeElement.blur(); } catch (e) {} }
       var li = idx.closest(".cdp-row");
       if (!li) return;
       SORT.active = true; SORT.li = li; SORT.text = li.getAttribute("data-text");
