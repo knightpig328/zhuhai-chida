@@ -1,3 +1,4 @@
+  var BUILD_VER = "20261125q";
 (function () {
   var root = document.getElementById("cdp");
   if (!root) return;
@@ -1033,6 +1034,7 @@
     document.fonts.ready.then(rebuildScratches);
   }
 
+  try { console.log("%c[zhuhai-chida] build " + BUILD_VER + " · turn css " + (document.querySelector('link[href*="turn-"]')||{}).href, "color:#6a5;font-weight:bold"); } catch (e) {}
   bootSkeleton();
   boot();
   if (document.readyState === "complete") clearTokenFromUrl();
