@@ -83,7 +83,7 @@
       var p = JSON.parse(raw);
       if (p && typeof p === "object") {
         if (p.done && typeof p.done === "object") CACHE.done = p.done;
-        if (Array.isArray(p.extra)) CACHE.extra = p.extra.filter(function (t) { return typeof t === "string" && t; });
+        if (Array.isArray(p.extra)) CACHE.extra = p.extra.filter(function (t) { return typeof t === "string" && t.replace(/\s+/g, " ").trim().length > 0; });
         if (p.TS && typeof p.TS === "object") readTs(p.TS);
       }
     }
@@ -426,7 +426,7 @@
 
 
   function patchOnce(retry) {
-    if (!canWrite()) return;
+    if (!canWrite()) return Promise.resolve(false);
     return fetchData().then(function (res) {
       if (res && res.doc) applyDoc(res.doc, true);
       var doc = snapshot();
@@ -627,7 +627,9 @@
       else if (ev.key === "Escape") { ev.preventDefault(); addr.textContent = ADDR[text] || ""; addr.blur(); }
     });
     addr.addEventListener("focusout", function () {
-      var v = (addr.textContent || "").replace(/\s+/g, " ").trim().slice(0, 40);
+      var v = (addr.textContent || "").replace(/\s+/g, " ").trim();
+      /* A-1: 按码点截断，slice(0,40) 会把 emoji 切成孤立代理，之后 encodeURIComponent 抛 URIError 导致整表清空 */
+      v = Array.from(v).slice(0, 40).join("");
       addr.textContent = v;
       if (has(BASE, text) || has(state.extra, text)) {
         var old = own(ADDR, text) ? ADDR[text] : "";
@@ -650,9 +652,15 @@
     map.setAttribute("aria-label", "在地图里搜 " + text);
     map.setAttribute("title", "在地图里搜 " + text);
     map.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>';
-    function applyMapHref() {
+    /* A-1: 安全编码，脏值（孤立代理/非法码点）不应炸掉整个列表 */
+  function enc(s) {
+    try { return encodeURIComponent(String(s == null ? "" : s)); }
+    catch (e) { return encodeURIComponent(String(s).replace(/[\uD800-\uDFFF]/g, "")); }
+  }
+
+  function applyMapHref() {
       var q = (addr.textContent || "").replace(/\s+/g, " ").trim() || text;
-      map.setAttribute("href", "https://uri.amap.com/search?keyword=" + encodeURIComponent(q) + "&city=" + encodeURIComponent("珠海") + "&view=map&callnative=0");
+      map.setAttribute("href", "https://uri.amap.com/search?keyword=" + enc(q) + "&city=" + encodeURIComponent("珠海") + "&view=map&callnative=0");
     }
     applyMapHref();
     map.addEventListener("mousedown", function (ev) { ev.preventDefault(); ev.stopPropagation(); });
