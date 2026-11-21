@@ -836,8 +836,12 @@
   function hasOpenScore() {
     for (var k in openScore) {
       if (!openScore[k]) continue;
-      /* 只认「这一行还在列表里」的面板；删掉的行残留键不能永久阻塞结构重建 */
-      if (list && list.querySelector('.cdp-row[data-text="' + (window.CSS && CSS.escape ? CSS.escape(k) : k) + '"]')) return true;
+      /* 不用 querySelector：菜名可能含引号/反斜杠，选择器转义一旦失手就抛 SyntaxError 让整条同步链死掉 */
+      var hit = false;
+      for (var i = 0; list && i < list.children.length; i++) {
+        if (list.children[i].getAttribute("data-text") === k) { hit = true; break; }
+      }
+      if (hit) return true;
       delete openScore[k];
     }
     return false;
