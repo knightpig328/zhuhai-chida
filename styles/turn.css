@@ -261,10 +261,11 @@
 /* 17) 地址不溢出：grid 子项必须能收缩，否则光标到末尾时整段被挤出卡片 */
 #cdp .cdp-addr{ min-width:0; max-width:100%; width:100%; box-sizing:border-box; }
 @media (max-width:640px){
-  #cdp .cdp-addr{ font-size:.72em; padding:1px 4px; grid-column:1 / 6; width:100%; }
-  #cdp .cdp-map{ align-self:start; grid-area:2 / 7 / 3 / 8; justify-self:end; margin-top:-2px; }
-  #cdp .cdp-rate{ grid-area:1 / 6 / 2 / 7; }
-  #cdp .cdp-del{ align-self:start; grid-area:1 / 7 / 2 / 8; margin-top:-9px; opacity:.55; }
+  /* 全部交给 app.css 的 6 列制，这里只调字号与垂直微调，不再写 grid-area */
+  #cdp .cdp-addr{ font-size:.72em; padding:1px 4px; }
+  #cdp .cdp-rate{ align-self:center; margin-top:-12px; }
+  #cdp .cdp-del{ align-self:center; margin-top:-6px; opacity:.55; }
+  #cdp .cdp-map{ align-self:center; margin-top:-4px; }
 }
 
 @keyframes cdpScoreIn{

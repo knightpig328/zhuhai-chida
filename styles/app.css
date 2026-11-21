@@ -322,7 +322,7 @@
     #cdp{ padding:16px 10px 14px; }
     #cdp::before{ left:4px; top:4px; right:4px; bottom:4px; }
     #cdp .cdp-row{
-      grid-template-columns:18px 1.9em minmax(0,1fr) 22px 24px;
+      grid-template-columns:18px 1.9em minmax(0,1fr) 22px 24px 24px;
       column-gap:9px; row-gap:6px; padding:12px 10px;
     }
     #cdp .cdp-tick{ grid-area:1/1; }
@@ -330,8 +330,9 @@
     #cdp .cdp-name{ grid-area:1/3; font-size:1rem; }
     #cdp .cdp-flag{ display:none; }
     #cdp .cdp-del{ grid-area:1/5; justify-self:end; }
-    #cdp .cdp-addr{ grid-area:2/2/3/5; justify-self:stretch; width:auto; min-width:0; max-width:none; }
-    #cdp .cdp-map{ grid-area:2/5; justify-self:end; }
+    #cdp .cdp-rate{ grid-area:1/6; justify-self:end; }
+    #cdp .cdp-addr{ grid-area:2/2/3/6; justify-self:stretch; width:auto; min-width:0; max-width:none; }
+    #cdp .cdp-map{ grid-area:2/6; justify-self:end; }
   }
 
   /* 12) 减少动效：动画与过渡全关，状态仍切换 */
