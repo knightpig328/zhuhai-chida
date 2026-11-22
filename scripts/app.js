@@ -1,4 +1,4 @@
-  var BUILD_VER = "20261129h";
+  var BUILD_VER = "20261129i";
 (function () {
   var root = document.getElementById("cdp");
   if (!root) return;
@@ -902,7 +902,12 @@ var FB_PATH = "/zhuhai-chida.json";
     if (leaving > 0 && !opts.force) { pendingRender = true; return; }
     if (opts.enter && root.classList.contains("is-folded")) setFold(false);
     /* 面板开着的时候只刷新状态，不重建列表——否则轮询会让面板闪 */
-    if (!opts.force && (hasOpenScore() || isSorting())) { paint(); return; }
+    /* 面板开着时默认只 paint 防闪；但顺序/条目真变了必须重建，否则远端拖动看不见 */
+    var _ok = (TS.order && TS.order.v) ? TS.order.v.join("|") : "";
+    var _orderChanged = (_ok !== (window.__lastOrderKey || ""));
+    window.__lastOrderKey = _ok;
+    if (!opts.force && isSorting()) { paint(); return; }
+    if (!opts.force && hasOpenScore() && !_orderChanged) { paint(); return; }
     var sy = window.pageYOffset || 0;
     list.classList.add("no-anim");
     list.textContent = "";
