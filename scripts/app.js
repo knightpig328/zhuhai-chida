@@ -1,4 +1,4 @@
-  var BUILD_VER = "20261129f";
+  var BUILD_VER = "20261129g";
 (function () {
   var root = document.getElementById("cdp");
   if (!root) return;
@@ -1197,13 +1197,13 @@ var FB_PATH = "/zhuhai-chida.json";
         bootOffline();
       }
     });
-    pollTimer = setInterval(function () {
+    /* 轮询已停用：实时靠 SSE；断线由 EventSource 自动重连 */
+    pollTimer = 0;
+    function pollOnce() {
       if (document.hidden) return;
-      if (document.hidden) return;
-      if (net.get && Date.now() - net.getAt > 20000) net.get = null;
       if (net.patch) return;
       fetchData().then(function (res) { if (res && res.doc) applyDoc(res.doc); });
-    }, 3000);
+    }
     addEventListener("pagehide", function () { leaveOnce(true); });
     addEventListener("visibilitychange", function () {
       if (document.hidden) { leaveOnce(false); }
