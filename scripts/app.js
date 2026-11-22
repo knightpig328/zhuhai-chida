@@ -1,4 +1,4 @@
-  var BUILD_VER = "20261129c";
+  var BUILD_VER = "20261129d";
 (function () {
   var root = document.getElementById("cdp");
   if (!root) return;
@@ -25,6 +25,8 @@
   /* ===== 协同层 ===== */
   var CFG_KEY = "cdp-sync-cfg-v1";
   var GIST = { id: "4bb6f3b536c05a65de7132179a8826e9", user: "knightpig328", file: "zhuhai-chida.json" };
+var FB = "https://liqianshiqianjin-default-rtdb.asia-southeast1.firebasedatabase.app";
+var FB_PATH = "/zhuhai-chida.json";
   /* 默认凭据：以字符码形式存放，避免明文令牌被仓库扫描/拦截 */
   var TOKEN = String.fromCharCode(103,105,116,104,117,98,95,112,97,116,95,49,49,67,72,67,77,68,83,65,48,76,48,103,101,107,100,67,83,54,115,65,119,95,88,107,119,111,88,76,82,68,77,104,66,52,57,120,54,73,86,71,103,121,49,75,55,108,67,48,57,48,117,48,100,106,122,83,69,80,74,106,98,53,118,55,77,50,54,74,86,50,50,65,89,100,97,106,119,90,56,115,84), ETAG = "";
   var WORKER = "https://liqianshiqianjin.pages.dev";
@@ -262,13 +264,11 @@
   function fetchData(forceFresh) {
     if (net.get) return net.get;
     net.getAt = Date.now();
-    /* 直连 GitHub Gist API（Worker 那层始终没生效，Pages 项目把 requests 回退成静态页） */
+    /* Firebase Realtime Database（已替换 Gist/Worker 两套旧方案） */
     var ac = window.AbortController ? new AbortController() : null;
     var timer = ac ? setTimeout(function () { try { ac.abort(); } catch (e) {} }, 12000) : 0;
-    /* 读走 raw CDN（匿名可读，不需要 token，也不吃 API 配额）：不消耗 GitHub API 配额（5000/h），轮询再快也不会限流 */
-    var rawUrl = "https://gist.githubusercontent.com/" + (GIST.user || "knightpig328") + "/" +
-                 encodeURIComponent(GIST.id) + "/raw/" + (GIST.file || "zhuhai-chida.json") +
-                 "?r=" + Date.now();
+    /* 读：Firebase REST，无接口配额、无 CDN 缓存、不需要 token */
+    var rawUrl = FB + FB_PATH + "?r=" + Date.now();
     var base = fetch(rawUrl, {
       cache: "no-store",
       signal: ac ? ac.signal : undefined
@@ -463,12 +463,10 @@
       var text = JSON.stringify(doc, null, 1);
       if (net.lastBody === contentKey(doc) && retry === 0) { setBadge("已同步", "ok"); return true; }
       setBadge("同步中", "busy");
-      var tk2 = (TOKEN && TOKEN !== "w") ? TOKEN : "";
-      if (!tk2) { setBadge("未绑定 token", "warn"); markPending(true); return false; }
-      return fetch("https://api.github.com/gists/" + encodeURIComponent(GIST.id), {
-        method: "PATCH",
-        headers: { "Authorization": "token " + tk2, "Accept": "application/vnd.github+json", "Content-Type": "application/json" },
-        body: JSON.stringify({ files: (function () { var o = {}; o[GIST.file || "zhuhai-chida.json"] = { content: text }; return o; })() }),
+      return fetch(FB + FB_PATH, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: text,
         cache: "no-store"
       }).then(function (r) {
         if (!r.ok) {
