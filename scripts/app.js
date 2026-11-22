@@ -1,4 +1,4 @@
-  var BUILD_VER = "20261129j";
+  var BUILD_VER = "20261129k";
 (function () {
   var root = document.getElementById("cdp");
   if (!root) return;
@@ -38,7 +38,7 @@ var FB_PATH = "/zhuhai-chida.json";
   var hydrated = false, bootSettled = false;
   var pushTimer = 0, pollTimer = 0, failCount = 0, pendingRender = false, leaving = 0, maxTs = 0;
   var pushFirstAt = 0, leaveSent = 0, lastErr = null;
-  var PUSH_DELAY = 80, PUSH_MAXWAIT = 400;   /* Firebase 无写入配额，80ms 只够合并「连点同一颗星」 */
+  var PUSH_DELAY = 300, PUSH_MAXWAIT = 1200;   /* 标准防抖：合并连点/连续输入，避免整份 PUT 过于频繁 */
   var net = { get: null, getAt: 0, patch: null, dirty: false, pending: false };
   var sse = null, sseRetry = 0;
 
