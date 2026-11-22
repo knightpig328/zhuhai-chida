@@ -1,4 +1,4 @@
-  var BUILD_VER = "20261129k";
+  var BUILD_VER = "20261129m";
 (function () {
   var root = document.getElementById("cdp");
   if (!root) return;
@@ -695,6 +695,7 @@ var FB_PATH = "/zhuhai-chida.json";
       else if (ev.key === "Escape") { ev.preventDefault(); addr.textContent = ADDR[text] || ""; addr.blur(); }
     });
     addr.addEventListener("focusout", function () {
+      try { addr.scrollLeft = 0; } catch (e) {}   /* 失焦后从头显示，而不是停在末尾 */
       var v = (addr.textContent || "").replace(/\s+/g, " ").trim();
       /* A-1: 按码点截断，slice(0,40) 会把 emoji 切成孤立代理，之后 encodeURIComponent 抛 URIError 导致整表清空 */
       v = Array.from(v).slice(0, 40).join("");
