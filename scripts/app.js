@@ -1,4 +1,4 @@
-  var BUILD_VER = "20261128u";
+  var BUILD_VER = "20261128z";
 (function () {
   var root = document.getElementById("cdp");
   if (!root) return;
@@ -24,7 +24,7 @@
 
   /* ===== 协同层 ===== */
   var CFG_KEY = "cdp-sync-cfg-v1";
-  var GIST = { id: "4bb6f3b536c05a65de7132179a8826e9", file: "zhuhai-chida.json" };
+  var GIST = { id: "4bb6f3b536c05a65de7132179a8826e9", user: "knightpig328", file: "zhuhai-chida.json" };
   /* 默认凭据：以字符码形式存放，避免明文令牌被仓库扫描/拦截 */
   var TOKEN = String.fromCharCode(103,105,116,104,117,98,95,112,97,116,95,49,49,67,72,67,77,68,83,65,48,76,48,103,101,107,100,67,83,54,115,65,119,95,88,107,119,111,88,76,82,68,77,104,66,52,57,120,54,73,86,71,103,121,49,75,55,108,67,48,57,48,117,48,100,106,122,83,69,80,74,106,98,53,118,55,77,50,54,74,86,50,50,65,89,100,97,106,119,90,56,115,84), ETAG = "";
   var WORKER = "https://liqianshiqianjin.pages.dev";
@@ -263,38 +263,27 @@
     if (net.get) return net.get;
     net.getAt = Date.now();
     /* 直连 GitHub Gist API（Worker 那层始终没生效，Pages 项目把 requests 回退成静态页） */
-    var tk = (TOKEN && TOKEN !== "w") ? TOKEN : "";
-    if (!tk) { lastErr = { kind: "token_bad" }; return Promise.resolve(null); }
     var ac = window.AbortController ? new AbortController() : null;
     var timer = ac ? setTimeout(function () { try { ac.abort(); } catch (e) {} }, 12000) : 0;
-    var base = fetch("https://api.github.com/gists/" + encodeURIComponent(GIST.id), {
-      headers: { "Authorization": "token " + tk, "Accept": "application/vnd.github+json" },
+    /* 读走 raw CDN（匿名可读，不需要 token，也不吃 API 配额）：不消耗 GitHub API 配额（5000/h），轮询再快也不会限流 */
+    var rawUrl = "https://gist.githubusercontent.com/" + (GIST.user || "knightpig328") + "/" +
+                 encodeURIComponent(GIST.id) + "/raw/" + (GIST.file || "zhuhai-chida.json") +
+                 "?r=" + Math.floor(Date.now() / 5000);
+    var base = fetch(rawUrl, {
       cache: "no-store",
       signal: ac ? ac.signal : undefined
     }).then(function (r) {
-      if (r.status === 401) { var e1 = new Error("gh auth"); e1.kind = "token_bad"; throw e1; }
-      if (r.status === 403 || r.status === 429) {
-        var rem = r.headers.get("x-ratelimit-remaining");
-        var rst = r.headers.get("x-ratelimit-reset");
-        var e2 = new Error("gh rate");
-        e2.kind = (rem === "0") ? "rate_limited" : "forbidden";
-        e2.resetAt = rst ? Number(rst) * 1000 : 0;
-        throw e2;
-      }
-      if (!r.ok) throw new Error("gh " + r.status);
-      return r.json();
-    }).then(function (j) {
       if (timer) clearTimeout(timer);
-      var f = j && j.files && j.files[GIST.file || "zhuhai-chida.json"];
-      if (!f || typeof f.content !== "string") throw new Error("gh no-content");
-      var doc = JSON.parse(f.content);
+      if (!r.ok) { var e0 = new Error("raw " + r.status); e0.kind = "upstream"; throw e0; }
+      return r.text();
+    }).then(function (t) {
+      var doc = JSON.parse(t);
       lastErr = null;
       return { doc: doc, viaWorker: true };
     }).catch(function (err0) {
-      if (timer) clearTimeout(timer);
       if (err0 && (err0.kind === "rate_limited" || err0.kind === "forbidden")) {
         lastErr = err0;
-        return null;   /* 不回退镜像，避免把「限流」伪装成「只读」 */
+        return null;
       }
       var stamp = Math.floor(Date.now() / 60000);
       return fetch("data.json?m=" + stamp, { cache: "no-store" })
@@ -302,6 +291,7 @@
         .then(function (doc) { if (!doc) return null; lastErr = null; doc.__mirror = true; return { doc: doc }; })
         .catch(function () { return null; });
     });
+
     net.get = base.then(function (r) { net.get = null; return r; }, function () { net.get = null; return null; });
     return net.get;
   }
@@ -1111,7 +1101,7 @@
     render({ force: true });
     window.setTimeout(function () {
       root.classList.add("cdp-boot");
-      window.setTimeout(function () { root.classList.remove("cdp-boot"); }, 10000);
+      window.setTimeout(function () { root.classList.remove("cdp-boot"); }, 3000);
     }, 70);
   }
   function bootDone() {
@@ -1178,7 +1168,7 @@
       if (net.get && Date.now() - net.getAt > 20000) net.get = null;
       if (net.patch) return;
       fetchData().then(function (res) { if (res && res.doc) applyDoc(res.doc); });
-    }, 10000);
+    }, 3000);
     addEventListener("pagehide", function () { leaveOnce(true); });
     addEventListener("visibilitychange", function () {
       if (document.hidden) { leaveOnce(false); }
