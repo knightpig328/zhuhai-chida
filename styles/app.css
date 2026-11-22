@@ -322,7 +322,7 @@
     #cdp{ padding:16px 10px 14px; }
     #cdp::before{ left:4px; top:4px; right:4px; bottom:4px; }
     #cdp .cdp-row{
-      grid-template-columns:18px 1.9em minmax(0,1fr) 22px 24px 24px;
+      grid-template-columns:18px 1.9em minmax(0,1fr) 22px 20px 20px;
       column-gap:9px; row-gap:6px; padding:12px 10px;
     }
     #cdp .cdp-tick{ grid-area:1/1; }
