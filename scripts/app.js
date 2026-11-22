@@ -1,4 +1,4 @@
-  var BUILD_VER = "20261129a";
+  var BUILD_VER = "20261129b";
 (function () {
   var root = document.getElementById("cdp");
   if (!root) return;
@@ -259,7 +259,7 @@
   }
 
   /* 读取：Worker 优先（秒级、无配额）；Worker 不可用时回退静态 data.json */
-  function fetchData() {
+  function fetchData(forceFresh) {
     if (net.get) return net.get;
     net.getAt = Date.now();
     /* 直连 GitHub Gist API（Worker 那层始终没生效，Pages 项目把 requests 回退成静态页） */
@@ -268,7 +268,7 @@
     /* 读走 raw CDN（匿名可读，不需要 token，也不吃 API 配额）：不消耗 GitHub API 配额（5000/h），轮询再快也不会限流 */
     var rawUrl = "https://gist.githubusercontent.com/" + (GIST.user || "knightpig328") + "/" +
                  encodeURIComponent(GIST.id) + "/raw/" + (GIST.file || "zhuhai-chida.json") +
-                 "?r=" + Math.floor(Date.now() / 30000);
+                 "?r=" + (forceFresh ? Date.now() : Math.floor(Date.now() / 10000));
     var base = fetch(rawUrl, {
       cache: "no-store",
       signal: ac ? ac.signal : undefined
@@ -477,8 +477,12 @@
           throw e;
         }
         failCount = 0; lastErr = null; net.lastBody = contentKey(doc);
-        if (res && res.viaWorker) setBadge("已同步", "ok");
-      else setBadge("只读·未连上", "warn");
+        setBadge("已同步", "ok");
+        /* 写成功后强制回读一次（绕过 CDN 缓存），本机立刻确认远端已是刚写入的版本 */
+        net.get = null;
+        fetchData(true).then(function (r2) {
+          if (r2 && r2.doc && !r2.doc.__mirror) applyDoc(r2.doc, true);
+        }).catch(function () {});
         return true;
       }, function (e) {
         if (e && e.kind === "conflict" && retry < 2) {
