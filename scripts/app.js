@@ -1,4 +1,4 @@
-  var BUILD_VER = "20261128z";
+  var BUILD_VER = "20261129a";
 (function () {
   var root = document.getElementById("cdp");
   if (!root) return;
@@ -268,7 +268,7 @@
     /* 读走 raw CDN（匿名可读，不需要 token，也不吃 API 配额）：不消耗 GitHub API 配额（5000/h），轮询再快也不会限流 */
     var rawUrl = "https://gist.githubusercontent.com/" + (GIST.user || "knightpig328") + "/" +
                  encodeURIComponent(GIST.id) + "/raw/" + (GIST.file || "zhuhai-chida.json") +
-                 "?r=" + Math.floor(Date.now() / 5000);
+                 "?r=" + Math.floor(Date.now() / 30000);
     var base = fetch(rawUrl, {
       cache: "no-store",
       signal: ac ? ac.signal : undefined
