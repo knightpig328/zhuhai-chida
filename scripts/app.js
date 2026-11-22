@@ -1,4 +1,4 @@
-  var BUILD_VER = "20261129d";
+  var BUILD_VER = "20261129e";
 (function () {
   var root = document.getElementById("cdp");
   if (!root) return;
@@ -40,6 +40,7 @@ var FB_PATH = "/zhuhai-chida.json";
   var pushFirstAt = 0, leaveSent = 0, lastErr = null;
   var PUSH_DELAY = 1800, PUSH_MAXWAIT = 4000;
   var net = { get: null, getAt: 0, patch: null, dirty: false, pending: false };
+  var sse = null, sseRetry = 0;
 
   function normAddr(e) {
     if (typeof e === "string") return { t: 0, v: e };
@@ -294,6 +295,38 @@ var FB_PATH = "/zhuhai-chida.json";
 
     net.get = base.then(function (r) { net.get = null; return r; }, function () { net.get = null; return null; });
     return net.get;
+  }
+
+  /* 实时层：Firebase Realtime Database 的 EventSource 长连接，数据一变服务端主动推，
+     不再依赖轮询。断线由浏览器自动重连，轮询仍保留作兜底。 */
+  function startSSE() {
+    if (!window.EventSource) return;
+    try { if (sse) sse.close(); } catch (e) {}
+    try {
+      sse = new EventSource(FB + FB_PATH);
+    } catch (e) { return; }
+    function onData(payload) {
+      try {
+        var m = JSON.parse(payload);
+        if (!m) return;
+        /* put: {path:"/", data:<整份>}；patch: {path:"/x/y", data:...} */
+        if (m.path === "/" && m.data) {
+          if (isSorting()) return;
+          applyDoc(m.data);
+        } else if (typeof m.path === "string") {
+          /* 局部变更：重新拉一次（少见，且很快） */
+          net.get = null;
+          fetchData(true).then(function (r) { if (r && r.doc) applyDoc(r.doc, true); }).catch(function () {});
+        }
+      } catch (e) {}
+    }
+    sse.addEventListener("put", function (e) { onData(e.data); });
+    sse.addEventListener("patch", function (e) { onData(e.data); });
+    sse.onopen = function () { sseRetry = 0; };
+    sse.onerror = function () {
+      /* EventSource 会自动重连；连续失败时退回轮询节奏，不做额外动作 */
+      sseRetry++;
+    };
   }
 
   function applyDoc(doc, silent) {
@@ -1328,6 +1361,7 @@ var FB_PATH = "/zhuhai-chida.json";
 
   initSortEngine();
   probeOrder();
+  startSSE();
   boot();
   if (document.readyState === "complete") clearTokenFromUrl();
   else addEventListener("load", clearTokenFromUrl);
