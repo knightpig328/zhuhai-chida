@@ -1,4 +1,4 @@
-  var BUILD_VER = "20261130e";
+  var BUILD_VER = "20261130g";
 (function () {
   var root = document.getElementById("cdp");
   if (!root) return;
@@ -450,13 +450,29 @@ var FB_PATH = "/zhuhai-chida.json";
       merged.t = Math.max(x.t || 0, y.t || 0);
       out.score[k] = merged;
     });
-    // order 合并：按 t 取新（LWW）
+    /* order 合并：取并集，不按 t 整份覆盖
+       原实现「谁的时间戳新整份用谁的」会让每台设备各执一份、互相清空。
+       （2026-11-24 实测：我写入 18 项，被手机那份 6 项覆盖回去） */
     var oa = (a && a.order) || null, ob = (b && b.order) || null;
-    var pickO = null;
-    if (oa && ob) pickO = ((ob.t || 0) >= (oa.t || 0)) ? ob : oa;
-    else pickO = oa || ob;
-    out.order = pickO && Object.prototype.toString.call(pickO.v) === "[object Array]"
-      ? { v: pickO.v.slice(), t: pickO.t || 0 } : { v: [], t: 0 };
+    function normOrder(o) {
+      if (!o) return null;
+      var v = o.v;
+      if (Object.prototype.toString.call(v) !== "[object Array]") return null;  /* 兼容 Firebase 把数组存成对象的情况 */
+      return { v: v.filter(function (x) { return typeof x === "string" && x; }), t: o.t || 0 };
+    }
+    var na = normOrder(oa), nb = normOrder(ob);
+    if (!na && !nb) { out.order = { v: [], t: 0 }; }
+    else if (!na) { out.order = nb; }
+    else if (!nb) { out.order = na; }
+    else {
+      var newer = (nb.t >= na.t) ? nb.v : na.v;
+      var older = (nb.t >= na.t) ? na.v : nb.v;
+      var merged = newer.slice();
+      for (var oi = 0; oi < older.length; oi++) {
+        if (merged.indexOf(older[oi]) === -1) merged.push(older[oi]);
+      }
+      out.order = { v: merged, t: Math.max(na.t, nb.t) };
+    }
     out.rev = Math.max((a && a.rev) || 0, (b && b.rev) || 0);
     return out;
   }
