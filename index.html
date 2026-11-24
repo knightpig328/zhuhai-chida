@@ -10,11 +10,11 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E%E2%9C%A6%3C/text%3E%3C/svg%3E">
 <link rel="preload" href="assets/fonts/noto-serif-sc-200-900-normal.woff2?v=20261128w" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/noto-sans-sc-100-900-normal.woff2?v=20261128w" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="styles/fonts.css?v=20261201c">
-<link rel="stylesheet" href="styles/base.css?v=20261201c">
-<link rel="stylesheet" href="styles/app.css?v=20261201c">
-<link rel="stylesheet" href="styles/deco.css?v=20261201c">
-<link rel="stylesheet" href="styles/turn-20261201b.css?v=20261201c">
+<link rel="stylesheet" href="styles/fonts.css?v=20261201d">
+<link rel="stylesheet" href="styles/base.css?v=20261201d">
+<link rel="stylesheet" href="styles/app.css?v=20261201d">
+<link rel="stylesheet" href="styles/deco.css?v=20261201d">
+<link rel="stylesheet" href="styles/turn-20261201d.css?v=20261201d">
 </head>
 <body>
 
@@ -88,16 +88,22 @@
     root.style.setProperty('--menu-left',  Math.round(r.left * 100) / 100 + 'px');
     root.style.setProperty('--menu-right', Math.round((boxW - r.right) * 100) / 100 + 'px');
   }
-  window.__syncPoemOffset = syncPoemOffset;   /* 审查/调试可手动重算 */
+  function syncPoemOffsetDeferred(){
+    /* 滚动条出现/消失会改 ICB 宽度，ResizeObserver 回调同帧拿到的仍是旧矩形。
+       实测：1440 自然 40px → 切掉滚动条变 47.67px，2.5 秒不自愈。递延一帧再量。 */
+    requestAnimationFrame(function(){ try { syncPoemOffset(); } catch(e){} });
+  }
+  window.__syncPoemOffset = syncPoemOffset;
+  window.__syncPoemOffsetDeferred = syncPoemOffsetDeferred;   /* 审查/调试可手动重算 */
   syncPoemOffset();
-  addEventListener('resize', syncPoemOffset, { passive: true });
+  addEventListener('resize', syncPoemOffsetDeferred, { passive: true });
   addEventListener('orientationchange', syncPoemOffset);
   addEventListener('load', syncPoemOffset);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(syncPoemOffset);
   if (window.ResizeObserver) {
     try {
       /* 观察浮层自身：滚动条出现/消失会改变它的宽度，此时必须重算（resize 不触发） */
-      var ro = new ResizeObserver(syncPoemOffset);
+      var ro = new ResizeObserver(function(){ syncPoemOffsetDeferred(); });
       ro.observe(tail);
       ro.observe(document.getElementById('cdp'));
     } catch (e) {}
@@ -108,7 +114,7 @@
 })();
 </script>
 
-<script src="scripts/toc.js?v=20261201c"></script>
-<script src="scripts/app.js?v=20261201c"></script>
+<script src="scripts/toc.js?v=20261201d"></script>
+<script src="scripts/app.js?v=20261201d"></script>
 </body>
 </html>

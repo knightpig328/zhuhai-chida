@@ -163,6 +163,9 @@
 #cdp .cdp-row:active::before{ transform:none; }
 
 /* 14) 卡片区加宽：直接放宽阅读列（--col 原为 30 字 = 510px） */
+/* 641~1023 修复（v3-poem 实测）：不加这条，卡片会被 min-content 撑到 530，
+   左缘只剩 48px，放不下「40px 间距 + 19.2px 诗宽」→ 诗句出屏 11.2px、压花边 5.3px */
+#cdp{ width: min(100% , var(--col)); max-width: var(--col); }
 :root{ --col: calc(38 * 1.0625rem); }
 @media (max-width:640px){ :root{ --col: calc(30 * 1.0625rem); } }
 
@@ -236,6 +239,12 @@
    垂直：竖排里 block 轴是横向，top 只决定「一高一低」，用视口高度的百分比即可。 */
 .poem-l{ right:calc(100% - var(--menu-left) + var(--poem-gap)); left:auto; top:22%; }
 .poem-r{ left:calc(100% - var(--menu-right) + var(--poem-gap));  right:auto; top:52%; }
+/* 中档 641~1023：内容区 466~593px，装不下 40px 间距 + 28px 字
+   → 间距自适应、字号降到 20px，保证不出屏也不压花边 */
+@media (min-width:641px) and (max-width:1023px){
+  :root{ --poem-gap: clamp(6px, 2vw, 16px); }
+  .poem-line{ font-size: 20px !important; }
+}
 @media (min-width:1024px){
   .poem-line{ font-size:28px; line-height:1.9; letter-spacing:.10em; opacity:1; color:rgba(var(--ink-rgb),.92); }
 }
