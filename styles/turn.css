@@ -167,42 +167,93 @@
 @media (max-width:640px){ :root{ --col: calc(30 * 1.0625rem); } }
 
 
-/* 15) 结尾：细分隔线 + 相思句 */
-/* 诗词改为固定两侧竖排（主人选定方案）：不占文档流、不挡点击、淡色 */
-/* 覆盖层必须满视口：margin/max-width/text-align 一项不清掉，fixed 后又会退回居中窄条 */
+/* 15) 结尾：细分隔线 + 相思句
+   ── 2026-11-30k 逻辑重构：诗句不再用任何视口坐标 ──
+   旧写法 .poem-l{ left:calc((100vw - 1200px)/2 + 72px) } 是「拿视口猜容器」：
+     · 视口 < 1200（1024 笔记本 / 分屏 / 系统缩放）时 (100vw-1200px)/2 变负数，
+       诗句直接落到视口外或撞上左侧花边（实测 1024 屏：诗句 x=8~27，花边 x=16~64）；
+     · 100vw 含滚动条、布局宽度不含，一有滚动条又差 15px（实测 390 屏：fixed 覆盖层
+       宽 390、.container 宽 375，任何「视口算术」都会把诗句算偏）；
+     · 屏幕越宽误差越大 —— 所以换一台电脑就偏。
+   新写法：诗句挂到卡片自己身上（.cdp-tail 移进 #cdp，position:absolute），
+   right/left = 100% + --poem-gap，顶到卡片外缘 → 间距 = 「卡片边缘 + 固定值」，
+   与视口、滚动条、缩放全部无关。 */
+:root{
+  --poem-gap: 40px;            /* 诗句 ↔ 菜单边缘：固定值（PC） */
+  --scale: 1;                  /* 手机整盘等比缩放系数 */
+}
+@media (max-width:640px){
+  :root{ --poem-gap: 8px; --scale: .86; }   /* 屏窄：间距压到 8px，仍是固定值 */
+  .container{ padding:0 40px; }             /* 两侧留白 32 → 40（诗句要放得下） */
+}
+
+/* inset:-1px = 卡片的 1px 边框，让下面的 100% 正好落在卡片外缘 */
 .cdp-tail{
-  position:fixed; inset:0; margin:0; max-width:none; text-align:initial;
+  position:absolute; inset:-1px; margin:0; max-width:none; text-align:initial;
   pointer-events:none; z-index:3;
 }
 /* 它是 .cdp-tail 第一个流内元素，inset:0 下会被顶到视口顶部横贯整屏 → 直接不显示 */
 .tail-rule,
 .tail-rule::after{ display:none; }
+/* 容器本身绝对定位铺满卡片，作为两句诗的定位基准 */
 .tail-poem{
+  position:absolute; inset:0;
   font-family:'Xingkai Web','STXingkai','华文行楷',var(--font-serif);
-  font-size:1.2rem; font-weight:400; font-synthesis:none;
-  line-height:2.3; letter-spacing:.16em;
+  font-weight:400; font-synthesis:none;
   color:rgba(var(--ink-rgb),.78);
   text-rendering:optimizeLegibility;
   -webkit-font-smoothing:antialiased;
 }
-/* 竖排：两个 fixed 元素原来只有 padding-left/right、没有 left/right，会叠在同一处 */
 .poem-line{
-  position:fixed; writing-mode:vertical-rl; text-orientation:upright;
-  margin:0; padding:0;
+  position:absolute; margin:0; padding:0;
+  writing-mode:vertical-rl; text-orientation:upright;
+  white-space:nowrap;          /* 竖排必须锁单列：否则高度不够时会折成第二列（实测 1440 起折了） */
   font-size:16px; line-height:1.2; letter-spacing:.10em;
   opacity:1; color:rgba(var(--ink-rgb),.55);
   transition:opacity .5s ease;
 }
-/* 手机 390：右侧只剩约 10px 缝，放不下第二列竖排 → 同一列往下挪 */
-.poem-l{ left:8px; top:22%; }
-.poem-r{ left:8px; top:58%; }
-@media (min-width:1200px){
-  .poem-line{ font-size:24px; line-height:1.9; letter-spacing:.10em; opacity:1; color:rgba(var(--ink-rgb),.92); }
-  .poem-l{ left:calc((100vw - 1200px)/2 + 72px); top:22%; }
-  .poem-r{ right:calc((100vw - 1200px)/2 + 72px); left:auto; top:58%; }
+/* 左句右缘 = 卡片左外缘 − --poem-gap；右句左缘 = 卡片右外缘 + --poem-gap。
+   （垂直只决定「一高一低」，不影响水平间距 —— 竖排里 block 轴是横向，
+   所以这里用 top 百分比，不用 margin-block-*。） */
+.poem-l{ right:calc(100% + var(--poem-gap)); left:auto; top:15%; }
+.poem-r{ left:calc(100% + var(--poem-gap));  right:auto; top:55%; }
+@media (min-width:1024px){
+  .poem-line{ font-size:28px; line-height:1.9; letter-spacing:.10em; opacity:1; color:rgba(var(--ink-rgb),.92); }
 }
 /* 换诗只淡出淡入：原来带 translateY(3px)，每 6 秒上下跳一次 */
 .poem-line.is-fading{ opacity:0; }
+
+/* 15b) 手机：主人选定「整个菜单等比例缩小」方案
+   代价：卡片 326 → 约 267px（--scale .86），菜名字号 21.6 → 18.6px。
+   6 字菜名（流浪泡泡烤肉）是否仍一行 → 由实测断言（measure-after.json 的 name.lines）。
+   所有尺寸都乘 --scale，不逐条写死数值。 */
+@media (max-width:640px){
+  #cdp{
+    /* 与中列完全同一个表达式 → 卡片边缘就是诗句的锚点：
+       min(可用宽, 阅读列) × --scale（若只写 100%×scale，640 宽时卡片会比中列宽 43px） */
+    width:calc(min(100%, var(--col)) * var(--scale));
+    font-size:calc(1rem * var(--scale));           /* em 尺寸随之下缩 */
+    padding:calc(16px * var(--scale)) calc(10px * var(--scale)) calc(14px * var(--scale));
+  }
+  #cdp .cdp-row{
+    /* 390 有滚动条时卡片只剩 253.7px，名字列实测 106.77px，而 6 字（18.58px）要 112.55px
+       → 会折成两行。留白不能再降（320 会压花边），所以从固定列里让：编号 1.9em→1.4em、
+       按钮列 22/20→18/16，名字列回到 ≈120px，6 字才真正一行（见 measure 的 nameLines）。 */
+    grid-template-columns:
+      calc(18px * var(--scale)) calc(1.4em * var(--scale)) minmax(0,1fr)
+      calc(18px * var(--scale)) calc(16px * var(--scale)) calc(16px * var(--scale));
+    column-gap:calc(8px * var(--scale));
+    row-gap:calc(6px * var(--scale));
+    padding:calc(12px * var(--scale)) calc(10px * var(--scale));
+  }
+  /* 名字字号在 16c 里按 --scale 缩放（那条规则在本块之后，写这里会被它盖掉） */
+  #cdp .cdp-addr{ font-size:max(11px, .72em); }   /* 等比缩放后的可读下限：9.9px 太小 */
+  /* 触控目标不缩：★ 与 × 的命中区仍 ≥44px（可访问性，等比缩放会把它压到不合格） */
+  /* 手机右侧放不下第二句竖排 → 两句同在卡片左侧、上下错开，仍距卡片 --poem-gap */
+  .poem-line{ font-size:18px; line-height:1.32; letter-spacing:.08em; color:rgba(var(--ink-rgb),.40); }
+  .poem-l{ top:12%; }
+  .poem-r{ top:50%; }
+}
 
 
 /* 16) 评分：★ 按钮 + 展开面板（不增加卡片宽度） */
@@ -216,7 +267,6 @@
 #cdp .cdp-rate:hover{ color:rgba(var(--ink-rgb),.72); transform:scale(1.12); }
 /* 已评分：与面板里的满星同色（.90），不再用 accent —— 换主题时 accent≠ink 会变出第二种颜色 */
 #cdp .cdp-rate.is-on{ color:rgba(var(--ink-rgb),.90); }
-
 #cdp .cdp-row.has-score{ grid-auto-rows:auto; }
 #cdp .cdp-score{
   grid-column:1 / -1; margin:4px -2px 0; padding-top:6px;
@@ -249,7 +299,6 @@
 @supports not ((-webkit-background-clip:text) or (background-clip:text)){
   #cdp .cdp-star.is-half{ background:none; -webkit-text-fill-color:currentColor; }
 }
-
 @media print{ #cdp .cdp-rate, #cdp .cdp-score{ display:none !important; } }
 
 /* 16b) 手机触控：★ 视觉不变但点击区 44px，星星加大，面板铺满整行 */
@@ -272,7 +321,7 @@
 /* 16c) 手机名字不换行：字号与字距收一点，6 字名一行放得下 */
 @media (max-width:640px){
   /* 第3列只有113px，6字需130px；跨到第4列(≈144px)刚好，不碰第5列×与第6列★ */
-  #cdp .cdp-name{ grid-column:3 / 5; font-size:1.35rem; letter-spacing:.01em; white-space:normal; overflow-wrap:anywhere; max-width:100%; }
+  #cdp .cdp-name{ grid-column:3 / 5; font-size:calc(1.35rem * var(--scale)); letter-spacing:.01em; white-space:normal; overflow-wrap:anywhere; max-width:100%; }
   #cdp .cdp-rate{ grid-column:6; grid-row:1; align-self:center; margin-top:-12px; position:relative; z-index:1; }   /* ★ 压在 × 之上，避免点到星却删了行 */
   #cdp .cdp-del{ grid-column:5; grid-row:1; align-self:center; margin-top:-6px; opacity:.85; }
   /* × 命中区扩到 44×44（视觉仍是 22px，只是可点范围变大） */
@@ -287,7 +336,7 @@
 #cdp .cdp-addr{ min-width:0; max-width:100%; width:100%; box-sizing:border-box; }
 @media (max-width:640px){
   /* 全部交给 app.css 的 6 列制，这里只调字号与垂直微调，不再写 grid-area */
-  #cdp .cdp-addr{ grid-column:2 / 6; grid-row:2; width:auto; min-width:0; max-width:100%; box-sizing:border-box; font-size:.72em; padding:1px 4px; white-space:nowrap; overflow-x:auto; overflow-y:hidden; text-overflow:clip; scrollbar-width:none; }
+  #cdp .cdp-addr{ grid-column:2 / 6; grid-row:2; width:auto; min-width:0; max-width:100%; box-sizing:border-box; font-size:max(11px, .72em); padding:1px 4px; white-space:nowrap; overflow-x:auto; overflow-y:hidden; text-overflow:clip; scrollbar-width:none; }
   #cdp .cdp-addr::-webkit-scrollbar{ display:none; }
   /* 评分面板：左边界对齐名字列（第3列起），整体往上贴 */
   #cdp .cdp-score{ padding-left:calc(18px + 1.9em + 9px - 30px); margin:-12px -2px 0; padding-top:2px; }
@@ -381,7 +430,6 @@
    !important 连 .is-full 的已选色一起盖掉，满星和未选星变成同一个灰，
    而 .is-half 走 background-clip 不受 color 影响 → 三色混用。
    2026-11-24 实测后删除，未选色改由 §16 基础规则给出（.48，仍满足 ≥3:1）。 */
-
 #cdp .cdp-bar{ background:rgba(var(--ink-rgb),.16); }
 #cdp .cdp-count small, #cdp .cdp-done-label{ color:rgba(var(--ink-rgb),.58) !important; }
 
@@ -400,7 +448,7 @@
 :root[data-scheme="dark"] #cdp .cdp-idx{ color:rgba(var(--ink-rgb),.6) !important; }
 
 
-/* 诗词两侧窄屏：几何与字号统一由上面的 16px 基线与 1200 断点决定，旧的 640 覆盖已废弃
-   （原来这里是 .86rem / left:4px，会把 390 的竖排挤回贴边小字） */
+/* 诗词几何与字号统一由上面的三列 grid + 1200/640 断点决定（不再有 100vw 坐标）。
+   窄屏量出来的位置：320 诗句 x≈27~47、390 x≈32~52，均在花边（x 2~22）之外。 */
 @media (prefers-reduced-motion: reduce){ .poem-line{ transition:none; } }
 @media print{ .cdp-tail{ display:none; } }
