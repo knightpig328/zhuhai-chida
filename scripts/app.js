@@ -1,25 +1,52 @@
   var BUILD_VER = "20261130l";
+  var DATA_V = 5;   /* 数据结构版本：v5 = items 叶子对象 + 叶子路径 PATCH */
 (function () {
   var root = document.getElementById("cdp");
   if (!root) return;
-  var KEY = "guizang-zhuhai-chida-v1";
-  /* 数据结构版本。升到 4 之后：
-     - 新客户端写 v4，同时接受读 v3/v4（前向兼容）
-     - 旧客户端 okShape 只认 v===3，读到 v4 会走「数据异常·未写入」分支直接 return
-       → 它自动变成只读，再也不会整份 PUT 把新数据覆盖回去
-     这就是「主人在线时后台修数据、刷新后不被回弹」的机制。 */
-  var SCHEMA_V = 4;
-  var TS_KEY = KEY + ":ts";
+
+  /* =====================================================================
+     数据结构 v5（为什么推倒重来）
+     ---------------------------------------------------------------------
+     v4 的病根是「整份文档 PUT 覆盖整棵子树」：
+       - PUT = 替换整棵子树（含所有子节点），旧客户端一提交就把 delT/rosterT
+         这类版本字段归零，别人的改动整片消失；
+       - Firebase 没有原生数组，order.v 每次整份写就是把「顺序」当文档级
+         事实来抢，两台设备必然互相清空；
+       - 写子节点会重建父节点，所以「真删」必然复活，只能留墓碑。
+
+     v5 的规矩：
+       meta:  { v:5, minV:4, updatedAt:<ms> }
+       items/<id>: { cid, name, ord, done, doneAt, rating, ratingAt,
+                     addr, addrAt, del, delAt }
+       - 所有写都是叶子路径 PATCH（一次多路径，Firebase 保证原子）；
+       - 删除 = del:true + delAt 墓碑，永不删节点；
+       - ord 用中点值插入，太挤才整表重排（一次 PATCH 8 条，原子）；
+       - done 与 doneAt 拆开：正负号塞一个数字的写法在叶子写里无法原子表达
+         「谁更晚」，拆成布尔 + 绝对毫秒，叶子各写各的，最后写者胜。
+       - <id> = fbKey(菜名)：菜名照旧当 key，但 Firebase 不允许 . # $ [ ] /
+         和空串 / . / ..，这些换成全角同形字；真名永远在 item.name 里。
+     ===================================================================== */
+
+  var FB = "https://liqianshiqianjin-default-rtdb.asia-southeast1.firebasedatabase.app";
+  var DOC_PATH = "/zhuhai-chida";
+  var DOC_URL = FB + DOC_PATH + ".json";
+  var SCHEMA_V = DATA_V, MIN_V = 4;
+
+  var UI_KEY = "cdp-ui-v5";          /* 只存界面偏好（折叠状态），不存列表数据 */
+  var SCHEME_KEY = "cdp-scheme";     /* 深浅色 */
+
   var list = document.getElementById("cdp-list");
   var form = document.getElementById("cdp-form");
   var input = document.getElementById("cdp-input");
   var doneEl = document.getElementById("cdp-done");
   var totalEl = document.getElementById("cdp-total");
   var fillEl = document.getElementById("cdp-fill");
-  var canStore = (function () { try { var k = "__cdp_probe__"; window.localStorage.setItem(k, "1"); window.localStorage.removeItem(k); return true; } catch (e) { return false; } })();
+
+  /* HTML 底表菜名：只作「云端 items 变空」时的异常判定，不再当渲染依据 */
   var BASE = [];
-  Array.prototype.forEach.call(list.querySelectorAll(".cdp-row"), function (row) {
-    BASE.push(row.getAttribute("data-text"));
+  if (list) Array.prototype.forEach.call(list.querySelectorAll(".cdp-row"), function (row) {
+    var t = row.getAttribute("data-text");
+    if (t && BASE.indexOf(t) === -1) BASE.push(t);
     row.removeAttribute("contenteditable");
   });
 
@@ -28,171 +55,169 @@
   try { mqReduce = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null; } catch (e) {}
   function reducedMotion() { return !!(mqReduce && mqReduce.matches); }
 
-  /* ===== 协同层 ===== */
-  var CFG_KEY = "cdp-sync-cfg-v1";
-  var GIST = { id: "4bb6f3b536c05a65de7132179a8826e9", user: "knightpig328", file: "zhuhai-chida.json" };
-var FB = "https://liqianshiqianjin-default-rtdb.asia-southeast1.firebasedatabase.app";
-var FB_PATH = "/zhuhai-chida.json";
-  /* 默认凭据：以字符码形式存放，避免明文令牌被仓库扫描/拦截 */
-  var TOKEN = "", ETAG = "";   /* Firebase 不需要 token；此前硬编码的 GitHub PAT 已移除 */
-  var WORKER = "https://liqianshiqianjin.pages.dev";
-  var WKEY = "";   /* 旧 Worker 方案的共享密钥，已废弃 */
-  var TS = { done: {}, extra: {}, del: {}, addr: {}, score: {}, order: { v: [], t: 0 }, delT: 0, rosterT: 0 };
-  var ADDR = {};
-  var CACHE = { done: {}, extra: [] };
-  var state = { done: {}, extra: [] };
-  var hydrated = false, bootSettled = false;
-  var pushTimer = 0, pollTimer = 0, failCount = 0, pendingRender = false, leaving = 0, maxTs = 0;
-  var pushFirstAt = 0, leaveSent = 0, lastErr = null;
-  var PUSH_DELAY = 300, PUSH_MAXWAIT = 1200;   /* 标准防抖：合并连点/连续输入，避免整份 PUT 过于频繁 */
-  var net = { get: null, getAt: 0, patch: null, dirty: false, pending: false, etag: "" };
+  /* ===== 本地状态 ===== */
+  var ITEMS = {};                    /* id -> item 记录（远端读回的结果 + 待发改动的叠加层） */
+  var META = null;                   /* 远端 meta */
+  var READONLY = false;              /* v4 / 异常文档：只读 */
+  var hydrated = false;              /* 成功读到过 v5 才允许写 */
+  var PENDING = {};                  /* 叶子路径 -> 值：还没发出去的意图 */
+  var net = { get: null, flushing: null };
+  var flushTimer = 0, flushFirstAt = 0, failCount = 0, lastErr = null;
+  var refreshTimer = 0, staleAgain = false;
+  var PATCH_DELAY = 300, PATCH_MAXWAIT = 1200;
+  var pendingRender = false, leaving = 0, maxTs = 0;
   var sse = null, sseRetry = 0;
+  var bootSettled = false;
 
-  function normAddr(e) {
-    if (typeof e === "string") return { t: 0, v: e };
-    if (e && typeof e === "object" && typeof e.v === "string") {
-      var t = typeof e.t === "number" && isFinite(e.t) ? e.t : 0;
-      return { t: t, v: e.v };
-    }
-    return null;
-  }
-  function pickAddr(x, y) {
-    var a = normAddr(x), b = normAddr(y);
-    if (!a) return b;
-    if (!b) return a;
-    if (b.t > a.t) return b;
-    if (b.t < a.t) return a;
-    if (!a.t && !b.t) return String(b.v) > String(a.v) ? b : a;
-    if (!b.v) return b;
-    if (!a.v) return a;
-    return String(b.v) > String(a.v) ? b : a;
-  }
   function own(o, k) { return Object.prototype.hasOwnProperty.call(o, k); }
   function has(arr, v) { return arr.indexOf(v) !== -1; }
-
-  function readTs(o) {
-    if (!o || typeof o !== "object") return;
-    TS.done = o.done && typeof o.done === "object" ? o.done : TS.done;
-    TS.extra = o.extra && typeof o.extra === "object" ? o.extra : TS.extra;
-    TS.del = o.del && typeof o.del === "object" ? o.del : TS.del;
-    if (typeof o.rev === "number") TS.rev = o.rev;
-    if (typeof o.delT === "number") TS.delT = o.delT;
-    if (typeof o.rosterT === "number") TS.rosterT = o.rosterT;
-    if (o.score && typeof o.score === "object") TS.score = o.score;
-    if (o.order && Object.prototype.toString.call(o.order.v) === "[object Array]") {
-      var ov = o.order.v.filter(function (x) { return typeof x === "string"; });
-      var ot = typeof o.order.t === "number" ? o.order.t : 0;
-      if (ot >= ((TS.order && TS.order.t) || 0)) TS.order = { v: ov, t: ot };
-    }
-    var a = o.addr && typeof o.addr === "object" ? o.addr : {};
-    Object.keys(a).forEach(function (k) { var n = normAddr(a[k]); if (n) TS.addr[k] = n; });
-  }
-
-  /* 本地只作「上次真相的副本 + 未发送意图」；内容进 CACHE，不直接上屏 */
-  try {
-    var raw = window.localStorage.getItem(KEY);
-    if (raw) {
-      var p = JSON.parse(raw);
-      if (p && typeof p === "object") {
-        if (p.done && typeof p.done === "object") CACHE.done = p.done;
-        if (Array.isArray(p.extra)) CACHE.extra = p.extra.filter(function (t) { return typeof t === "string" && t.replace(/\s+/g, " ").trim().length > 0; });
-        if (p.TS && typeof p.TS === "object") readTs(p.TS);
-      }
-    }
-    var rawTs = window.localStorage.getItem(TS_KEY);
-    if (rawTs) {
-      try { readTs(JSON.parse(rawTs)); } catch (e) {}
-    }
-  } catch (e) {}
-
-  /* 老缓存迁移：seed=1，永远输给任何真实时间戳，只在远端缺键时兜底 */
-  if (!Object.keys(TS.done).length && Object.keys(CACHE.done).length) {
-    Object.keys(CACHE.done).forEach(function (k) { if (CACHE.done[k]) TS.done[k] = 1; });
-    CACHE.extra.forEach(function (t) { if (!TS.extra[t]) TS.extra[t] = 1; });
-  }
-
-  function scanMax() {
-    ["done", "extra", "del"].forEach(function (f) {
-      var o = TS[f] || {};
-      Object.keys(o).forEach(function (k) { var v = Math.abs(Number(o[k]) || 0); if (v > maxTs) maxTs = v; });
-    });
-    var a = TS.addr || {};
-    Object.keys(a).forEach(function (k) { var n = normAddr(a[k]); if (n && n.t > maxTs) maxTs = n.t; });
-  }
+  function num0(v) { return typeof v === "number" && isFinite(v) ? v : 0; }
+  function str0(v) { return typeof v === "string" ? v : ""; }
   function tsNow() { var t = Math.max(Date.now(), maxTs + 1); maxTs = t; return t; }
+  function round1(v) { return Math.round(v * 10) / 10; }
 
-  function hydrateAddr() {
-    ADDR = {};
-    Object.keys(TS.addr || {}).forEach(function (k) {
-      var a = normAddr(TS.addr[k]);
-      if (!a) return;
-      var d = TS.del && TS.del[k];
-      if (typeof d === "number" && d >= a.t) return;
-      if (a.v) ADDR[k] = a.v;
+  /* A-1: 安全编码，脏值（孤立代理/非法码点）不应炸掉整个列表 */
+  function enc(s) {
+    try { return encodeURIComponent(String(s == null ? "" : s)); }
+    catch (e) { return encodeURIComponent(String(s).replace(/[\uD800-\uDFFF]/g, "")); }
+  }
+
+  /* ===== Firebase key =====
+     非法字符 . # $ [ ] / 换成全角同形字；空串 / . / .. 也非法。
+     与 scripts/migrate-v5.mjs 的 fbKey() 必须保持同一套映射。 */
+  var KEY_MAP = { ".": "．", "#": "＃", "$": "＄", "[": "［", "]": "］", "/": "／" };
+  function fbKey(name) {
+    var s = String(name == null ? "" : name).replace(/\s+/g, " ").trim();
+    if (!s) return "item";
+    s = s.replace(/[.#$\[\]\/]/g, function (c) { return KEY_MAP[c]; });
+    s = Array.from(s).slice(0, 120).join("");     /* 单段 key < 768 字节，120 字符足够 */
+    if (s === "." || s === "..") s = s.replace(/\./g, "．");
+    return s;
+  }
+  function uniqueKey(base) {
+    if (!own(ITEMS, base)) return base;
+    var i = 2;
+    while (own(ITEMS, base + "~" + i)) i++;
+    return base + "~" + i;
+  }
+
+  /* ===== item 记录 ===== */
+  function normalizeItem(id, raw) {
+    raw = raw && typeof raw === "object" ? raw : {};
+    var rec = {
+      id: id,
+      cid: str0(raw.cid),
+      name: str0(raw.name) || id,
+      ord: num0(raw.ord),
+      done: raw.done === true,
+      doneAt: num0(raw.doneAt),
+      rating: num0(raw.rating),
+      ratingAt: num0(raw.ratingAt),
+      addr: str0(raw.addr),
+      addrAt: num0(raw.addrAt),
+      del: raw.del === true,
+      delAt: num0(raw.delAt)
+    };
+    if (typeof raw.ratingMe === "number" && isFinite(raw.ratingMe)) rec.ratingMe = raw.ratingMe;
+    if (typeof raw.ratingHer === "number" && isFinite(raw.ratingHer)) rec.ratingHer = raw.ratingHer;
+    return rec;
+  }
+  function blankItem(id, name, ord) {
+    return normalizeItem(id, { cid: "", name: name, ord: ord, done: false, doneAt: 0, rating: 0, ratingAt: 0, addr: "", addrAt: 0, del: false, delAt: 0 });
+  }
+  function itemOf(id) { return own(ITEMS, id) ? ITEMS[id] : null; }
+
+  /* 可见条目：墓碑不显示；按 ord 升序，同 ord 用名字兜底 */
+  function visibleItems() {
+    var out = [];
+    Object.keys(ITEMS).forEach(function (id) {
+      var it = ITEMS[id];
+      if (!it || it.del) return;
+      out.push(it);
     });
+    out.sort(function (a, b) {
+      var d = a.ord - b.ord;
+      if (d) return d;
+      return a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
+    });
+    return out;
+  }
+  function maxOrd() {
+    var m = 0;
+    Object.keys(ITEMS).forEach(function (id) { var o = num0(ITEMS[id].ord); if (o > m) m = o; });
+    return m;
   }
 
-  function saveTs() { try { window.localStorage.setItem(TS_KEY, JSON.stringify(TS)); } catch (e) {} }
-  function save() {
-    try {
-      window.localStorage.setItem(KEY, JSON.stringify({ done: state.done, extra: state.extra, TS: TS }));
-      window.localStorage.removeItem(TS_KEY);
-    } catch (e) {}
-  }
-  function markPending(v) {
-    try { if (v) window.localStorage.setItem(KEY + ":pending", "1"); else window.localStorage.removeItem(KEY + ":pending"); } catch (e) {}
-  }
-  function readPending() { try { return window.localStorage.getItem(KEY + ":pending") === "1"; } catch (e) { return false; } }
-
-  /* ===== 失败分类 ===== */
-  var FAIL_TXT = {
-    token_bad: "登录过期了，点这里重新连上", token_scope: "没有云端写权限", forbidden: "云端拒绝了这次保存",
-    rate_limited: "刚才点太快了，等几秒自己会好", abuse: "刚才点太快了，等几秒自己会好", gist_missing: "云端的数据找不到了",
-    invalid: "内容被云端拒了", server: "存到云端时出错了，点一下重试", offline: "没网，先存在本机",
-    timeout: "太慢了，先存在本机", conflict: "别人刚改过，正在重试", http: "没存上，点一下重试"
-  };
-  var FAIL_STATE = {
-    rate_limited: "warn", abuse: "warn", server: "warn", offline: "warn",
-    timeout: "warn", conflict: "warn",
-    token_bad: "fail", token_scope: "fail", forbidden: "fail",
-    gist_missing: "fail", invalid: "fail", http: "fail"
-  };
-  function failText(e) { return FAIL_TXT[(e && e.kind) || "http"] || FAIL_TXT.http; }
-  function failState(e) { return FAIL_STATE[(e && e.kind) || "http"] || "fail"; }
-  function errTitle(e) {
-    if (!e) return "同步状态";
-    return failText(e) + (e.msg ? "｜" + String(e.msg).slice(0, 70) : "") + (e.code ? "｜HTTP " + e.code : "");
-  }
-  function classify(r, txt) {
-    if (r.status === 401) return "token_bad";
-    if (r.status === 403) {
-      if (r.headers.get("X-RateLimit-Remaining") === "0") return "rate_limited";
-      return "forbidden";
-    }
-    if (r.status === 404) return "gist_missing";
-    if (r.status === 409) return "conflict";
-    if (r.status === 422) return /spam|rate/i.test(txt || "") ? "abuse" : "invalid";
-    if (r.status >= 500) return "server";
-    return "http";
-  }
-  function mkErr(r, txt) {
-    var e = new Error("http " + r.status);
-    e.code = r.status;
-    e.kind = classify(r, txt);
-    var m = "";
-    try { m = (JSON.parse(txt) || {}).message || ""; } catch (x) { m = String(txt || "").slice(0, 110); }
-    e.msg = m;
-    return e;
+  /* ===== 文档版本判定（okShape 接受 v4 与 v5） ===== */
+  function docVersion(doc) {
+    if (!doc || typeof doc !== "object") return 0;
+    if (doc.meta && typeof doc.meta === "object" && num0(doc.meta.v) >= DATA_V && doc.items && typeof doc.items === "object") return DATA_V;
+    if (doc.v === 3 || doc.v === 4) return 4;
+    if (doc.done && typeof doc.done === "object" && doc.extra && typeof doc.extra === "object") return 4;
+    if (doc.items && typeof doc.items === "object") return DATA_V;
+    return 0;
   }
 
-  /* ===== 状态角标 ===== */
+  /* v4 文档 → 只读视图（兼容期用：老数据在、迁移还没跑时能看不能改） */
+  function legacyToItems(doc) {
+    var out = {};
+    if (!doc || typeof doc !== "object") return out;
+    var order = doc.order && Object.prototype.toString.call(doc.order.v) === "[object Array]" ? doc.order.v.filter(function (x) { return typeof x === "string" && x; }) : [];
+    var extra = doc.extra && typeof doc.extra === "object" ? doc.extra : {};
+    var roster = order.slice();
+    Object.keys(extra).sort(function (a, b) { return num0(extra[a]) - num0(extra[b]); }).forEach(function (n) {
+      if (!has(roster, n)) roster.push(n);
+    });
+    var done = doc.done && typeof doc.done === "object" ? doc.done : {};
+    var del = doc.del && typeof doc.del === "object" ? doc.del : {};
+    var addr = doc.addr && typeof doc.addr === "object" ? doc.addr : {};
+    var score = doc.score && typeof doc.score === "object" ? doc.score : {};
+    var used = {};
+    roster.forEach(function (name, i) {
+      var id = fbKey(name);
+      while (own(used, id)) id = id + "~2";
+      used[id] = 1;
+      var signed = Number(done[name]) || 0;
+      var a = addr[name];
+      var av = "", at = 0;
+      if (typeof a === "string") av = a;
+      else if (a && typeof a === "object" && typeof a.v === "string") { av = a.v; at = num0(a.t); }
+      var sc = score[name] && typeof score[name] === "object" ? score[name] : {};
+      var vals = [];
+      if (typeof sc.me === "number") vals.push(sc.me);
+      if (typeof sc.her === "number") vals.push(sc.her);
+      var d = num0(del[name]);
+      var rec = blankItem(id, name, i + 1);
+      rec.done = signed > 0;
+      rec.doneAt = signed ? Math.abs(signed) : 0;
+      rec.rating = vals.length ? round1(vals.reduce(function (x, y) { return x + y; }, 0) / vals.length) : 0;
+      rec.ratingAt = num0(sc.t);
+      if (typeof sc.me === "number") rec.ratingMe = sc.me;
+      if (typeof sc.her === "number") rec.ratingHer = sc.her;
+      rec.addr = av; rec.addrAt = at;
+      rec.del = d > 0; rec.delAt = d > 0 ? d : 0;
+      out[id] = rec;
+    });
+    /* 墓碑里的菜名也进视图（del:true → 不显示），保证删除状态不丢 */
+    Object.keys(del).forEach(function (name) {
+      if (has(roster, name)) return;
+      var id = fbKey(name);
+      if (own(out, id)) return;
+      var rec = blankItem(id, name, roster.length + Object.keys(out).length + 1);
+      rec.del = true; rec.delAt = num0(del[name]);
+      out[id] = rec;
+    });
+    return out;
+  }
+
+  /* ===== 站点角标 ===== */
   var badge = document.createElement("span");
   badge.className = "cdp-sync";
   badge.setAttribute("role", "status");
   badge.setAttribute("aria-live", "polite");
   badge.setAttribute("tabindex", "0");
-  badge.setAttribute("title", "点一下重新保存；按住不放＝从云端取最新");
-  badge.setAttribute("aria-label", "同步状态。回车重新保存，Shift 加回车从云端取最新");
+  badge.setAttribute("title", "同步状态｜点一下重试｜按住 800ms 强制拉最新｜Shift+回车 同上");
+  badge.setAttribute("aria-label", "同步状态。回车重试，Shift 加回车强制拉取最新");
   badge.setAttribute("data-state", "local");
   var head = root.querySelector(".cdp-head");
   if (head) head.appendChild(badge);
@@ -204,7 +229,39 @@ var FB_PATH = "/zhuhai-chida.json";
     badge.setAttribute("data-state", st);
   }
 
-  /* ===== 书页开合 ===== */
+  /* ===== 失败分类 ===== */
+  var FAIL_TXT = {
+    offline: "离线·已存本机意图", timeout: "超时·重试中", conflict: "冲突·重试中",
+    forbidden: "无写权限", invalid: "内容被拒", server: "数据库服务器问题",
+    upstream: "连不上数据库", http: "同步失败"
+  };
+  var FAIL_STATE = { offline: "warn", timeout: "warn", conflict: "warn", server: "warn", upstream: "warn" };
+  function failText(e) { return FAIL_TXT[(e && e.kind) || "http"] || FAIL_TXT.http; }
+  function failState(e) { return FAIL_STATE[(e && e.kind) || "http"] || "fail"; }
+  function errTitle(e) {
+    if (!e) return "同步状态";
+    return failText(e) + (e.msg ? "｜" + String(e.msg).slice(0, 70) : "") + (e.code ? "｜HTTP " + e.code : "");
+  }
+  function classify(r, txt) {
+    if (r.status === 401) return "forbidden";
+    if (r.status === 403) return "forbidden";
+    if (r.status === 409) return "conflict";
+    if (r.status === 412) return "conflict";
+    if (r.status === 422) return "invalid";
+    if (r.status >= 500) return "server";
+    return "http";
+  }
+  function mkErr(r, txt) {
+    var e = new Error("http " + r.status);
+    e.code = r.status;
+    e.kind = classify(r, txt);
+    var m = "";
+    try { m = (JSON.parse(txt) || {}).error || ""; } catch (x) { m = String(txt || "").slice(0, 110); }
+    e.msg = m;
+    return e;
+  }
+
+  /* ===== 书页开合（折叠状态是唯一进 localStorage 的东西之一） ===== */
   var foldBtn = document.createElement("button");
   foldBtn.type = "button";
   foldBtn.className = "cdp-fold-btn";
@@ -218,331 +275,441 @@ var FB_PATH = "/zhuhai-chida.json";
   foldBtn.appendChild(foldIco);
   foldBtn.appendChild(foldTxt);
   if (head && head.parentNode) head.parentNode.insertBefore(foldBtn, head.nextSibling);
-  function setFold(on) {
+  function setFold(on, persist) {
     if (on) root.classList.add("is-folded"); else root.classList.remove("is-folded");
     foldBtn.setAttribute("aria-expanded", on ? "false" : "true");
     foldTxt.textContent = on ? "翻开菜单" : "收起菜单";
     if (on) { try { list.setAttribute("inert", ""); } catch (e) {} }
     else { try { list.removeAttribute("inert"); } catch (e) {} }
+    if (persist) { try { window.localStorage.setItem(UI_KEY, JSON.stringify({ fold: !!on })); } catch (e) {} }
   }
-  foldBtn.addEventListener("click", function () { setFold(!root.classList.contains("is-folded")); });
+  foldBtn.addEventListener("click", function () { setFold(!root.classList.contains("is-folded"), true); });
 
-  /* ===== 配置 ===== */
-  function loadCfg() { try { return JSON.parse(window.localStorage.getItem(CFG_KEY) || "null"); } catch (e) { return null; } }
-  function saveCfg(c) { try { window.localStorage.setItem(CFG_KEY, JSON.stringify(c)); } catch (e) {} }
-
-  function api(url, opt) {
-    opt = opt || {}; opt.cache = "no-store";
-    opt.headers = Object.assign({ "Accept": "application/vnd.github+json", "Content-Type": "application/json" }, opt.headers || {});
-    if (TOKEN) opt.headers.Authorization = "Bearer " + TOKEN;
-    var ctl = null, timer = 0;
-    try { if (window.AbortController) { ctl = new AbortController(); opt.signal = ctl.signal; } } catch (e) {}
-    if (ctl) timer = window.setTimeout(function () { try { ctl.abort(); } catch (e) {} }, 12000);
-    function stop() { if (timer) { window.clearTimeout(timer); timer = 0; } }
-    return fetch(url, opt).then(function (r) {
-      stop();
-      if (r.status === 304) return { notModified: true };
-      if (r.ok) { ETAG = r.headers.get("ETag") || ETAG; return r.json(); }
-      return r.text().then(function (txt) { throw mkErr(r, txt); }, function () { throw mkErr(r, ""); });
-    }, function (err) {
-      stop();
-      var e = err || new Error("network");
-      e.kind = (e.name === "AbortError") ? "timeout" : "offline";
-      e.msg = "";
-      throw e;
-    });
-  }
-
-  function readDoc(j) {
-    if (!j || j.notModified) return null;
-    var f = j.files && j.files[GIST.file];
-    if (!f || f.truncated) return null;
-    try { return JSON.parse(f.content); } catch (e) { return null; }
-  }
-
-  function parseDoc(j) {
-    if (!j) return null;
-    if (j.notModified) return { unchanged: true };
-    var doc = readDoc(j);
-    if (!doc) { lastErr = { kind: "invalid", msg: "文档解析失败" }; return null; }
-    lastErr = null;
-    return { doc: doc };
-  }
-
-  /* 读取：Worker 优先（秒级、无配额）；Worker 不可用时回退静态 data.json */
-  function fetchData(forceFresh) {
+  /* ===== 读：REST GET（?r= 破 Firebase/CDN 缓存） ===== */
+  var readSeq = 0, appliedSeq = 0;
+  function fetchDoc() {
     if (net.get) return net.get;
-    net.getAt = Date.now();
-    /* Firebase Realtime Database（已替换 Gist/Worker 两套旧方案） */
+    var seq = ++readSeq;
     var ac = window.AbortController ? new AbortController() : null;
-    var timer = ac ? setTimeout(function () { try { ac.abort(); } catch (e) {} }, 12000) : 0;
-    /* 读：Firebase REST，无接口配额、无 CDN 缓存、不需要 token */
-    var rawUrl = FB + FB_PATH + "?r=" + Date.now();
-    var base = fetch(rawUrl, {
+    var timer = ac ? window.setTimeout(function () { try { ac.abort(); } catch (e) {} }, 12000) : 0;
+    var url = DOC_URL + "?r=" + Date.now();
+    var p = fetch(url, {
       cache: "no-store",
-      headers: { "X-Firebase-ETag": "true" },
+      headers: { "Accept": "application/json" },
       signal: ac ? ac.signal : undefined
     }).then(function (r) {
-      if (timer) clearTimeout(timer);
-      if (!r.ok) { var e0 = new Error("raw " + r.status); e0.kind = "upstream"; throw e0; }
-      var et = r.headers.get("ETag") || "";
-      if (et) net.etag = et.replace(/^W\//, "").replace(/"/g, "");
+      if (timer) window.clearTimeout(timer);
+      if (!r.ok) { var e0 = new Error("read " + r.status); e0.code = r.status; e0.kind = classify(r, ""); throw e0; }
       return r.text();
     }).then(function (t) {
-      var doc = JSON.parse(t);
+      var doc = t ? JSON.parse(t) : null;
       lastErr = null;
-      return { doc: doc, viaWorker: true };
-    }).catch(function (err0) {
-      if (err0 && (err0.kind === "rate_limited" || err0.kind === "forbidden")) {
-        lastErr = err0;
-        return null;
-      }
-      var stamp = Math.floor(Date.now() / 60000);
-      return fetch("data.json?m=" + stamp, { cache: "no-store" })
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (doc) { if (!doc) return null; lastErr = null; doc.__mirror = true; return { doc: doc }; })
-        .catch(function () { return null; });
+      return { doc: doc, seq: seq };
+    }, function (err0) {
+      if (timer) window.clearTimeout(timer);
+      var e = err0 || new Error("network");
+      if (!e.kind) e.kind = (e.name === "AbortError") ? "timeout" : "offline";
+      lastErr = e;
+      return null;
     });
-
-    net.get = base.then(function (r) { net.get = null; return r; }, function () { net.get = null; return null; });
+    net.get = p.then(function (r) { net.get = null; return r; }, function () { net.get = null; return null; });
     return net.get;
   }
 
-  /* 实时层：Firebase Realtime Database 的 EventSource 长连接，数据一变服务端主动推，
-     不再依赖轮询。断线由浏览器自动重连，轮询仍保留作兜底。 */
+  /* 乱序返回保护：先发的读可能后到，晚到的旧快照不许覆盖新状态 */
+  function applyRead(res, silent) {
+    if (!res) return false;
+    if (typeof res.seq === "number") {
+      if (res.seq < appliedSeq) return false;
+      appliedSeq = res.seq;
+    }
+    return applyDoc(res.doc, silent);
+  }
+
+  /* ===== 实时层：Firebase REST 的 EventSource 长连接 =====
+     任何变更都只做一件事：重读整份文档（8 条菜，几十字节，代价可忽略）。
+     合并逻辑全部搬到了服务端 —— 叶子写谁最后写谁赢，客户端不再自己算时间戳战争。 */
   function startSSE() {
     if (!window.EventSource) return;
     try { if (sse) sse.close(); } catch (e) {}
-    try {
-      sse = new EventSource(FB + FB_PATH);
-    } catch (e) { return; }
-    function onData(payload) {
-      try {
-        var m = JSON.parse(payload);
-        if (!m) return;
-        /* put: {path:"/", data:<整份>}；patch: {path:"/x/y", data:...} */
-        if (m.path === "/" && m.data) {
-          if (isSorting()) return;
-          applyDoc(m.data);
-        } else if (typeof m.path === "string") {
-          /* 局部变更：重新拉一次（少见，且很快） */
-          net.get = null;
-          fetchData(true).then(function (r) { if (r && r.doc) applyDoc(r.doc, true); }).catch(function () {});
-        }
-      } catch (e) {}
-    }
-    sse.addEventListener("put", function (e) { onData(e.data); });
-    sse.addEventListener("patch", function (e) { onData(e.data); });
+    try { sse = new EventSource(DOC_URL); } catch (e) { return; }
+    function onEvt() { scheduleRefresh(); }
+    sse.addEventListener("put", onEvt);
+    sse.addEventListener("patch", onEvt);
     sse.onopen = function () { sseRetry = 0; };
     sse.onerror = function () {
-      /* EventSource 会自动重连；但角标必须说实话，否则用户以为还在同步 */
       sseRetry++;
-      if (sseRetry >= 2) {
-        try { setBadge("连接断了·重连中", "warn"); } catch (e) {}
-      }
-      /* 兜底：每 30 秒补拉一次，避免长连接静默死掉后一直看不到对方改动 */
-      if (!net.get && !net.patch) {
-        fetchData().then(function (r) { if (r && r.doc) applyDoc(r.doc); }).catch(function () {});
-      }
+      if (sseRetry >= 2) setBadge("连接断了·重连中", "warn");
+      scheduleRefresh();
     };
   }
+  function scheduleRefresh() {
+    if (isEditing() || isSorting() || net.flushing) { staleAgain = true; return; }
+    if (refreshTimer) return;
+    refreshTimer = window.setTimeout(function () {
+      refreshTimer = 0;
+      net.get = null;
+      fetchDoc().then(function (r) { if (r && r.doc) applyRead(r, true); else if (r === null) setBadge(failText(lastErr), failState(lastErr)); });
+    }, 350);
+  }
 
+  /* ===== 应用远端文档 ===== */
   function applyDoc(doc, silent) {
-    if (!doc) return false;
-    /* 静态镜像只用于看一眼：不并入 TS、不计 hydrated，避免用旧数据覆盖云端 */
-    if (doc.__mirror) {
-      if (silent) return false;              /* 写路径上的读不刷界面 */
-      if (isEditing()) { pendingRender = true; return false; }
-      var mst = buildState(doc);
-      state.done = mst.done; state.extra = mst.extra; ADDR = mst.addr || {};
-      if (root.classList.contains("cdp-boot")) root.classList.remove("cdp-boot");
+    var v = docVersion(doc);
+    META = doc && doc.meta && typeof doc.meta === "object" ? doc.meta : null;
+
+    if (v === DATA_V) {
+      READONLY = false;
+      var items = {};
+      Object.keys(doc.items || {}).forEach(function (id) {
+        if (!id) return;
+        items[id] = normalizeItem(id, doc.items[id]);
+      });
+      /* 云端突然空了但底表还有菜 —— 宁可只读报警，也不要静默抹掉清单 */
+      if (!Object.keys(items).length && BASE.length) {
+        READONLY = true; hydrated = false;
+        setBadge("数据异常·未写入", "warn");
+      }
+      ITEMS = items;
+      applyOverlay();
+      hydrated = !READONLY;
+      if (silent && (isEditing() || isSorting())) { pendingRender = true; return false; }
+      pendingRender = false;
+      if (READONLY) { render({ force: true }); return false; }
       render();
-      try { setBadge("没连上，先看看上次的"); } catch (e) {}
+      if (!dirtyNow()) setBadge("已同步", "ok");
+      return true;
+    }
+
+    if (v === 4) {
+      /* 兼容期：老文档只读 + 角标提示。绝不写 —— 写就等于把 v5 打回 v4。 */
+      READONLY = true; hydrated = false;
+      ITEMS = legacyToItems(doc);
+      applyOverlay();
+      if (silent && (isEditing() || isSorting())) { pendingRender = true; return false; }
+      render({ force: true });
+      setBadge("旧版本·请刷新升级", "warn");
       return false;
     }
-    TS = mergeState(TS, doc);
-    scanMax();
-    var st = buildState(TS);
-    state.done = st.done;
-    state.extra = st.extra;
-    ADDR = st.addr || {};
-    if (silent) { save(); return false; }
-    hydrated = true;
-    save();
-    if (isEditing()) { pendingRender = true; return false; }
-    pendingRender = false;
-    if (root.classList.contains("cdp-boot")) root.classList.remove("cdp-boot");
-    render();
+
+    READONLY = true; hydrated = false;
+    setBadge("数据异常·未写入", "warn");
+    return false;
+  }
+
+  /* ===== 写：叶子路径 PATCH =====
+     一次多路径 body：{"items/<id>/done": true, "items/<id>/doneAt": 123, "meta/updatedAt": 123}
+     Firebase 对 PATCH 的语义是「只碰点名路径，且原子（要么全成要么全败）」。 */
+  function itemPath(id, field) { return "items/" + id + "/" + (field || ""); }
+
+  function dirtyNow() { return Object.keys(PENDING).length > 0; }
+
+  function applyOverlay() {
+    Object.keys(PENDING).forEach(function (p) {
+      var seg = p.split("/");
+      if (seg[0] !== "items") return;
+      var id = seg[1];
+      if (seg.length === 2) {
+        var rec = PENDING[p];
+        if (rec && typeof rec === "object") ITEMS[id] = normalizeItem(id, rec);
+        else if (rec === null) delete ITEMS[id];
+        return;
+      }
+      if (seg.length === 3) {
+        if (!ITEMS[id]) ITEMS[id] = blankItem(id, id, 0);
+        ITEMS[id][seg[2]] = PENDING[p];
+      }
+    });
+  }
+
+  function canWrite() {
+    if (READONLY) { setBadge("旧版本·请刷新升级", "warn"); return false; }
+    if (!hydrated) { setBadge("未连上·暂不能改", "warn"); return false; }
     return true;
   }
 
-  /* 探测 Worker 是否已支持 order 字段（结果缓存到 localStorage，成功才上传） */
-  var ORDER_OK = null;
-  function probeOrder() {
-    /* Gist 直连不需要探测 Worker 能力；此前探测已死的 pages.dev 每次留 2 条 CORS error */
-    ORDER_OK = true;
-    return Promise.resolve(true);
+  /* 把改动塞进待发队列（PENDING 同时也是乐观层的叠加） */
+  function enqueue(patch) {
+    if (!canWrite()) return false;
+    Object.keys(patch).forEach(function (p) { PENDING[p] = patch[p]; });
+    applyOverlay();
+    scheduleFlush();
+    return true;
   }
-  function probeOrderUnused() {
-    if (ORDER_OK !== null) return Promise.resolve(ORDER_OK);
-    try {
-      var c = window.localStorage.getItem("cdp-order-ok");
-      if (c === "1") { ORDER_OK = true; return Promise.resolve(true); }
-      /* 失败不缓存：Worker 更新后下一次启动会自动重探 */
-    } catch (e) {}
-    /* 只读探测：GET 到合法 JSON 说明协议可用；绝不发 POST（POST 会整份覆盖远端） */
-    return fetch(WORKER + "/data", {
-      method: "GET",
-      headers: { "Authorization": "Bearer " + WKEY },
-      cache: "no-store"
+
+  function scheduleFlush() {
+    if (!dirtyNow()) return;
+    var now = Date.now();
+    if (!flushFirstAt) flushFirstAt = now;
+    var wait = Math.max(0, Math.min(PATCH_DELAY, PATCH_MAXWAIT - (now - flushFirstAt)));
+    if (flushTimer) window.clearTimeout(flushTimer);
+    setBadge(wait > 0 ? "待同步" : "同步中", "busy");
+    flushTimer = window.setTimeout(function () { flushTimer = 0; flushNow(false); }, wait);
+  }
+
+  function flushNow(keepalive) {
+    if (flushTimer) { window.clearTimeout(flushTimer); flushTimer = 0; }
+    /* v4 / 未连上时绝不发 PATCH：否则会把 meta/v=5 盖到 v4 文档上，旧客户端读不懂 */
+    if (READONLY || !hydrated) return Promise.resolve(false);
+    if (!dirtyNow()) return Promise.resolve(true);
+    if (net.flushing) return net.flushing;
+    flushFirstAt = 0;
+
+    var paths = Object.keys(PENDING);
+    var body = {};
+    paths.forEach(function (p) { body[p] = PENDING[p]; });
+    /* 每次写都顺带把 meta 钉在 v5：任何一次 PATCH 都让文档自证版本 */
+    body["meta/v"] = DATA_V;
+    body["meta/minV"] = MIN_V;
+    body["meta/updatedAt"] = Date.now();
+
+    var ac = window.AbortController ? new AbortController() : null;
+    var timer = ac ? window.setTimeout(function () { try { ac.abort(); } catch (e) {} }, 12000) : 0;
+    setBadge("同步中", "busy");
+
+    var p = fetch(DOC_URL, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      cache: "no-store",
+      keepalive: !!keepalive,
+      signal: ac ? ac.signal : undefined
     }).then(function (r) {
-      return r.ok ? r.json().then(function (d) { return !!(d && typeof d === "object"); }).catch(function () { return false; }) : false;
-    }).then(function (ok) {
-      ORDER_OK = !!ok;
-      try { if (ORDER_OK) window.localStorage.setItem("cdp-order-ok", "1"); } catch (e) {}
-      return ORDER_OK;
-    }).catch(function () { return false; });
+      if (timer) window.clearTimeout(timer);
+      if (r.status === 412 || r.status === 409) { var ec = new Error("conflict"); ec.kind = "conflict"; throw ec; }
+      if (!r.ok) return r.text().then(function (txt) { throw mkErr(r, txt); }, function () { throw mkErr(r, ""); });
+      /* 只清掉「这批发出去的值没被新意图覆盖」的路径 */
+      paths.forEach(function (pth) { if (own(PENDING, pth) && PENDING[pth] === body[pth]) delete PENDING[pth]; });
+      failCount = 0; lastErr = null;
+      if (!dirtyNow()) { setBadge("已同步", "ok"); if (staleAgain) { staleAgain = false; scheduleRefresh(); } }
+      return true;
+    }, function (err0) {
+      if (timer) window.clearTimeout(timer);
+      var e = err0 || new Error("patch failed");
+      if (e.name === "AbortError" || e.code === "timeout") e.kind = "timeout";
+      if (!e.kind) e.kind = "offline";
+      throw e;
+    });
+
+    net.flushing = p.then(function (v) {
+      net.flushing = null;
+      if (dirtyNow()) scheduleFlush();
+      return v;
+    }, function (e) {
+      net.flushing = null;
+      failCount++;
+      lastErr = e || null;
+      setBadge(failText(e), failState(e));
+      if (badge) badge.setAttribute("title", errTitle(e));
+      /* 待发改动留在队列里，退避重试；用户在页面上再点一下也会立刻重试 */
+      var back = Math.min(8000, 600 * Math.pow(2, Math.min(4, failCount - 1)));
+      window.setTimeout(function () { if (dirtyNow() && !net.flushing) flushNow(false); }, back);
+      return false;
+    });
+    return net.flushing;
   }
 
-  function snapshot() {
-    var _snap = { v: SCHEMA_V, rev: TS.rev || 0, updatedAt: new Date().toISOString(), done: TS.done || {}, extra: TS.extra || {}, del: TS.del || {}, delT: TS.delT || 0, rosterT: TS.rosterT || 0, addr: TS.addr || {}, score: TS.score || {} };
-  if (ORDER_OK) _snap.order = TS.order || { v: [], t: 0 };
-  return _snap;
+  /* 离页保底：keepalive PATCH，同样只发叶子路径，绝不整份 PUT */
+  function sendKeepalive() {
+    if (!dirtyNow() || READONLY || !hydrated) return;
+    try {
+      var body = {};
+      Object.keys(PENDING).forEach(function (p) { body[p] = PENDING[p]; });
+      body["meta/v"] = DATA_V;
+      body["meta/updatedAt"] = Date.now();
+      fetch(DOC_URL, {
+        method: "PATCH", keepalive: true, cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      }).then(function () { Object.keys(PENDING).forEach(function (p) { delete PENDING[p]; }); }, function () {});
+    } catch (e) {}
   }
-  function contentKey(d) {
-    return JSON.stringify({ d: d.done || {}, e: d.extra || {}, x: d.del || {}, a: d.addr || {}, s: d.score || {}, o: (d.order && d.order.v) || [] });
+
+  /* ===== 业务操作：每个都只改自己那几个叶子 ===== */
+  function setDone(id, on) {
+    var it = itemOf(id);
+    if (!it) return false;
+    if (!canWrite()) return false;
+    var t = tsNow();
+    var patch = {};
+    patch["items/" + id + "/done"] = !!on;
+    patch["items/" + id + "/doneAt"] = t;
+    if (!enqueue(patch)) return false;
+    if (it) { it.done = !!on; it.doneAt = t; }
+    paint();
+    return true;
   }
 
+  function setAddr(id, v) {
+    var it = itemOf(id);
+    if (!it) return false;
+    v = String(v == null ? "" : v).replace(/\s+/g, " ").trim();
+    v = Array.from(v).slice(0, 40).join("");     /* 按码点截断，避免切出孤立代理 */
+    if (v === (it.addr || "")) return false;
+    if (!canWrite()) return false;
+    var t = tsNow();
+    var patch = {};
+    patch["items/" + id + "/addr"] = v;
+    patch["items/" + id + "/addrAt"] = t;
+    if (!enqueue(patch)) return false;
+    it.addr = v; it.addrAt = t;
+    return true;
+  }
 
-  function mergeState(a, b) {
-    var out = { v: SCHEMA_V, rev: 0, updatedAt: new Date().toISOString(), done: {}, extra: {}, del: {}, addr: {}, score: {} };
-    ["done", "extra", "del"].forEach(function (f) {
-      var x = (a && a[f]) || {}, y = (b && b[f]) || {}, m = out[f];
-      Object.keys(x).forEach(function (k) { var xv = Number(x[k]); if (isFinite(xv) && xv) m[k] = xv; });
-      Object.keys(y).forEach(function (k) {
-        var yv = Number(y[k]);
-        if (!isFinite(yv) || yv === 0) return;
-        if (!own(m, k)) { m[k] = yv; return; }
-        var mv = Number(m[k]);
-        if (!isFinite(mv) || mv === 0) { m[k] = yv; return; }
-        var ay = Math.abs(yv), am = Math.abs(mv);
-        if (ay > am) { m[k] = yv; return; }
-        if (ay < am) return;
-        if (f === "done" && yv < 0 && mv >= 0) { m[k] = yv; return; }
-        if (f === "done" && mv < 0 && yv >= 0) return;
-        if (String(yv) > String(mv)) m[k] = yv;
-      });
-    });
-    var ax = (a && a.addr) || {}, ay = (b && b.addr) || {};
-    Object.keys(ax).forEach(function (k) { var n = normAddr(ax[k]); if (n) out.addr[k] = n; });
-    Object.keys(ay).forEach(function (k) { var n = pickAddr(out.addr[k], ay[k]); if (n) out.addr[k] = n; });
-    // score 合并：按 t 取新
-    /* score 按字段合并：程程(me) 与 倩倩(her) 各自比 t，互不覆盖 */
-    var sx = (a && a.score) || {}, sy = (b && b.score) || {};
-    Object.keys(sx).forEach(function (k) { out.score[k] = Object.assign({}, sx[k]); });
-    Object.keys(sy).forEach(function (k) {
-      var x = out.score[k], y = sy[k];
-      if (!x) {
-        var m0 = {};
-        ["me", "her"].forEach(function (who) { if (typeof y[who] === "number") m0[who] = y[who]; });
-        m0.t = y.t || 0;
-        out.score[k] = m0;
-        return;
-      }
-      var merged = {};
-      ["me", "her"].forEach(function (who) {
-        var xv = x[who], yv = y[who];
-        if (typeof yv === "number" && (typeof xv !== "number" || (y.t || 0) > (x.t || 0))) merged[who] = yv;
-        else if (typeof xv === "number") merged[who] = xv;
-      });
-      merged.t = Math.max(x.t || 0, y.t || 0);
-      out.score[k] = merged;
-    });
-    /* order 合并：取并集，不按 t 整份覆盖
-       原实现「谁的时间戳新整份用谁的」会让每台设备各执一份、互相清空。
-       （2026-11-24 实测：我写入 18 项，被手机那份 6 项覆盖回去） */
-    var oa = (a && a.order) || null, ob = (b && b.order) || null;
-    function normOrder(o) {
-      if (!o) return null;
-      var v = o.v;
-      if (Object.prototype.toString.call(v) !== "[object Array]") return null;  /* 兼容 Firebase 把数组存成对象的情况 */
-      return { v: v.filter(function (x) { return typeof x === "string" && x; }), t: o.t || 0 };
-    }
-    var na = normOrder(oa), nb = normOrder(ob);
-    if (!na && !nb) { out.order = { v: [], t: 0 }; }
-    else if (!na) { out.order = nb; }
-    else if (!nb) { out.order = na; }
-    else {
-      var newer = (nb.t >= na.t) ? nb.v : na.v;
-      var older = (nb.t >= na.t) ? na.v : nb.v;
-      var merged = newer.slice();
-      for (var oi = 0; oi < older.length; oi++) {
-        if (merged.indexOf(older[oi]) === -1) merged.push(older[oi]);
-      }
-      out.order = { v: merged, t: Math.max(na.t, nb.t) };
-    }
-    /* del 墓碑：并集 + 垃圾回收。
-       原实现只「加」不「删」：远端把墓碑清空后，本地旧墓碑没有任何代码去删它，
-       于是每次加载都把菜挡住（2026-11-24 r2-data 精确复现：PC 端只剩 4 个）。
-       现在：先取并集保住各设备的删除记录，再用 delT 较新那一方的 del 做 GC——
-       它里面没有的键，说明那个时刻之后已被清理，一律丢弃。 */
-    var dta = (a && typeof a.delT === "number") ? a.delT : 0;
-    var dtb = (b && typeof b.delT === "number") ? b.delT : 0;
-    var delA = (a && a.del) || {}, delB = (b && b.del) || {};
-    var dmerged = {};
-    Object.keys(delA).forEach(function (k) { var v = Number(delA[k]); if (isFinite(v) && v) dmerged[k] = v; });
-    Object.keys(delB).forEach(function (k) {
-      var v = Number(delB[k]);
-      if (!isFinite(v) || !v) return;
-      if (!own(dmerged, k)) { dmerged[k] = v; return; }
-      if (Math.abs(v) >= Math.abs(Number(dmerged[k]) || 0)) dmerged[k] = v;
-    });
-    if (dta || dtb) {
-      var gcSrc = (dtb >= dta) ? delB : delA;   /* delT 较新的一方是「清理后的真相」 */
-      Object.keys(dmerged).forEach(function (k) {
-        if (!own(gcSrc, k)) delete dmerged[k];  /* 它里面没有 → 已被清理 → 丢弃 */
-      });
-    }
-    out.del = dmerged;
-    out.delT = Math.max(dta, dtb);
-
-    /* 清单版本（rosterT）：后台做过「整体收敛」后，本地残留的旧菜与旧顺序一律作废。
-       extra/order 原来是「只加不减」的并集，导致云端删了 10 条、本机还渲染 18 个。
-       rosterT 更新的一方整体接管这两项，旧条目才能真的消失。（2026-11-24） */
-    var rta = (a && typeof a.rosterT === "number") ? a.rosterT : 0;
-    var rtb = (b && typeof b.rosterT === "number") ? b.rosterT : 0;
-    if (rta !== rtb) {
-      var rwin = (rtb > rta) ? b : a;
-      out.extra = Object.assign({}, (rwin.extra || {}));
-      if (rwin.order && Object.prototype.toString.call(rwin.order.v) === "[object Array]") {
-        out.order = { v: rwin.order.v.slice(), t: rwin.order.t || 0 };
-      }
-    }
-    out.rosterT = Math.max(rta, rtb);
-    out.rev = Math.max((a && a.rev) || 0, (b && b.rev) || 0);
+  function scoreOf(id) {
+    var it = itemOf(id);
+    if (!it) return {};
+    var out = { t: num0(it.ratingAt) };
+    if (typeof it.ratingMe === "number") out.me = it.ratingMe;
+    if (typeof it.ratingHer === "number") out.her = it.ratingHer;
+    /* 迁移只给出单值 rating 的条目：两人面板都显示这个值，不假装有第二个人打过分 */
+    if (typeof out.me !== "number" && !own(out, "her") && it.rating) out.me = it.rating;
+    if (typeof out.her !== "number" && !own(out, "me") && it.rating) out.her = it.rating;
     return out;
   }
 
-
-  function buildState(doc) {
-    var st = { done: {}, extra: [], addr: {} };
-    Object.keys(doc.done || {}).forEach(function (k) { if (doc.done[k] > 0) st.done[k] = 1; });
-    Object.keys(doc.extra || {}).forEach(function (k) {
-      var d = doc.del && doc.del[k];
-      if (!(typeof d === "number" && Math.abs(d) >= Math.abs(doc.extra[k]))) st.extra.push(k);
-    });
-    st.extra.sort(function (x, y) { return (doc.extra[x] - doc.extra[y]) || (x < y ? -1 : x > y ? 1 : 0); });
-    Object.keys(doc.addr || {}).forEach(function (k) {
-      var a = normAddr(doc.addr[k]);
-      if (!a) return;
-      var d = doc.del && doc.del[k];
-      if (typeof d === "number" && d >= a.t) return;
-      if (a.v) st.addr[k] = a.v;
-    });
-    return st;
+  function setRating(id, who, val) {
+    var it = itemOf(id);
+    if (!it) return false;
+    if (!canWrite()) return false;
+    var me = who === "me" ? val : (typeof it.ratingMe === "number" ? it.ratingMe : undefined);
+    var her = who === "her" ? val : (typeof it.ratingHer === "number" ? it.ratingHer : undefined);
+    var vals = [];
+    if (typeof me === "number") vals.push(me);
+    if (typeof her === "number") vals.push(her);
+    var avg = vals.length ? round1(vals.reduce(function (x, y) { return x + y; }, 0) / vals.length) : 0;
+    var t = tsNow();
+    var patch = {};
+    patch["items/" + id + "/" + (who === "me" ? "ratingMe" : "ratingHer")] = val;
+    patch["items/" + id + "/rating"] = avg;
+    patch["items/" + id + "/ratingAt"] = t;
+    if (!enqueue(patch)) return false;
+    if (who === "me") it.ratingMe = val; else it.ratingHer = val;
+    it.rating = avg; it.ratingAt = t;
+    return true;
   }
 
+  /* 新增：整条 item 写成一个子节点（不是整份文档） */
+  function addItem(name) {
+    var v = String(name == null ? "" : name).replace(/\s+/g, " ").trim();
+    v = Array.from(v).slice(0, 16).join("");
+    if (!v) return "empty";
+    if (!canWrite()) return "readonly";
+    var id = fbKey(v);
+    var old = itemOf(id);
+    if (old && !old.del) return "exists";
+    if (old && old.del) {
+      /* 墓碑复活：只翻 del，不重建记录（地址/评分原样留着） */
+      var t0 = tsNow();
+      var p0 = {};
+      p0["items/" + id + "/del"] = false;
+      p0["items/" + id + "/delAt"] = t0;
+      if (!enqueue(p0)) return "readonly";
+      old.del = false; old.delAt = t0;
+      render({ force: true, enter: id });
+      return "restored";
+    }
+    id = uniqueKey(id);
+    var rec = blankItem(id, v, maxOrd() + 1000);
+    var pn = {};
+    pn["items/" + id] = rec;
+    if (!enqueue(pn)) return "readonly";
+    ITEMS[id] = rec;
+    render({ force: true, enter: id });
+    return "added";
+  }
 
+  /* 删除：墓碑，不真删节点 */
+  function removeItem(id) {
+    var it = itemOf(id);
+    if (!it) return false;
+    if (!canWrite()) return false;
+    var t = tsNow();
+    var patch = {};
+    patch["items/" + id + "/del"] = true;
+    patch["items/" + id + "/delAt"] = t;
+    if (!enqueue(patch)) return false;
+    it.del = true; it.delAt = t;
+    return true;
+  }
+
+  /* 撤销删除 / 复活：只翻 del，地址与评分原样还在 */
+  function restoreItem(id) {
+    var it = itemOf(id);
+    if (!it || !it.del) return false;
+    if (!canWrite()) return false;
+    var t = tsNow();
+    var patch = {};
+    patch["items/" + id + "/del"] = false;
+    patch["items/" + id + "/delAt"] = t;
+    if (!enqueue(patch)) return false;
+    it.del = false; it.delAt = t;
+    return true;
+  }
+
+  /* 中点值：把条目插到 a、b 之间。返回 null = 空隙太挤，调用方应整表重排 */
+  function ordBetween(a, b) {
+    if (typeof a !== "number" || !isFinite(a)) a = 0;
+    if (typeof b !== "number" || !isFinite(b)) b = a + 1000;
+    var gap = b - a;
+    if (!(gap > 0.0001)) return null;
+    return Math.round((a + gap / 2) * 1e6) / 1e6;
+  }
+
+  /* 找出「被移动的那一条」：把它摘掉、按其目标下标插回，能复原新顺序才算。
+     （不能只看第一个错位元素 —— 把末条拖到首位时第一个错位的其实是原首条，
+       那样算出来的 ord 会让顺序错位。）找不到唯一解 = 多点位移，直接整表重排。 */
+  function findMoved(visIds, orderedIds) {
+    if (visIds.length !== orderedIds.length) return null;
+    for (var i = 0; i < visIds.length; i++) {
+      var cand = visIds[i];
+      var rest = visIds.slice(0, i).concat(visIds.slice(i + 1));
+      var tgt = orderedIds.indexOf(cand);
+      if (tgt < 0) continue;
+      var attempt = rest.slice(0, tgt).concat([cand], rest.slice(tgt));
+      if (attempt.join("\u0000") === orderedIds.join("\u0000")) return cand;
+    }
+    return null;
+  }
+
+  /* 拖拽落地：先试中点值，太挤就整表重排（一次 PATCH 全量 ord，原子） */
+  function commitOrder(orderedIds) {
+    if (!canWrite()) return false;
+    var vis = visibleItems();
+    if (vis.length < 2) return false;
+    var visIds = vis.map(function (it) { return it.id; });
+    if (visIds.join("\u0000") === orderedIds.join("\u0000")) return false;   /* 没变 */
+    var ordOf = {};
+    vis.forEach(function (it) { ordOf[it.id] = it.ord; });
+    var moved = findMoved(visIds, orderedIds);
+
+    var mid = null;
+    if (moved !== null) {
+      var pos = orderedIds.indexOf(moved);
+      var prev = pos > 0 ? ordOf[orderedIds[pos - 1]] : null;
+      var next = pos < orderedIds.length - 1 ? ordOf[orderedIds[pos + 1]] : null;
+      if (prev === null && next === null) mid = 1000;
+      else if (prev === null) mid = num0(next) - 1000;          /* 插到最前 */
+      else if (next === null) mid = num0(prev) + 1000;          /* 插到最后 */
+      else mid = ordBetween(prev, next);                        /* 中间取中点 */
+    }
+
+    if (mid !== null && moved !== null) {
+      var pm = {};
+      pm["items/" + moved + "/ord"] = mid;
+      if (!enqueue(pm)) return false;
+      if (ITEMS[moved]) ITEMS[moved].ord = mid;
+      return true;
+    }
+    /* 整表重排：8 条一次 update = 一次原子 PATCH，顺带把间距重新拉开 */
+    var patch = {};
+    orderedIds.forEach(function (id, i2) { patch["items/" + id + "/ord"] = (i2 + 1) * 1000; });
+    if (!enqueue(patch)) return false;
+    orderedIds.forEach(function (id, i3) { if (ITEMS[id]) ITEMS[id].ord = (i3 + 1) * 1000; });
+    return true;
+  }
+
+  /* ===== 渲染前的小工具 ===== */
   function isEditing() {
     var a = document.activeElement;
     if (!a || a === document.body) return false;
@@ -550,217 +717,13 @@ var FB_PATH = "/zhuhai-chida.json";
     try { return !!(a.isContentEditable && root.contains(a)); } catch (e) { return false; }
   }
 
-
-  function patchOnce(retry) {
-    /* 写前必须读最新，不能吃 20 秒内的缓存快照。
-       否则：A 删了一道菜 → B 在 20 秒内写别的 → B 用的是旧快照 → 整份 PUT 把 A 的删除抹掉。
-       这就是「删掉的菜又回来了」的根因（2026-11-24 定位）。 */
-    net.get = null;
-    return fetchData(true).then(function (res) {
-      /* 本次读失败 / 只拿到静态镜像 → 一律不写。这是唯一可靠的覆盖防护。 */
-      if (!res || !res.doc || res.doc.__mirror) {
-        setBadge("还没连上，这次没存", "warn");
-        markPending(true);
-        return false;
-      }
-      var d = res.doc;
-      var okShape = d && (d.v === 3 || d.v === SCHEMA_V) && typeof d.rev === "number" && d.done && typeof d.done === "object" && d.extra && typeof d.extra === "object";
-      if (!okShape) { setBadge("数据有问题，这次没存", "warn"); markPending(true); return false; }
-      hydrated = true;
-      applyDoc(d, true);
-      var doc = snapshot();
-      var text = JSON.stringify(doc, null, 1);
-      if (net.lastBody === contentKey(doc) && retry === 0) { setBadge("已自动保存", "ok"); return true; }
-      setBadge("同步中", "busy");
-      var putHeaders = { "Content-Type": "application/json" };
-      /* 乐观锁：带读时的 ETag，别人先写过就 412，避免整份覆盖丢写 */
-      if (net.etag) putHeaders["if-match"] = net.etag;
-      /* 写也要有超时：原来只给 GET 加了 12 秒，写路径裸奔——
-         半死连接会悬挂 22 秒以上，锁死 net.patch，之后所有点击都不落盘 */
-      var pac = window.AbortController ? new AbortController() : null;
-      var ptimer = pac ? window.setTimeout(function () { try { pac.abort(); } catch (e) {} }, 12000) : 0;
-      var putP = fetch(FB + FB_PATH, {
-        method: "PUT",
-        headers: putHeaders,
-        body: text,
-        cache: "no-store",
-        signal: pac ? pac.signal : undefined
-      }).then(function (r) {
-        if (ptimer) window.clearTimeout(ptimer);
-        var et2 = r.headers.get("ETag") || "";
-        if (et2) { try { net.etag = et2.replace(/^W\//, "").replace(/"/g, ""); } catch (e2) {} }
-        if (r.status === 412) { var e412 = new Error("precondition"); e412.kind = "conflict"; throw e412; }
-        if (!r.ok) {
-          var e = new Error("worker " + r.status);
-          e.kind = r.status === 409 ? "conflict" : (r.status === 401 ? "key_bad" : "server");
-          throw e;
-        }
-        failCount = 0; lastErr = null; net.lastBody = contentKey(doc);
-        setBadge("已自动保存", "ok");
-        /* 写成功后强制回读一次（绕过 CDN 缓存），本机立刻确认远端已是刚写入的版本 */
-        net.get = null;
-        fetchData(true).then(function (r2) {
-          if (r2 && r2.doc && !r2.doc.__mirror) applyDoc(r2.doc, true);
-        }).catch(function () {});
-        return true;
-      }, function (pe) {
-        if (ptimer) window.clearTimeout(ptimer);
-        var e3 = new Error("put timeout");
-        e3.kind = "timeout";
-        throw e3;
-      });
-      return putP.then(null, function (e) {
-        if (e && e.kind === "conflict" && retry < 2) {
-          setBadge("别人刚改过，正在重试", "warn");
-          return new Promise(function (r) { window.setTimeout(r, 400 * Math.pow(2, retry)); })
-            .then(function () { return patchOnce(retry + 1); });
-        }
-        throw (e || new Error("push failed"));
-      });
-    });
-  }
-
-  function saveData() {
-    if (net.patch) { net.dirty = true; markPending(true); return net.patch; }
-    net.dirty = false; net.pending = true; markPending(true);
-    var chain = (function loop() {
-      return patchOnce(0).then(function (ok) {
-        net.pending = false; markPending(false);
-        if (net.dirty) { net.dirty = false; return loop(); }
-        return ok;
-      }, function (e) {
-        net.pending = true; markPending(true);
-        failCount++;
-        lastErr = e || null;
-        setBadge(failText(e), failState(e));
-        if (badge) badge.setAttribute("title", errTitle(e));
-        return false;
-      });
-    })();
-    net.patch = chain.then(function (v) { net.patch = null; return v; }, function () { net.patch = null; return false; });
-    return net.patch;
-  }
-
-  /* R2: 未 hydrate（没成功读到远端）时禁止任何写入，避免用空壳覆盖云端 */
-  function canWrite() {
-    if (hydrated) return true;
-    try { setBadge("还没连上，先不能改"); } catch (e) {}
-    return false;
-  }
-
-  function push() {
-    if (!canWrite()) { markPending(true); return; }   /* 先记待发，再退出 */
-    if (!WORKER) { setBadge("未配置同步地址", "fail"); saveTs(); markPending(true); return; }
-    net.pending = true; markPending(true);
-    var now = Date.now();
-    if (!pushFirstAt) pushFirstAt = now;
-    var wait = Math.max(0, Math.min(PUSH_DELAY, PUSH_MAXWAIT - (now - pushFirstAt)));
-    window.clearTimeout(pushTimer);
-    setBadge(wait > 0 ? "待同步" : "同步中", "busy");
-    pushTimer = window.setTimeout(function () { pushTimer = 0; pushFirstAt = 0; saveData(); }, wait);
-  }
-  function dirtyNow() { return !!(net.pending || net.dirty || pushTimer || readPending()); }
-  function flushNow() {
-    window.clearTimeout(pushTimer); pushTimer = 0; pushFirstAt = 0;
-    if (!dirtyNow()) return;
-    if (net.patch) { net.dirty = true; markPending(true); return; }
-    saveData();
-  }
-  function sendKeepalive() {
-    if (!canWrite()) return;
-    try {
-      var text = JSON.stringify(snapshot(), null, 1);
-      if (text.length > 60000) { setBadge("改动太大·未上传", "fail"); return; }
-      var u = FB + FB_PATH;
-      /* 保底写入必须用 PUT：Firebase REST 的 POST 是 push，会生成 -Nxxxx 随机键，
-         把整份文档挂到子节点下（2026-11-24 实测：数据里出现 -P7B7Wh_75yZClh0MOAd）。
-         sendBeacon 只能发 text/plain，Firebase 不接受；改用 fetch keepalive + PUT。 */
-      fetch(u, {
-        method: "PUT", keepalive: true, cache: "no-store",
-        headers: { "Content-Type": "application/json" },
-        body: text
-      }).then(function () { markPending(false); net.lastBody = null; }, function () {});
-    } catch (e) {}
-  }
-
-  function leaveOnce(stopPoll) {
-    if (stopPoll && pollTimer) { window.clearInterval(pollTimer); pollTimer = 0; }
-    if (!dirtyNow()) return;
-    var now = Date.now();
-    if (!stopPoll && now - leaveSent < 2000) return;
-    leaveSent = now;
-    sendKeepalive();
-  }
-
-  /* ===== 强制刷新 ===== */
-  function forceRefresh() {
-    flushNow();
-    ETAG = ""; net.get = null; net.getAt = 0; failCount = 0;
-    setBadge(TOKEN ? "强制拉取中" : "正在读最新", "busy");
-    return fetchData().then(function (res) {
-      if (res && res.doc) {
-        hydrated = true;
-        applyDoc(res.doc);
-        setBadge(res && res.viaWorker ? "已取最新" : "没连上，先看看上次的", res && res.viaWorker ? "ok" : "warn");
-        window.setTimeout(function () { if (badge && badge.textContent === "已取最新") setBadge("已自动保存", "ok"); }, 1600);
-        return true;
-      }
-      if (res && res.unchanged) { setBadge(TOKEN ? "已是最新" : "只读·点我绑定", TOKEN ? "ok" : "warn"); return true; }
-      setBadge(failText(lastErr), failState(lastErr));
-      if (badge) badge.setAttribute("title", errTitle(lastErr));
-      return false;
-    });
-  }
-
-  var holdTimer = 0, holdFired = false;
-  function holdStart() {
-    if (holdTimer) return;
-    holdFired = false;
-    holdTimer = window.setTimeout(function () { holdTimer = 0; holdFired = true; forceRefresh(); }, 800);
-  }
-  function holdEnd() { if (holdTimer) { window.clearTimeout(holdTimer); holdTimer = 0; } }
-  badge.addEventListener("pointerdown", holdStart);
-  badge.addEventListener("pointerup", holdEnd);
-  badge.addEventListener("pointerleave", holdEnd);
-  badge.addEventListener("pointercancel", holdEnd);
-  badge.addEventListener("keydown", function (ev) {
-    if (ev.key !== "Enter" && ev.key !== " ") return;
-    ev.preventDefault();
-    if (ev.shiftKey) { forceRefresh(); return; }
-    if (badge) badge.click();
-  });
-
-  function askToken() {
-    var tip = TOKEN ? "当前 token 已失效。粘贴新的 GitHub token（只存本机，不上传）：" : "粘贴 GitHub token（只存本机，不上传）：";
-    var t = window.prompt(tip, "");
-    if (t === null) return;
-    t = String(t).trim();
-    if (!t) return;
-    TOKEN = t; ETAG = ""; net.get = null; net.getAt = 0; lastErr = null; failCount = 0;
-    saveCfg({ gist: GIST.id, token: TOKEN });
-    setBadge("新 token·验证中", "busy");
-    forceRefresh();
-  }
-  window.cdpAskToken = askToken;
-
-  if (badge) badge.addEventListener("click", function () {
-    if (holdFired) { holdFired = false; return; }
-    /* Firebase 无需 token：点角标 = 强制拉最新 */
-    failCount = 0;
-    if (net.pending || net.dirty) { setBadge("重试中", "busy"); saveData(); return; }
-    setBadge("检测中", "busy");
-    fetchData().then(function (res) {
-      if (res && res.doc) { applyDoc(res.doc); setBadge(res.viaWorker ? "已自动保存" : "没连上，先看看上次的", res.viaWorker ? "ok" : "warn"); }
-      else if (res && res.unchanged) { setBadge("已自动保存", "ok"); }
-      else { setBadge(failText(lastErr), failState(lastErr)); }
-    });
-  });
-
-  /* ===== 渲染 ===== */
-  function rowEl(text) {
+  /* ===== 行 DOM（结构与 class 与 v4 保持一致，CSS 那路不必跟着改） ===== */
+  function rowEl(it) {
+    var text = it.name, id = it.id;
     var li = document.createElement("li");
     li.className = "cdp-row";
     li.setAttribute("data-text", text);
+    li.setAttribute("data-id", id);
     var tick = document.createElement("button");
     tick.type = "button"; tick.className = "cdp-tick"; tick.setAttribute("aria-pressed", "false");
     tick.setAttribute("aria-label", "标记 " + text + " 已吃");
@@ -775,28 +738,22 @@ var FB_PATH = "/zhuhai-chida.json";
     addr.setAttribute("draggable", "false");
     addr.setAttribute("role", "textbox");
     addr.setAttribute("aria-label", text + " 的地址，可输入");
-    addr.setAttribute("data-ph", "写个地址，去的时候好找");
-    addr.textContent = ADDR[text] || "";
+    addr.setAttribute("data-ph", "地址");
+    addr.textContent = it.addr || "";
     addr.addEventListener("click", function (ev) { ev.stopPropagation(); });
     addr.addEventListener("mousedown", function (ev) { ev.stopPropagation(); });
     addr.addEventListener("keydown", function (ev) {
       if (ev.isComposing || ev.keyCode === 229) return;
       if (ev.key === "Enter") { ev.preventDefault(); addr.blur(); }
-      else if (ev.key === "Escape") { ev.preventDefault(); addr.textContent = ADDR[text] || ""; addr.blur(); }
+      else if (ev.key === "Escape") { ev.preventDefault(); addr.textContent = (itemOf(id) || {}).addr || ""; addr.blur(); }
     });
     addr.addEventListener("focusout", function () {
-      try { addr.scrollLeft = 0; } catch (e) {}   /* 失焦后从头显示，而不是停在末尾 */
-      var v = (addr.textContent || "").replace(/\s+/g, " ").trim();
-      /* A-1: 按码点截断，slice(0,40) 会把 emoji 切成孤立代理，之后 encodeURIComponent 抛 URIError 导致整表清空 */
-      v = Array.from(v).slice(0, 40).join("");
+      try { addr.scrollLeft = 0; } catch (e) {}     /* 失焦后从头显示，而不是停在末尾 */
+      var v = Array.from((addr.textContent || "").replace(/\s+/g, " ").trim()).slice(0, 40).join("");
       addr.textContent = v;
-      if (has(BASE, text) || has(state.extra, text)) {
-        var old = own(ADDR, text) ? ADDR[text] : "";
-        if (v !== old) {
-          ADDR[text] = v;
-          TS.addr[text] = { t: tsNow(), v: v };
-          save(); push();
-        }
+      var cur = itemOf(id);
+      if (cur && v !== (cur.addr || "")) {
+        if (setAddr(id, v)) setBadge(dirtyNow() ? "待同步" : "已同步", dirtyNow() ? "busy" : "ok");
       }
       applyMapHref();
       if (pendingRender) window.setTimeout(function () {
@@ -811,13 +768,7 @@ var FB_PATH = "/zhuhai-chida.json";
     map.setAttribute("aria-label", "在地图里搜 " + text);
     map.setAttribute("title", "在地图里搜 " + text);
     map.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>';
-    /* A-1: 安全编码，脏值（孤立代理/非法码点）不应炸掉整个列表 */
-  function enc(s) {
-    try { return encodeURIComponent(String(s == null ? "" : s)); }
-    catch (e) { return encodeURIComponent(String(s).replace(/[\uD800-\uDFFF]/g, "")); }
-  }
-
-  function applyMapHref() {
+    function applyMapHref() {
       var q = (addr.textContent || "").replace(/\s+/g, " ").trim() || text;
       map.setAttribute("href", "https://uri.amap.com/search?keyword=" + enc(q) + "&city=" + encodeURIComponent("珠海") + "&view=map&callnative=0");
     }
@@ -835,13 +786,13 @@ var FB_PATH = "/zhuhai-chida.json";
     var rate = document.createElement("button");
     rate.type = "button"; rate.className = "cdp-rate"; rate.textContent = "★";
     rate.setAttribute("aria-label", "给 " + text + " 评分");
-    rate.addEventListener("click", function (ev) { ev.stopPropagation(); toggleScore(li, text); });
+    rate.addEventListener("click", function (ev) { ev.stopPropagation(); toggleScore(li, id, text); });
     li.appendChild(rate);
     var del = document.createElement("button");
     del.type = "button"; del.className = "cdp-del"; del.textContent = "×";
     del.setAttribute("aria-label", "删掉 " + text);
-    del.addEventListener("click", function (ev) { ev.stopPropagation(); removeRow(li, text); });
-    /* 记录按下位置与时刻，供上面的 click 容差判断使用 */
+    del.addEventListener("click", function (ev) { ev.stopPropagation(); removeRow(li, id); });
+    /* 记录按下位置与时刻，供下面的 click 容差判断使用 */
     li.addEventListener("pointerdown", function (ev) {
       if (ev.target && ev.target.closest && ev.target.closest(".cdp-del, .cdp-addr, .cdp-map, .cdp-rate")) { li.__downX = null; return; }
       li.__downX = ev.clientX || 0; li.__downY = ev.clientY || 0; li.__downT = Date.now();
@@ -861,28 +812,21 @@ var FB_PATH = "/zhuhai-chida.json";
       }
       if (ev.target && ev.target.closest && ev.target.closest(".cdp-del, .cdp-addr, .cdp-map, .cdp-score, .cdp-rate")) return;
       if (li.classList.contains("is-leaving")) return;
-      if (state.done[text]) { delete state.done[text]; TS.done[text] = -tsNow(); }
-      else { state.done[text] = 1; TS.done[text] = tsNow(); }
-      save(); push(); paint();
+      var cur = itemOf(id);
+      if (!cur) return;
+      if (setDone(id, !cur.done)) paint();
     });
     return li;
   }
 
-  function removeRow(li, text) {
+  function removeRow(li, id) {
     if (li.__leaving) return;
+    var cur = itemOf(id);
+    if (!cur) return;
+    if (!removeItem(id)) return;
+    setBadge(dirtyNow() ? "待同步" : "已同步", dirtyNow() ? "busy" : "ok");
     li.__leaving = true;
-    var now = tsNow();
-    var prev = Math.abs(Number(TS.done[text]) || 0);
-    state.extra = state.extra.filter(function (t) { return t !== text; });
-    delete state.done[text];
-    if (TS.order && TS.order.v) TS.order.v = TS.order.v.filter(function (x) { return x !== text; });
-    delete openScore[text];
-    TS.del[text] = now;
-    TS.delT = now;
-    /* R7: 删除只写 del 墓碑，不抹地址；复活时地址原样保留 */
-    TS.done[text] = -Math.max(now, prev + 1);
-    delete ADDR[text];
-    save(); push();
+    delete openScore[id];
     if (reducedMotion()) { render({ force: true }); return; }
     leaving++;
     li.classList.add("is-leaving");
@@ -899,19 +843,11 @@ var FB_PATH = "/zhuhai-chida.json";
     window.setTimeout(fin, 460);
   }
 
-  function isBaseDeleted(t) {
-    var d = TS.del && TS.del[t];
-    if (typeof d !== "number") return false;
-    var add = TS.extra && TS.extra[t];
-    return !(typeof add === "number" && add > d);
-  }
-
   /* ===== 评分：两人各 0.5–5 星（1–10 分），面板在卡片下方展开，不撑宽 ===== */
-  var openScore = {};   /* text -> true，面板展开状态，重绘后恢复 */
+  var openScore = {};   /* id -> true，面板展开状态，重绘后恢复 */
   var SCORE_WHO = [["me", "程程"], ["her", "倩倩"]];
-  function scoreOf(t) { return (TS.score && TS.score[t]) || {}; }
   function starOn(v, i) { return v >= (i + 1) * 2 ? 2 : (v >= i * 2 + 1 ? 1 : 0); }
-  function paintStars(box, v, who, text) {
+  function paintStars(box, v, who, id, text) {
     box.textContent = "";
     for (var i = 0; i < 5; i++) {
       var s = document.createElement("button");
@@ -924,32 +860,29 @@ var FB_PATH = "/zhuhai-chida.json";
           ev.stopPropagation();
           var r = this.getBoundingClientRect();
           /* 键盘/辅助技术触发 click 时 clientX 恒为 0，会一律判成半星；这种来源按整星处理 */
-        var half = ev.clientX > 0 ? ((ev.clientX - r.left) < r.width / 2) : false;
+          var half = ev.clientX > 0 ? ((ev.clientX - r.left) < r.width / 2) : false;
           var val = idx * 2 + (half ? 1 : 2);
-          if (!TS.score) TS.score = {};
-          if (!TS.score[text]) TS.score[text] = {};
-          TS.score[text][who] = val;
-          TS.score[text].t = tsNow();
-          save(); push();
-          paintStars(box, val, who, text);
-          paintScoreTag(li_of(box), text);
+          if (!setRating(id, who, val)) return;
+          setBadge(dirtyNow() ? "待同步" : "已同步", dirtyNow() ? "busy" : "ok");
+          paintStars(box, val, who, id, text);
+          paintScoreTag(li_of(box), id);
         };
       })(i));
       box.appendChild(s);
     }
   }
   function li_of(n) { while (n && !(n.classList && n.classList.contains("cdp-row"))) n = n.parentNode; return n; }
-  function paintScoreTag(li, text) {
+  function paintScoreTag(li, id) {
     if (!li) return;
-    var sc = scoreOf(text), on = (sc.me || 0) + (sc.her || 0);
+    var sc = scoreOf(id), on = (sc.me || 0) + (sc.her || 0);
     var btn = li.querySelector(".cdp-rate");
     if (btn) btn.classList.toggle("is-on", on > 0);
   }
   /* 面板已开时原地刷新星级（只改 class，不重建 DOM，避免闪） */
-  function refreshStars(li, text) {
+  function refreshStars(li, id) {
     var panel = li.querySelector(".cdp-score");
     if (!panel) return;
-    var sc = scoreOf(text);
+    var sc = scoreOf(id);
     var rows = panel.querySelectorAll(".score-row");
     SCORE_WHO.forEach(function (w, i) {
       var row = rows[i];
@@ -963,11 +896,11 @@ var FB_PATH = "/zhuhai-chida.json";
     });
   }
 
-  function toggleScore(li, text) {
+  function toggleScore(li, id, text) {
     var panel = li.querySelector(".cdp-score");
-    if (panel) { panel.parentNode.removeChild(panel); delete openScore[text]; li.classList.remove("has-score"); return; }
-    openScore[text] = true;
-    var sc = scoreOf(text);
+    if (panel) { panel.parentNode.removeChild(panel); delete openScore[id]; li.classList.remove("has-score"); return; }
+    openScore[id] = true;
+    var sc = scoreOf(id);
     panel = document.createElement("div");
     panel.className = "cdp-score";
     panel.addEventListener("click", function (ev) { ev.stopPropagation(); });
@@ -980,14 +913,14 @@ var FB_PATH = "/zhuhai-chida.json";
       box.className = "score-stars";
       row.appendChild(lab); row.appendChild(box);
       panel.appendChild(row);
-      paintStars(box, sc[w[0]] || 0, w[0], text);
+      paintStars(box, sc[w[0]] || 0, w[0], id, text);
     });
     li.appendChild(panel);
     li.classList.add("has-score");
   }
 
   /* 拖拽排序状态：拖拽期间禁止重建列表/刷新编号 */
-  var SORT = { active: false, li: null, text: "", startY: 0, dy: 0, from: -1, to: -1, scrollBase: 0 };
+  var SORT = { active: false, li: null, id: "", startY: 0, dy: 0, from: -1, to: -1, scrollBase: 0, ids: [] };
   var AUTO_SCROLL = { raf: 0, dir: 0 };
   var ev0Y = 0;
   function isSorting() { return SORT.active; }
@@ -995,23 +928,22 @@ var FB_PATH = "/zhuhai-chida.json";
   function hasOpenScore() {
     for (var k in openScore) {
       if (!openScore[k]) continue;
-      /* 不用 querySelector：菜名可能含引号/反斜杠，选择器转义一旦失手就抛 SyntaxError 让整条同步链死掉 */
       var hit = false;
       for (var i = 0; list && i < list.children.length; i++) {
-        if (list.children[i].getAttribute("data-text") === k) { hit = true; break; }
+        if (list.children[i].getAttribute("data-id") === k) { hit = true; break; }
       }
       if (hit) return true;
       delete openScore[k];
     }
     return false;
   }
+
   function render(opts) {
     opts = opts || {};
     if (leaving > 0 && !opts.force) { pendingRender = true; return; }
-    if (opts.enter && root.classList.contains("is-folded")) setFold(false);
-    /* 面板开着的时候只刷新状态，不重建列表——否则轮询会让面板闪 */
-    /* 面板开着时默认只 paint 防闪；但顺序/条目真变了必须重建，否则远端拖动看不见 */
-    var _ok = (TS.order && TS.order.v) ? TS.order.v.join("|") : "";
+    if (opts.enter && root.classList.contains("is-folded")) setFold(false, false);
+    /* 面板开着的时候只刷新状态，不重建列表——否则远端变更会让面板闪 */
+    var _ok = visibleItems().map(function (it) { return it.id + ":" + it.ord; }).join("|");
     var _orderChanged = (_ok !== (window.__lastOrderKey || ""));
     window.__lastOrderKey = _ok;
     if (!opts.force && isSorting()) { paint(); return; }
@@ -1019,29 +951,22 @@ var FB_PATH = "/zhuhai-chida.json";
     var sy = window.pageYOffset || 0;
     list.classList.add("no-anim");
     list.textContent = "";
-    var baseVisible = BASE.filter(function (t) { return !isBaseDeleted(t); });
-    var tailRows = state.extra.filter(function (t) { return baseVisible.indexOf(t) === -1; });
-    var _all = baseVisible.concat(tailRows);
-    var _ov = (TS.order && TS.order.v) || [];
-    /* order 是权威清单：云端只留 8 项时，本地 extra 里残留的旧菜不再渲染。
-       原来 _all 全渲染，导致「云端删了 10 条、本机还是 18 个」——
-       因为 extra 的合并只加不减，本地旧条目永远活着（2026-11-24）。 */
-    if (_ov.length >= 2) {
-      _all = _ov.filter(function (t) { return _all.indexOf(t) >= 0; });
-    }
-    var _ranked = _ov.length >= 2 ? _ov.filter(function (t) { return _all.indexOf(t) >= 0; }) : [];
-    var _rest = _all.filter(function (t) { return _ranked.indexOf(t) === -1; });
-    _ranked.concat(_rest).forEach(function (t) { list.appendChild(rowEl(t)); });
+    visibleItems().forEach(function (it) { list.appendChild(rowEl(it)); });
     paint();
-    Object.keys(openScore).forEach(function (t) {
-      if (!openScore[t]) return;
-      var li2 = list.querySelector('.cdp-row[data-text="' + (window.CSS && CSS.escape ? CSS.escape(t) : t.replace(/"/g, '\\"')) + '"]');
-      if (li2 && !li2.querySelector(".cdp-score")) toggleScore(li2, t);
+    Object.keys(openScore).forEach(function (id) {
+      if (!openScore[id]) return;
+      for (var i = 0; list && i < list.children.length; i++) {
+        var li2 = list.children[i];
+        if (li2.getAttribute("data-id") === id && !li2.querySelector(".cdp-score")) {
+          toggleScore(li2, id, li2.getAttribute("data-text"));
+          break;
+        }
+      }
     });
     if (opts.enter) {
       var rows = list.querySelectorAll(".cdp-row");
-      for (var i = 0; i < rows.length; i++) {
-        if (rows[i].getAttribute("data-text") === opts.enter) { rows[i].classList.add("is-enter"); break; }
+      for (var k = 0; k < rows.length; k++) {
+        if (rows[k].getAttribute("data-id") === opts.enter) { rows[k].classList.add("is-enter"); break; }
       }
       window.setTimeout(function () {
         Array.prototype.forEach.call(list.querySelectorAll(".is-enter"), function (n) { n.classList.remove("is-enter"); });
@@ -1097,7 +1022,7 @@ var FB_PATH = "/zhuhai-chida.json";
     var nw = name.clientWidth, nh = name.clientHeight;
     if (nw < 16 || nh < 10) return;
 
-    var seed = scHash(li.getAttribute("data-text") || "");
+    var seed = scHash(li.getAttribute("data-id") || li.getAttribute("data-text") || "");
     var OX = Math.max(3, Math.min(6, nw * .06));
     var OY = Math.max(5, Math.min(10, nh * .34));
     var W = nw + OX * 2, H = nh + OY * 2;
@@ -1202,12 +1127,13 @@ var FB_PATH = "/zhuhai-chida.json";
     var rows = list.querySelectorAll(".cdp-row");
     var done = 0;
     Array.prototype.forEach.call(rows, function (li, i) {
-      var t = li.getAttribute("data-text");
-      var on = !!state.done[t];
+      var id = li.getAttribute("data-id");
+      var it = itemOf(id);
+      var on = !!(it && it.done);
       li.classList.toggle("is-done", on);
       syncScratch(li);
-      paintScoreTag(li, t);
-      refreshStars(li, t);
+      paintScoreTag(li, id);
+      refreshStars(li, id);
       var tick = li.querySelector(".cdp-tick");
       if (tick) tick.setAttribute("aria-pressed", on ? "true" : "false");
       var idx = li.querySelector(".cdp-idx");
@@ -1222,28 +1148,13 @@ var FB_PATH = "/zhuhai-chida.json";
   if (form) {
     form.addEventListener("submit", function (ev) {
       ev.preventDefault();
-      var v = (input && input.value ? input.value : "").replace(/\s+/g, " ").trim().slice(0, 16);
+      var v = input && input.value ? input.value : "";
       if (input) input.value = "";
-      if (!v) return;
-      if (has(BASE, v)) {
-        if (!isBaseDeleted(v)) { setBadge("清单里已有", "fail"); return; }
-        TS.extra[v] = tsNow();
-        if (!TS.order) TS.order = { v: [], t: 0 };
-        TS.order.v = (TS.order.v || []).filter(function (x) { return x !== v; }).concat([v]);
-        TS.order.t = tsNow();
-        save(); push();
-        render({ force: true, enter: v });
-        setBadge("已恢复", "ok");
-        return;
-      }
-      if (has(state.extra, v)) { setBadge("已经有了", "fail"); return; }
-      state.extra.push(v);
-      TS.extra[v] = tsNow();
-      if (!TS.order) TS.order = { v: [], t: 0 };
-      TS.order.v = (TS.order.v || []).filter(function (x) { return x !== v; }).concat([v]);
-      TS.order.t = tsNow();
-      save(); push();
-      render({ force: true, enter: v });
+      if (!v.replace(/\s+/g, " ").trim()) return;
+      var r = addItem(v);
+      if (r === "exists") { setBadge("清单里已有", "fail"); return; }
+      if (r === "readonly") return;
+      if (r === "restored") { setBadge("已恢复", "ok"); return; }
     });
   }
 
@@ -1252,9 +1163,51 @@ var FB_PATH = "/zhuhai-chida.json";
   if (hint) hint.removeAttribute("contenteditable");
   if (note) note.removeAttribute("contenteditable");
 
+  /* ===== 强制刷新 ===== */
+  function forceRefresh() {
+    flushNow(false);
+    net.get = null; failCount = 0;
+    setBadge("正在读最新", "busy");
+    return fetchDoc().then(function (res) {
+      if (res && res.doc) { applyRead(res); return true; }
+      setBadge(failText(lastErr), failState(lastErr));
+      if (badge) badge.setAttribute("title", errTitle(lastErr));
+      return false;
+    });
+  }
+
+  var holdTimer = 0, holdFired = false;
+  function holdStart() {
+    if (holdTimer) return;
+    holdFired = false;
+    holdTimer = window.setTimeout(function () { holdTimer = 0; holdFired = true; forceRefresh(); }, 800);
+  }
+  function holdEnd() { if (holdTimer) { window.clearTimeout(holdTimer); holdTimer = 0; } }
+  badge.addEventListener("pointerdown", holdStart);
+  badge.addEventListener("pointerup", holdEnd);
+  badge.addEventListener("pointerleave", holdEnd);
+  badge.addEventListener("pointercancel", holdEnd);
+  badge.addEventListener("keydown", function (ev) {
+    if (ev.key !== "Enter" && ev.key !== " ") return;
+    ev.preventDefault();
+    if (ev.shiftKey) { forceRefresh(); return; }
+    if (badge) badge.click();
+  });
+
+  if (badge) badge.addEventListener("click", function () {
+    if (holdFired) { holdFired = false; return; }
+    failCount = 0;
+    if (dirtyNow()) { setBadge("重试中", "busy"); flushNow(false); return; }
+    setBadge("检测中", "busy");
+    fetchDoc().then(function (res) {
+      if (res && res.doc) applyRead(res);
+      else setBadge(failText(lastErr), failState(lastErr));
+    });
+  });
+
+  /* ===== 启动 ===== */
   function bootSkeleton() {
     root.classList.add("is-booting");
-    scanMax();
     render({ force: true });
     window.setTimeout(function () {
       root.classList.add("cdp-boot");
@@ -1266,79 +1219,37 @@ var FB_PATH = "/zhuhai-chida.json";
     bootSettled = true;
     root.classList.remove("is-booting");
   }
-  function bootOffline() {
-    if (bootSettled) return;
-    bootSettled = true;
-    root.classList.remove("is-booting");
-    var tokenProblem = !!(lastErr && (lastErr.kind === "token_bad" || lastErr.kind === "gist_missing"));
-    var _bo = buildState(TS);
-    var _has = Object.keys(_bo.done).length || _bo.extra.length || Object.keys(_bo.addr || {}).length;
-    if (_has) {
-      state.done = _bo.done;
-      state.extra = _bo.extra;
-      if (_bo.addr && Object.keys(_bo.addr).length) ADDR = _bo.addr;
-      hydrated = true;
-      render({ force: true });
-      setBadge(tokenProblem ? "登录过期了，点这里重新连上" : "没连上，这是上次的内容", tokenProblem ? "fail" : "warn");
-    } else {
-      setBadge(tokenProblem ? "登录过期了，点这里重新连上" : "没连上，手上没有内容", tokenProblem ? "fail" : "fail");
-    }
+
+  function restoreFold() {
+    try {
+      var raw = window.localStorage.getItem(UI_KEY);
+      if (!raw) return;
+      var u = JSON.parse(raw);
+      if (u && u.fold) setFold(true, false);
+    } catch (e) {}
   }
 
   function boot() {
-    var cfg = loadCfg();
-    var m = (location.hash || "").match(/[#&]t=([^&]+)/) || (location.search || "").match(/[?&]t=([^&]+)/);
-    if (m) {
-      try {
-        var packed = JSON.parse(decodeURIComponent(m[1]));
-        TOKEN = packed.token || "";
-        if (packed.gist) GIST.id = packed.gist;
-        saveCfg({ gist: GIST.id, token: TOKEN });
-        clearTokenFromUrl();
-      } catch (e) {}
-    } else if (cfg && cfg.token) {
-      TOKEN = cfg.token;
-      if (cfg.gist) GIST.id = cfg.gist;
-    }
-    setBadge(TOKEN ? "正在取最新" : "正在读最新", "busy");
-    fetchData().then(function (res) {
+    restoreFold();
+    setBadge("正在读最新", "busy");
+    fetchDoc().then(function (res) {
       if (res && res.doc) {
-        applyDoc(res.doc);
+        applyRead(res);
         bootDone();
-        setBadge(res && res.viaWorker ? "已自动保存" : "没连上，先看看上次的", res && res.viaWorker ? "ok" : "warn");
-      } else if (res && res.unchanged) {
-        if (Object.keys(CACHE.done).length || CACHE.extra.length) {
-          var _st = buildState(TS);
-          state.done = _st.done; state.extra = _st.extra;
-          ADDR = _st.addr || {}; hydrated = true;
-          render({ force: true });
-        }
-        bootDone();
-        setBadge(res && res.viaWorker ? "已自动保存" : "没连上，先看看上次的", res && res.viaWorker ? "ok" : "warn");
       } else {
-        bootOffline();
+        bootDone();
+        setBadge("离线·拿不到内容", "warn");
       }
     });
-    /* 轮询已停用：实时靠 SSE；断线由 EventSource 自动重连 */
-    pollTimer = 0;
-    function pollOnce() {
-      if (document.hidden) return;
-      if (net.patch) return;
-      fetchData().then(function (res) { if (res && res.doc) applyDoc(res.doc); });
-    }
-    addEventListener("pagehide", function () { leaveOnce(true); });
+    addEventListener("pagehide", function () { sendKeepalive(); });
     addEventListener("visibilitychange", function () {
-      if (document.hidden) { leaveOnce(false); }
-      else if (!net.patch) { fetchData().then(function (res) { if (res && res.doc) applyDoc(res.doc); }); }
+      if (document.hidden) { sendKeepalive(); }
+      else if (!net.flushing) { net.get = null; fetchDoc().then(function (res) { if (res && res.doc) applyRead(res, true); }); }
     });
     addEventListener("focus", function () {
-      if (!net.patch) fetchData().then(function (res) { if (res && res.doc) applyDoc(res.doc); });
+      if (!net.flushing) { net.get = null; fetchDoc().then(function (res) { if (res && res.doc) applyRead(res, true); }); }
     });
-    if (readPending()) saveData();
-  }
-
-  function clearTokenFromUrl() {
-    try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+    addEventListener("online", function () { if (dirtyNow()) flushNow(false); });
   }
 
   if (window.ResizeObserver) {
@@ -1349,7 +1260,8 @@ var FB_PATH = "/zhuhai-chida.json";
     document.fonts.ready.then(rebuildScratches);
   }
 
-  try { console.log("%c[zhuhai-chida] build " + BUILD_VER + " · turn css " + (document.querySelector('link[href*="turn-"]')||{}).href, "color:#6a5;font-weight:bold"); } catch (e) {}
+  try { console.log("%c[zhuhai-chida] build " + BUILD_VER + " · data v" + DATA_V + " · 写路径=PATCH 叶子 · turn css " + (document.querySelector('link[href*="turn-"]') || {}).href, "color:#6a5;font-weight:bold"); } catch (e) {}
+
   /* ===== 拖拽排序：手柄 = 编号列，Pointer 单引擎 ===== */
   function initSortEngine() {
     if (!window.PointerEvent) return;
@@ -1363,11 +1275,11 @@ var FB_PATH = "/zhuhai-chida.json";
       if (isEditing()) { try { document.activeElement && document.activeElement.blur(); } catch (e) {} }
       var li = idx.closest(".cdp-row");
       if (!li) return;
-      SORT.active = true; SORT.li = li; SORT.text = li.getAttribute("data-text");
+      SORT.active = true; SORT.li = li; SORT.id = li.getAttribute("data-id");
       SORT.startY = ev.clientY; SORT.dy = 0;
       SORT.from = Array.prototype.indexOf.call(list.children, li);
       SORT.scrollBase = window.pageYOffset;
-      SORT.names = Array.prototype.map.call(list.children, function (r) { return r.getAttribute("data-text"); });
+      SORT.ids = Array.prototype.map.call(list.children, function (r) { return r.getAttribute("data-id"); });
       SORT.to = SORT.from;
       li.classList.add("is-dragging");
       li.classList.add("is-drag-src");
@@ -1419,7 +1331,7 @@ var FB_PATH = "/zhuhai-chida.json";
     function endSort() {
       if (!SORT.active) return;
       AUTO_SCROLL.dir = 0;
-      var li = SORT.li, text = SORT.text, to = SORT.to, from = SORT.from;
+      var li = SORT.li, id = SORT.id, to = SORT.to, from = SORT.from;
       if (li) {
         li.classList.remove("is-dragging", "is-drag-src");
         li.style.removeProperty("--dy");
@@ -1433,15 +1345,15 @@ var FB_PATH = "/zhuhai-chida.json";
       if (!li || to < 0 || to === from) return;
 
       /* 基于当前 DOM 全量顺序重排：先摘出自己，再插到目标位置 */
-      var names = (SORT.names && SORT.names.length)
-        ? SORT.names.slice()
-        : Array.prototype.map.call(list.children, function (r) { return r.getAttribute("data-text"); });
-      var at = names.indexOf(text);
-      if (at >= 0) names.splice(at, 1);
-      var tgt = Math.max(0, Math.min(names.length, to));
-      names.splice(tgt, 0, text);
-      TS.order = { v: names, t: tsNow() };
-      save(); push();
+      var ids = (SORT.ids && SORT.ids.length)
+        ? SORT.ids.slice()
+        : Array.prototype.map.call(list.children, function (r) { return r.getAttribute("data-id"); });
+      var at = ids.indexOf(id);
+      if (at >= 0) ids.splice(at, 1);
+      var tgt = Math.max(0, Math.min(ids.length, to));
+      ids.splice(tgt, 0, id);
+      commitOrder(ids);
+      setBadge(dirtyNow() ? "待同步" : "已同步", dirtyNow() ? "busy" : "ok");
       li.__dragged = true;
       render({ force: true });
     }
@@ -1456,16 +1368,20 @@ var FB_PATH = "/zhuhai-chida.json";
       var li = document.activeElement && document.activeElement.closest && document.activeElement.closest(".cdp-row");
       if (!li) return;
       ev.preventDefault();
-      var text = li.getAttribute("data-text");
-      var names = Array.prototype.map.call(list.children, function (r) { return r.getAttribute("data-text"); });
-      var i = names.indexOf(text), j = ev.key === "ArrowUp" ? i - 1 : i + 1;
-      if (j < 0 || j >= names.length) return;
-      names.splice(i, 1); names.splice(j, 0, text);
-      TS.order = { v: names, t: tsNow() };
-      save(); push();
+      var id = li.getAttribute("data-id");
+      var ids = Array.prototype.map.call(list.children, function (r) { return r.getAttribute("data-id"); });
+      var i = ids.indexOf(id), j = ev.key === "ArrowUp" ? i - 1 : i + 1;
+      if (i < 0 || j < 0 || j >= ids.length) return;
+      ids.splice(i, 1); ids.splice(j, 0, id);
+      commitOrder(ids);
       render({ force: true });
-      var again = list.querySelector('.cdp-row[data-text="' + (window.CSS && CSS.escape ? CSS.escape(text) : text) + '"]');
-      if (again) { var f = again.querySelector(".cdp-idx"); if (f) f.focus(); }
+      for (var k = 0; list && k < list.children.length; k++) {
+        if (list.children[k].getAttribute("data-id") === id) {
+          var f = list.children[k].querySelector(".cdp-idx");
+          if (f) f.focus();
+          break;
+        }
+      }
     });
   }
 
@@ -1474,19 +1390,66 @@ var FB_PATH = "/zhuhai-chida.json";
   (function () {
     try {
       var q = (location.search || "").match(/[?&](dark|light)=1/);
-      var want = q ? q[1] : window.localStorage.getItem("cdp-scheme");
-      if (q) window.localStorage.setItem("cdp-scheme", q[1]);
+      var want = q ? q[1] : window.localStorage.getItem(SCHEME_KEY);
+      if (q) window.localStorage.setItem(SCHEME_KEY, q[1]);
       if (want === "dark") document.documentElement.setAttribute("data-scheme", "dark");
       else if (want === "light") document.documentElement.setAttribute("data-scheme", "light");
     } catch (e) {}
   })();
 
   initSortEngine();
-  probeOrder();
   startSSE();
   boot();
-  if (document.readyState === "complete") clearTokenFromUrl();
-  else addEventListener("load", clearTokenFromUrl);
+
+  /* ===== 对外稳定 API（给上层 UI 用；不要直接摸 ITEMS / PENDING） =====
+     l3-ux 的「撤销浮条」等按旧结构 TS.del[text] 写的代码，一律改成调这里：
+       cdp.restore(id)  撤销删除（墓碑翻回 del:false）
+       cdp.remove(id)   删除（写墓碑）
+       cdp.setDone / setAddr / setRating / addItem / commitOrder
+       cdp.items()      取只读快照
+       cdp.flush()      立刻把待发改动发出去 */
+  try {
+    window.cdp = {
+      setDone: setDone, setAddr: setAddr, setRating: setRating,
+      addItem: addItem, remove: removeItem, restore: restoreItem,
+      commitOrder: commitOrder, scoreOf: scoreOf,
+      items: function () {
+        var out = {};
+        Object.keys(ITEMS).forEach(function (id) { var o = {}; for (var k in ITEMS[id]) o[k] = ITEMS[id][k]; out[id] = o; });
+        return out;
+      },
+      item: itemOf,
+      flush: flushNow,
+      version: DATA_V
+    };
+  } catch (e) {}
+
+  /* ===== 自测钩子（只在挂测试桩时暴露；生产不写任何 DOM 之外的东西） ===== */
+  if (window.__CDP_TEST__) {
+    window.__cdpTest = {
+      DATA_V: DATA_V,
+      fbKey: fbKey,
+      uniqueKey: uniqueKey,
+      ordBetween: ordBetween,
+      docVersion: docVersion,
+      legacyToItems: legacyToItems,
+      normalizeItem: normalizeItem,
+      visibleItems: visibleItems,
+      items: function () { return ITEMS; },
+      pending: function () { return PENDING; },
+      flags: function () { return { readonly: READONLY, hydrated: hydrated, dirty: dirtyNow() }; },
+      badgeText: function () { return badge ? badge.textContent : ""; },
+      applyDoc: function (doc) { return applyDoc(doc); },
+      setDone: setDone,
+      setAddr: setAddr,
+      setRating: setRating,
+      addItem: addItem,
+      removeItem: removeItem,
+      commitOrder: commitOrder,
+      flushNow: flushNow,
+      scoreOf: scoreOf
+    };
+  }
 })();
 
 
