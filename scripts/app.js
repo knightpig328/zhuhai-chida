@@ -1,4 +1,4 @@
-  var BUILD_VER = "20261201d";
+  var BUILD_VER = "20261201e";
   var DATA_V = 5;   /* 数据结构版本：v5 = items 叶子对象 + 叶子路径 PATCH */
 (function () {
   var root = document.getElementById("cdp");

@@ -350,11 +350,13 @@
 @media (max-width:640px){
   /* 第3列只有113px，6字需130px；跨到第4列(≈144px)刚好，不碰第5列×与第6列★ */
   #cdp .cdp-name{ grid-column:3 / 5; font-size:calc(1.35rem * var(--scale)); letter-spacing:.01em; white-space:normal; overflow-wrap:anywhere; max-width:100%; }
-  #cdp .cdp-rate{ grid-column:6; grid-row:1; align-self:center; margin-top:-12px; position:relative; z-index:1; }   /* ★ 压在 × 之上，避免点到星却删了行 */
+  /* ★ 不再压 ×：原来 z-index:1 让 ★ 的 44px 命中区盖住 × 右侧 73%，
+   实测「手机上点 × 会弹评分面板，删除不可达」。层级对调，× 在上。 */
+#cdp .cdp-rate{ grid-column:6; grid-row:1; align-self:center; margin-top:-12px; position:relative; z-index:1; }   /* ★ 压在 × 之上，避免点到星却删了行 */
   #cdp .cdp-del{ grid-column:5; grid-row:1; align-self:center; margin-top:-6px; opacity:.85; }
   /* × 命中区扩到 44×44（视觉仍是 22px，只是可点范围变大） */
-  #cdp .cdp-del{ position:relative; }
-  #cdp .cdp-del::after{ content:""; position:absolute; top:-11px; bottom:-11px; left:-11px; right:-2px; }
+  #cdp .cdp-del{ position:relative; z-index:3; }   /* × 压在 ★ 之上 */
+  #cdp .cdp-del::after{ content:""; position:absolute; top:-11px; bottom:-11px; left:-11px; right:0; }   /* 只往左扩，不侵入 ★ 列 */
   #cdp .cdp-map{ grid-column:6; grid-row:2; align-self:center; margin-top:-4px; }
   #cdp .cdp-idx{ font-size:.8em; }
 }

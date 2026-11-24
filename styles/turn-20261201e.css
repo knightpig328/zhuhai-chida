@@ -1,0 +1,484 @@
+/* ==== 2026-11-22 第六轮：四角空心角括号 / 铅笔斜杠 / 书页翻开 · 在 deco.css 之后 ==== */
+:root{
+  --brk-l: 13px;
+  --brk-r: 13px;
+  --brk-a: .52;
+  --brk-lt: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 13 13'%3E%3Cpath d='M.75.75H12.25M.75.75V12.25' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  --brk-rt: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 13 13'%3E%3Cpath d='M12.25.75H.75M12.25.75V12.25' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  --brk-lb: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 13 13'%3E%3Cpath d='M.75 12.25H12.25M.75.75V12.25' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  --brk-rb: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 13 13'%3E%3Cpath d='M12.25 12.25H.75M12.25.75V12.25' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+/* 1) 卡片四角空心角括：左 13 / 右 8，单线 L，离开卡片边框 4px */
+#cdp .cdp-row{ padding-left:12px; padding-right:12px; }
+#cdp .cdp-row::before{
+  content:""; display:block; position:absolute; top:4px; right:4px; bottom:4px; left:4px; width:auto; height:auto; z-index:2;
+  background-color:rgba(var(--ink-rgb), var(--brk-a));
+  -webkit-mask-image: var(--brk-lt), var(--brk-rt), var(--brk-lb), var(--brk-rb);
+  mask-image:         var(--brk-lt), var(--brk-rt), var(--brk-lb), var(--brk-rb);
+  -webkit-mask-position: left top, right top, left bottom, right bottom;
+  mask-position:         left top, right top, left bottom, right bottom;
+  -webkit-mask-size: var(--brk-l) var(--brk-l), var(--brk-r) var(--brk-r), var(--brk-l) var(--brk-l), var(--brk-r) var(--brk-r);
+  mask-size:         var(--brk-l) var(--brk-l), var(--brk-r) var(--brk-r), var(--brk-l) var(--brk-l), var(--brk-r) var(--brk-r);
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  pointer-events:none;
+  transition:background-color .2s ease, transform .26s cubic-bezier(.2,.7,.3,1);
+  transform-origin:center;
+}
+#cdp .cdp-row::after{ content:none; display:none; }
+#cdp .cdp-name::after{ content:none; display:none; }
+#cdp .cdp-row:hover::before,
+#cdp .cdp-row:focus-within::before{ background-color:rgba(var(--ink-rgb), .78); }
+#cdp .cdp-row.is-done::before{ background-color:rgba(var(--ink-rgb), .20); }
+[data-scheme="dark"] #cdp .cdp-row::before{ background-color:rgba(var(--ink-rgb), .46); }
+[data-scheme="dark"] #cdp .cdp-row:hover::before{ background-color:rgba(var(--accent-rgb), .72); }
+[data-scheme="dark"] #cdp .cdp-row.is-done::before{ background-color:rgba(var(--ink-rgb), .18); }
+@media (max-width:640px){
+  :root{ --brk-l:11px; --brk-r:7px; }
+  #cdp .cdp-row::before{ top:3px; right:3px; bottom:3px; left:3px; }
+}
+
+/* 2) 铅笔涂抹：贴 .cdp-name 生成 <svg class="cdp-scratch">，5–8 道交错 + 颗粒 + 回描 */
+#cdp .cdp-name{ justify-self:start; max-width:100%; position:relative; }
+#cdp .cdp-row.has-scratch .cdp-name::after{ width:0 !important; opacity:0 !important; transition:none !important; }
+.cdp-defs{ position:absolute; width:0; height:0; overflow:hidden; pointer-events:none; }
+
+#cdp .cdp-scratch{
+  position:absolute; z-index:2; pointer-events:none; overflow:visible;
+  color:rgba(var(--ink-rgb), .60);
+  --sc-ease:cubic-bezier(.12,.66,.30,1);
+}
+[data-scheme="dark"] #cdp .cdp-scratch{ color:rgba(var(--ink-rgb), .72); }
+
+#cdp .cdp-scratch path{
+  fill:none; stroke:currentColor; stroke-linecap:round; stroke-linejoin:round;
+  vector-effect:non-scaling-stroke;
+  stroke-dasharray:1; stroke-dashoffset:0;
+  animation:scDraw var(--dur,190ms) var(--sc-ease) calc(var(--d,0) * 1ms) both;
+}
+@keyframes scDraw{ from{ stroke-dashoffset:1 } to{ stroke-dashoffset:0 } }
+@keyframes scFade{ from{ opacity:0 } to{ opacity:1 } }
+
+#cdp .cdp-scratch .sc-main{ stroke-width:2.3; }
+#cdp .cdp-scratch .sc-tail{ stroke-width:.9;  opacity:.62; }
+#cdp .cdp-scratch .sc-ret { stroke-width:1.5; opacity:.44; }
+
+#cdp .cdp-scratch .sc-haze{ filter:url(#cdpScSmudge); animation:scFade 300ms ease 60ms both; }
+#cdp .cdp-scratch .sc-haze ellipse{ fill:currentColor; }
+
+#cdp .cdp-scratch .sc-dust{ filter:url(#cdpScDust); animation:scFade 220ms ease calc(var(--d,0) * 1ms) both; }
+#cdp .cdp-scratch .sc-dust path{
+  stroke-width:2.8; opacity:.28; stroke-dasharray:1.3 2.6; stroke-dashoffset:0; animation:none;
+}
+
+#cdp .cdp-scratch[data-static] path,
+#cdp .cdp-scratch[data-static] g,
+#cdp .cdp-list.no-anim .cdp-scratch path,
+#cdp .cdp-list.no-anim .cdp-scratch g{ animation:none !important; }
+#cdp .cdp-scratch[data-static] path,
+#cdp .cdp-list.no-anim .cdp-scratch path{ stroke-dashoffset:0 !important; }
+
+/* 3) 书页翻开 */
+@keyframes cdpPageTurn{
+  0%  { opacity:0; transform:perspective(1200px) rotateY(-30deg) translateX(-8px); }
+  60% { opacity:1; }
+  100%{ opacity:1; transform:perspective(1200px) rotateY(0) translateX(0); }
+}
+#cdp.cdp-boot{
+  transform-origin:left center;
+  animation:cdpPageTurn .86s cubic-bezier(.2,.7,.12,1) both;
+}
+#cdp.cdp-boot .cdp-row{ animation:none !important; }
+@media (max-width:640px){ #cdp.cdp-boot{ animation-duration:.72s; } }
+
+/* 打印：保留涂抹的实色线条，隐藏淡晕 */
+@media print{
+  #cdp .cdp-row{ padding:13px 12px !important; }
+  #cdp .cdp-row::before{
+    top:2px !important; bottom:2px !important; left:0 !important; right:0 !important;
+    background-color:rgba(var(--ink-rgb),.55) !important;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  #cdp .cdp-scratch{ color:#3f3b35 !important; }
+  #cdp .cdp-scratch path{
+    animation:none !important; stroke-dashoffset:0 !important; stroke-dasharray:none !important;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  #cdp .cdp-scratch g{ animation:none !important; filter:none !important; }
+  #cdp .cdp-scratch .sc-haze{ display:none !important; }
+  #cdp .cdp-scratch .sc-dust path{ stroke-dasharray:1.3 2.6 !important; opacity:.45 !important; }
+  #cdp.cdp-boot{ animation:none !important; transform:none !important; opacity:1 !important; }
+}
+
+/* 减少动效 */
+@media (prefers-reduced-motion: reduce){
+  #cdp.cdp-boot{ animation:none !important; transform:none !important; opacity:1 !important; }
+  #cdp .cdp-row::before{ transition:none !important; }
+  #cdp .cdp-scratch path, #cdp .cdp-scratch g{ animation:none !important; }
+  #cdp .cdp-scratch path{ stroke-dashoffset:0 !important; }
+}
+
+
+/* 9) 地址栏字体：与名字同一衬线栈（mono 没有中文，会回退成系统字体，字形与正文不齐） */
+#cdp .cdp-addr{
+  font-family: var(--font-serif);
+  font-size: .78em;
+  letter-spacing: .01em;
+}
+
+
+
+/* 10) 菜单名字用行楷；其余恢复原字体栈，地址栏用衬线（楷体笔画倾斜，地址会看着上下扭曲） */
+#cdp .cdp-name{
+  font-family:'Xingkai Web','STXingkai','华文行楷','KaiTi','Kaiti SC',var(--font-serif);
+  font-size:1.5rem;
+  letter-spacing:.06em;
+}
+#cdp .cdp-idx{ font-family:var(--font-mono); }
+#cdp .cdp-addr{ font-family:var(--font-serif); font-size:.78em; letter-spacing:.01em; }
+#cdp .cdp-tick, #cdp .cdp-del, #cdp .cdp-map{ font-family:var(--font-sans); }
+
+
+/* 11) 悬停：整卡连内容一起收紧（角括号随行，不再单独缩） */
+#cdp .cdp-row{
+  box-shadow:0 1px 2px rgba(var(--ink-rgb),.055), 0 1px 0 rgba(var(--ink-rgb),.035);
+  transition:background-image .18s ease, border-color .2s ease, box-shadow .2s ease,
+             transform .2s cubic-bezier(.2,.7,.3,1);
+  transform-origin:center center;
+  backface-visibility:hidden;
+}
+@media (hover:hover) and (pointer:fine){
+  #cdp .cdp-row:hover{
+    background-image:linear-gradient(180deg, rgba(var(--ink-rgb),.080), rgba(var(--ink-rgb),.032));
+    border-color:rgba(var(--ink-rgb),.42);
+    box-shadow:0 5px 14px rgba(var(--ink-rgb),.16), 0 1px 0 rgba(var(--ink-rgb),.05);
+    transform:translateY(-1px) scale(.978);
+  }
+}
+#cdp .cdp-row.is-done{ box-shadow:none; }
+
+/* 12) 角括号只交颜色，几何交给整行（禁用单独缩放，避免叠加成 .941） */
+#cdp .cdp-row:hover::before,
+#cdp .cdp-row:focus-within::before,
+#cdp .cdp-row:active::before{ transform:none; }
+
+/* 14) 卡片区加宽：直接放宽阅读列（--col 原为 30 字 = 510px） */
+/* 641~1023 修复（v3-poem 实测）：不加这条，卡片会被 min-content 撑到 530，
+   左缘只剩 48px，放不下「40px 间距 + 19.2px 诗宽」→ 诗句出屏 11.2px、压花边 5.3px */
+#cdp{ width: min(100% , var(--col)); max-width: var(--col); }
+:root{ --col: calc(38 * 1.0625rem); }
+@media (max-width:640px){ :root{ --col: calc(30 * 1.0625rem); } }
+
+
+/* 15) 结尾：细分隔线 + 相思句
+   ── 2026-12-01 浮层化（L1b）：诗句回到「悬在视口」，间距精度照旧 ──
+   历史三次写法：
+     ① .poem-l{ left:calc((100vw - 1200px)/2 + 72px) } —— 拿视口猜容器：
+        视口 < 1200 时括号里变负，诗句落出视口/撞花边（实测 1024 屏 x=8~27，花边 16~64）；
+        100vw 含滚动条、布局宽不含，一有滚动条又差 15px（390 屏：浮层 390、.container 375）。
+     ② 2026-11-30k：挂到卡片上（.cdp-tail 进 #cdp，position:absolute）——
+        间距精度对了，但诗句随卡片滚走了，不是主人要的「浮动」。
+     ③ 2026-12-01（现在）：回到 fixed 浮层，但**间距不靠任何算术复刻**：
+        左句用 right、右句用 left（只用「菜单边缘」一个数，诗句宽度不参与），
+        那个数由 index.html 内联脚本 getBoundingClientRect 量 #cdp 得到，写进
+        --menu-left / --menu-right。不猜 --col、不猜 min-content、不受滚动条影响，
+        九档实测 40px（PC）/ 8px（手机）误差 ≤1px，滚动 400px 后诗句视口坐标不变。 */
+:root{
+  --poem-gap: 40px;            /* 诗句 ↔ 菜单边缘：固定值（PC） */
+  --scale: 1;                  /* 手机整盘等比缩放系数 */
+  /* 锚点：#cdp 的真实视口矩形，由 index.html 的内联脚本量出来写 px。
+     下面两条只是「脚本跑起来之前那一帧」的兜底估值（卡片在视口里居中 → 50% − 卡片宽/2，
+     卡片宽 = min(可用宽, --col) × --scale），量到真值后立刻被覆盖。
+     别拿它当精度来源，也别把它当「复刻公式」—— 真实值只有实测那一个。 */
+  --menu-left:  calc((100% - min(100% - 2 * var(--margin, 80px), var(--col)) * var(--scale, 1)) / 2);
+  --menu-right: calc((100% - min(100% - 2 * var(--margin, 80px), var(--col)) * var(--scale, 1)) / 2);
+}
+@media (max-width:640px){
+  :root{ --poem-gap: 8px; --scale: .86; }   /* 屏窄：间距压到 8px，仍是固定值 */
+  .container{ padding:0 40px; }             /* 两侧留白 32 → 40（诗句要放得下） */
+  /* 手机档两侧留白是 40px（不是 --margin 的 80），兜底估值跟着换 */
+  :root{
+    --menu-left:  calc((100% - min(100% - 80px, var(--col)) * var(--scale)) / 2);
+    --menu-right: calc((100% - min(100% - 80px, var(--col)) * var(--scale)) / 2);
+  }
+}
+
+/* .cdp-tail 已在 index.html 里移出 #cdp，作为 body 的浮层：固定铺满视口，
+   诗句就悬在视口上，滚动时不动。
+   为什么不留在 #cdp 里吃 inset:-1px 的便宜：#cdp.cdp-boot 的 cdpPageTurn 是
+   animation-fill-mode:both，动画结束后 transform 仍是非 none 矩阵 ——
+   那会把所有 fixed 后代改成以 #cdp 为包含块，诗句就跟着卡片滚了。 */
+.cdp-tail{
+  position:fixed; inset:0; margin:0; max-width:none; text-align:initial;
+  pointer-events:none; z-index:3;
+}
+/* 它是 .cdp-tail 第一个流内元素，inset:0 下会被顶到视口顶部横贯整屏 → 直接不显示 */
+.tail-rule,
+.tail-rule::after{ display:none; }
+/* 容器本身绝对定位铺满卡片，作为两句诗的定位基准 */
+.tail-poem{
+  position:absolute; inset:0;
+  font-family:'Xingkai Web','STXingkai','华文行楷',var(--font-serif);
+  font-weight:400; font-synthesis:none;
+  color:rgba(var(--ink-rgb),.78);
+  text-rendering:optimizeLegibility;
+  -webkit-font-smoothing:antialiased;
+}
+.poem-line{
+  position:fixed; margin:0; padding:0;
+  writing-mode:vertical-rl; text-orientation:upright;
+  white-space:nowrap;          /* 竖排必须锁单列：否则高度不够时会折成第二列（实测 1440 起折了） */
+  font-size:16px; line-height:1.2; letter-spacing:.10em;
+  opacity:1; color:rgba(var(--ink-rgb),.55);
+  transition:opacity .5s ease;
+}
+/* 间距只由「菜单边缘」一个数决定，且只用对侧边定位 → 诗句自身宽度不参与运算
+   （竖排里 block 轴是横向，宽度 = line-height，写 1em 会差 25px 以上）：
+     左句右缘 = 菜单左缘 − gap  ⇒  right = 视口宽 − 菜单左缘 + gap
+     右句左缘 = 菜单右缘 + gap  ⇒  left  = 视口宽 − 菜单右缘 + gap
+   垂直：竖排里 block 轴是横向，top 只决定「一高一低」，用视口高度的百分比即可。 */
+.poem-l{ right:calc(100% - var(--menu-left) + var(--poem-gap)); left:auto; top:22%; }
+.poem-r{ left:calc(100% - var(--menu-right) + var(--poem-gap));  right:auto; top:52%; }
+/* 中档 641~1023：内容区 466~593px，装不下 40px 间距 + 28px 字
+   → 间距自适应、字号降到 20px，保证不出屏也不压花边 */
+@media (min-width:641px) and (max-width:1023px){
+  :root{ --poem-gap: clamp(6px, 2vw, 16px); }
+  .poem-line{ font-size: 20px !important; }
+}
+@media (min-width:1024px){
+  .poem-line{ font-size:28px; line-height:1.9; letter-spacing:.10em; opacity:1; color:rgba(var(--ink-rgb),.92); }
+}
+/* 换诗只淡出淡入：原来带 translateY(3px)，每 6 秒上下跳一次 */
+.poem-line.is-fading{ opacity:0; }
+
+/* 15b) 手机：主人选定「整个菜单等比例缩小」方案
+   代价：卡片 326 → 约 267px（--scale .86），菜名字号 21.6 → 18.6px。
+   6 字菜名（流浪泡泡烤肉）是否仍一行 → 由实测断言（measure-after.json 的 name.lines）。
+   所有尺寸都乘 --scale，不逐条写死数值。 */
+@media (max-width:640px){
+  #cdp{
+    /* 与中列完全同一个表达式 → 卡片边缘就是诗句的锚点：
+       min(可用宽, 阅读列) × --scale（若只写 100%×scale，640 宽时卡片会比中列宽 43px） */
+    width:calc(min(100%, var(--col)) * var(--scale));
+    font-size:calc(1rem * var(--scale));           /* em 尺寸随之下缩 */
+    padding:calc(16px * var(--scale)) calc(10px * var(--scale)) calc(14px * var(--scale));
+  }
+  #cdp .cdp-row{
+    /* 390 有滚动条时卡片只剩 253.7px，名字列实测 106.77px，而 6 字（18.58px）要 112.55px
+       → 会折成两行。留白不能再降（320 会压花边），所以从固定列里让：编号 1.9em→1.4em、
+       按钮列 22/20→18/16，名字列回到 ≈120px，6 字才真正一行（见 measure 的 nameLines）。 */
+    grid-template-columns:
+      calc(18px * var(--scale)) calc(1.4em * var(--scale)) minmax(0,1fr)
+      calc(18px * var(--scale)) calc(16px * var(--scale)) calc(16px * var(--scale));
+    column-gap:calc(8px * var(--scale));
+    row-gap:calc(6px * var(--scale));
+    padding:calc(12px * var(--scale)) calc(10px * var(--scale));
+  }
+  /* 名字字号在 16c 里按 --scale 缩放（那条规则在本块之后，写这里会被它盖掉） */
+  #cdp .cdp-addr{ font-size:max(11px, .72em); }   /* 等比缩放后的可读下限：9.9px 太小 */
+  /* 触控目标不缩：★ 与 × 的命中区仍 ≥44px（可访问性，等比缩放会把它压到不合格） */
+  /* 手机右侧放不下第二句竖排 → 两句同在卡片左侧、上下错开，仍距卡片 --poem-gap */
+  .poem-line{ font-size:18px; line-height:1.32; letter-spacing:.08em; color:rgba(var(--ink-rgb),.40); }
+  .poem-l{ top:16%; }
+  .poem-r{ top:56%; }
+}
+
+
+/* 16) 评分：★ 按钮 + 展开面板（不增加卡片宽度） */
+#cdp .cdp-rate{
+  grid-column:7; justify-self:end; align-self:center; width:24px; height:24px; padding:0;
+  background:none; border:0; cursor:pointer; line-height:1;
+  /* 未评分 ★：.48 实测 3.19:1（原来 .38 = 2.47:1，低于 3:1 门槛） */
+  font-size:1.45rem; color:rgba(var(--ink-rgb),.48);
+  transition:color .18s ease, transform .18s ease;
+}
+#cdp .cdp-rate:hover{ color:rgba(var(--ink-rgb),.72); transform:scale(1.12); }
+/* 已评分：与面板里的满星同色（.90），不再用 accent —— 换主题时 accent≠ink 会变出第二种颜色 */
+#cdp .cdp-rate.is-on{ color:rgba(var(--ink-rgb),.90); }
+#cdp .cdp-row.has-score{ grid-auto-rows:auto; }
+#cdp .cdp-score{
+  grid-column:1 / -1; margin:4px -2px 0; padding-top:6px;
+  animation:cdpScoreIn .22s cubic-bezier(.2,.7,.3,1) both;
+  border-top:1px dashed rgba(var(--ink-rgb),.16);
+  display:block;
+}
+#cdp .score-row{ display:flex; align-items:center; }
+#cdp .score-who{
+  font-family:var(--font-serif); font-weight:400; font-size:.8rem; line-height:1;
+  color:rgba(var(--ink-rgb),.62); min-width:2.6em; margin:0 4px 0 0;
+  align-self:center; display:inline-block; white-space:nowrap;
+}
+#cdp .score-stars{ display:flex; justify-content:flex-start; }
+#cdp .cdp-star{
+  flex:0 0 auto; width:28px; height:28px; padding:0; background:none; border:0; cursor:pointer;
+  /* 未选：.48 实测 3.19:1（面板底色 236,234,229 上），比 .90 的已选明显更浅 */
+  font-size:1.5rem; line-height:1; color:rgba(var(--ink-rgb),.48);
+  transition:color .15s ease, transform .15s ease;
+}
+#cdp .cdp-star:hover{ transform:scale(1.15); }
+/* 一个色系两种透明度：满星 .90 / 未选 .48；半星左半 .90、右半 .48，绝不用元素 opacity（会把已选那半一起变淡） */
+#cdp .cdp-star.is-full{ color:rgba(var(--ink-rgb),.90); }
+#cdp .cdp-star.is-half{
+  color:rgba(var(--ink-rgb),.90);                  /* 不支持文字裁剪的引擎：整颗按满星色显示，不做透明 */
+  background:linear-gradient(90deg, rgba(var(--ink-rgb),.90) 0 50%, rgba(var(--ink-rgb),.48) 50% 100%);
+  -webkit-background-clip:text; background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+@supports not ((-webkit-background-clip:text) or (background-clip:text)){
+  #cdp .cdp-star.is-half{ background:none; -webkit-text-fill-color:currentColor; }
+}
+@media print{ #cdp .cdp-rate, #cdp .cdp-score{ display:none !important; } }
+
+/* 16b) 手机触控：★ 视觉不变但点击区 44px，星星加大，面板铺满整行 */
+@media (max-width:640px){
+  #cdp .cdp-rate{
+    align-self:start; width:44px; height:44px; margin:-9px -8px 0 0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.5rem; line-height:1;
+  }
+  #cdp .cdp-star{ flex:0 0 32px; width:32px; height:32px; font-size:2rem; line-height:1; margin:0; }
+
+  #cdp .cdp-score{ width:100%; box-sizing:border-box; margin-left:-2px; margin-right:-2px; }
+  #cdp .score-row{ flex-wrap:nowrap; }
+  #cdp .score-stars{ flex-wrap:nowrap; justify-content:flex-start; }
+  #cdp .score-who{ min-width:48px; white-space:nowrap; font-size:.9rem; margin:0 2px 0 0; line-height:1; }
+
+}
+
+
+/* 16c) 手机名字不换行：字号与字距收一点，6 字名一行放得下 */
+@media (max-width:640px){
+  /* 第3列只有113px，6字需130px；跨到第4列(≈144px)刚好，不碰第5列×与第6列★ */
+  #cdp .cdp-name{ grid-column:3 / 5; font-size:calc(1.35rem * var(--scale)); letter-spacing:.01em; white-space:normal; overflow-wrap:anywhere; max-width:100%; }
+  /* ★ 不再压 ×：原来 z-index:1 让 ★ 的 44px 命中区盖住 × 右侧 73%，
+   实测「手机上点 × 会弹评分面板，删除不可达」。层级对调，× 在上。 */
+#cdp .cdp-rate{ grid-column:6; grid-row:1; align-self:center; margin-top:-12px; position:relative; z-index:1; }   /* ★ 压在 × 之上，避免点到星却删了行 */
+  #cdp .cdp-del{ grid-column:5; grid-row:1; align-self:center; margin-top:-6px; opacity:.85; }
+  /* × 命中区扩到 44×44（视觉仍是 22px，只是可点范围变大） */
+  #cdp .cdp-del{ position:relative; z-index:3; }   /* × 压在 ★ 之上 */
+  #cdp .cdp-del::after{ content:""; position:absolute; top:-11px; bottom:-11px; left:-11px; right:0; }   /* 只往左扩，不侵入 ★ 列 */
+  #cdp .cdp-map{ grid-column:6; grid-row:2; align-self:center; margin-top:-4px; }
+  #cdp .cdp-idx{ font-size:.8em; }
+}
+
+
+/* 17) 地址不溢出：grid 子项必须能收缩，否则光标到末尾时整段被挤出卡片 */
+#cdp .cdp-addr{ min-width:0; max-width:100%; width:100%; box-sizing:border-box; }
+@media (max-width:640px){
+  /* 全部交给 app.css 的 6 列制，这里只调字号与垂直微调，不再写 grid-area */
+  #cdp .cdp-addr{ grid-column:2 / 6; grid-row:2; width:auto; min-width:0; max-width:100%; box-sizing:border-box; font-size:max(11px, .72em); padding:1px 4px; white-space:nowrap; overflow-x:auto; overflow-y:hidden; text-overflow:clip; scrollbar-width:none; }
+  #cdp .cdp-addr::-webkit-scrollbar{ display:none; }
+  /* 评分面板：左边界对齐名字列（第3列起），整体往上贴 */
+  #cdp .cdp-score{ padding-left:calc(18px + 1.9em + 9px - 30px); margin:-12px -2px 0; padding-top:2px; }
+  /* 标签在星星左侧，同一行、垂直居中 */
+  #cdp .cdp-score .score-row{ flex-direction:row; align-items:center; justify-content:flex-start; margin:0; }
+  #cdp .cdp-score .score-row .score-who{ min-width:0; width:auto; margin:0 3px 0 -10px; font-size:calc(.74rem + 1.5px); line-height:1; align-self:center; transform:translateY(4px); }
+  #cdp .cdp-score{ margin-top:-12px; }
+}
+
+@keyframes cdpScoreIn{
+  from{ opacity:0; transform:translateY(-4px); }
+  to  { opacity:1; transform:translateY(0); }
+}
+@media (prefers-reduced-motion: reduce){ #cdp .cdp-score{ animation:none; } }
+
+/* 兼容：用 margin 代替 flex gap（旧内核不支持 gap） */
+#cdp .score-stars .cdp-star:last-child{ margin-right:0; }
+#cdp .cdp-score{ display:block; }
+#cdp .cdp-score .score-row + .score-row{ margin-top:2px; }
+
+/* 18) 动效偏好与打印：hover 缩放必须归零 */
+@media (prefers-reduced-motion: reduce){
+  #cdp .cdp-row{ transition:none; }
+  #cdp .cdp-row:hover{ transform:none; }
+}
+@media print{
+  #cdp .cdp-row{ box-shadow:none !important; transform:none !important; }
+}
+
+
+/* 19) 拖拽排序：手柄在编号列，行本体只做 transform */
+#cdp .cdp-idx{
+  position:relative; touch-action:none; cursor:grab;
+  -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
+}
+#cdp .cdp-idx::after{ content:""; position:absolute; top:-14px; bottom:-14px; left:-8px; right:-6px; }
+#cdp .cdp-idx:active{ cursor:grabbing; }
+#cdp .cdp-list{ touch-action:pan-y; }
+
+#cdp .cdp-row.is-dragging,
+#cdp .cdp-row.is-dragging:hover{
+  transform:translate3d(0,var(--dy,0px),0) scale(1.012) !important;
+  z-index:3; transition:none !important; cursor:grabbing;
+  box-shadow:0 10px 22px rgba(var(--ink-rgb),.18);
+}
+#cdp .cdp-row.is-drag-src{ opacity:.38; }
+#cdp .cdp-row.is-shift{
+  transform:translate3d(0,var(--shift,0px),0);
+  transition:transform .16s cubic-bezier(.22,1,.36,1);
+}
+@media (prefers-reduced-motion: reduce){ #cdp .cdp-row.is-shift{ transition:none; } }
+@media print{ #cdp .cdp-idx{ cursor:auto; } }
+
+
+/* 20) 深色主题变量（补齐 :root 缺的一组，之前 21 条 dark 规则没有变量支撑） */
+:root[data-scheme="dark"]{
+  --paper:#141312;
+  --paper-2:#1c1a18;
+  --paper-rgb:20,19,18;
+  --ink:#ece7dd;
+  --ink-rgb:236,231,221;
+  --accent:#d4a04a;
+  --accent-rgb:212,160,74;
+  --accent-soft:#3a352c;
+  --accent-on:#141312;
+  --accent-on-rgb:20,19,18;
+  --accent-ink:#141312;
+  --accent-display:#d4a04a;
+  --accent-ink-inverse:#6a6258;
+  --accent-on-text:#141312;
+  --accent-on-text-rgb:20,19,18;
+  /* 次要文字：浅色下是灰，深色下必须提亮，否则 01 / 已经吃完 这类几乎看不见 */
+  --ink-2:#c9c2b6;
+  --ink-3:#9a9186;
+}
+:root[data-scheme="dark"] body{ background-color:var(--paper); color:var(--ink); }
+:root[data-scheme="dark"] #cdp{ background-color:var(--paper); border-color:rgba(var(--ink-rgb),.22); }
+
+/* 21) 名称不省略（省略=看不见，用户明确反对）；超长改用换行 */
+@media (max-width:640px){
+  #cdp .cdp-name{ max-width:100%; }
+}
+
+
+/* 对比度补丁（chk-ux 实测：14/37 个文本节点低于 4.5:1，最低 2.01:1） */
+#cdp .cdp-idx{ color:rgba(var(--ink-rgb),.62) !important; }
+#cdp .cdp-hint{ color:rgba(var(--ink-rgb),.58) !important; font-size:11.5px !important; }
+#cdp .cdp-addr:empty::before{ color:rgba(var(--ink-rgb),.42) !important; }
+/* ★ 的配色已收归 §16（未选 .48 = 3.19:1，已选 .90）。
+   原来这里有一条 `#cdp .cdp-star{ color:rgba(var(--ink-rgb),.52) !important }`：
+   !important 连 .is-full 的已选色一起盖掉，满星和未选星变成同一个灰，
+   而 .is-half 走 background-clip 不受 color 影响 → 三色混用。
+   2026-11-24 实测后删除，未选色改由 §16 基础规则给出（.48，仍满足 ≥3:1）。 */
+#cdp .cdp-bar{ background:rgba(var(--ink-rgb),.16); }
+#cdp .cdp-count small, #cdp .cdp-done-label{ color:rgba(var(--ink-rgb),.58) !important; }
+
+/* 地址框聚焦可见（原来 outline:none + box-shadow:none 双重砍掉，Tab 到这里焦点消失） */
+#cdp .cdp-addr:focus{ outline:2px solid rgba(var(--accent-rgb),.85) !important; outline-offset:1px !important; border-radius:2px; }
+#cdp .cdp-del:focus-visible,
+#cdp .cdp-rate:focus-visible,
+#cdp .cdp-tick:focus-visible,
+#cdp .cdp-sync:focus-visible{ outline:2px solid rgba(var(--accent-rgb),.85) !important; outline-offset:2px !important; border-radius:3px; }
+
+
+/* 深色输入框（chk-mobile 实测：黑字叠黑底，对比度 1.07:1，等于不能输入） */
+:root[data-scheme="dark"] #cdp-input{ color:var(--ink); caret-color:var(--ink); }
+:root[data-scheme="dark"] #cdp-input::placeholder{ color:rgba(var(--ink-rgb),.5); }
+:root[data-scheme="dark"] #cdp .cdp-del{ color:rgba(var(--ink-rgb),.62); }
+:root[data-scheme="dark"] #cdp .cdp-idx{ color:rgba(var(--ink-rgb),.6) !important; }
+
+
+/* 诗词几何与字号统一由上面的三列 grid + 1200/640 断点决定（不再有 100vw 坐标）。
+   窄屏量出来的位置：320 诗句 x≈27~47、390 x≈32~52，均在花边（x 2~22）之外。 */
+@media (prefers-reduced-motion: reduce){ .poem-line{ transition:none; } }
+@media print{ .cdp-tail{ display:none; } }
