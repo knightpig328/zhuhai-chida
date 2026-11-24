@@ -216,8 +216,8 @@
   badge.setAttribute("role", "status");
   badge.setAttribute("aria-live", "polite");
   badge.setAttribute("tabindex", "0");
-  badge.setAttribute("title", "同步状态｜点一下重试｜按住 800ms 强制拉最新｜Shift+回车 同上");
-  badge.setAttribute("aria-label", "同步状态。回车重试，Shift 加回车强制拉取最新");
+  badge.setAttribute("title", "点一下重新保存；按住不放＝从云端取最新");
+  badge.setAttribute("aria-label", "同步状态。回车重新保存，Shift 加回车从云端取最新");
   badge.setAttribute("data-state", "local");
   var head = root.querySelector(".cdp-head");
   if (head) head.appendChild(badge);
@@ -231,9 +231,9 @@
 
   /* ===== 失败分类 ===== */
   var FAIL_TXT = {
-    offline: "离线·已存本机意图", timeout: "超时·重试中", conflict: "冲突·重试中",
-    forbidden: "无写权限", invalid: "内容被拒", server: "数据库服务器问题",
-    upstream: "连不上数据库", http: "同步失败"
+    offline: "没网，先存在本机", timeout: "太慢了，正在重试", conflict: "别人刚改过，正在重试",
+    forbidden: "没有云端写权限", invalid: "内容被云端拒了", server: "存到云端时出错了，点一下重试",
+    upstream: "没连上，先看看上次的", http: "没存上，点一下重试"
   };
   var FAIL_STATE = { offline: "warn", timeout: "warn", conflict: "warn", server: "warn", upstream: "warn" };
   function failText(e) { return FAIL_TXT[(e && e.kind) || "http"] || FAIL_TXT.http; }
@@ -368,7 +368,7 @@
       /* 云端突然空了但底表还有菜 —— 宁可只读报警，也不要静默抹掉清单 */
       if (!Object.keys(items).length && BASE.length) {
         READONLY = true; hydrated = false;
-        setBadge("数据异常·未写入", "warn");
+        setBadge("数据有问题，这次没存", "warn");
       }
       ITEMS = items;
       applyOverlay();
@@ -377,7 +377,7 @@
       pendingRender = false;
       if (READONLY) { render({ force: true }); return false; }
       render();
-      if (!dirtyNow()) setBadge("已同步", "ok");
+      if (!dirtyNow()) setBadge("已自动保存", "ok");
       return true;
     }
 
@@ -388,12 +388,12 @@
       applyOverlay();
       if (silent && (isEditing() || isSorting())) { pendingRender = true; return false; }
       render({ force: true });
-      setBadge("旧版本·请刷新升级", "warn");
+      setBadge("这是旧版本的数据，刷新一下就能改", "warn");
       return false;
     }
 
     READONLY = true; hydrated = false;
-    setBadge("数据异常·未写入", "warn");
+    setBadge("数据有问题，这次没存", "warn");
     return false;
   }
 
@@ -423,8 +423,8 @@
   }
 
   function canWrite() {
-    if (READONLY) { setBadge("旧版本·请刷新升级", "warn"); return false; }
-    if (!hydrated) { setBadge("未连上·暂不能改", "warn"); return false; }
+    if (READONLY) { setBadge("这是旧版本的数据，刷新一下就能改", "warn"); return false; }
+    if (!hydrated) { setBadge("还没连上，先不能改", "warn"); return false; }
     return true;
   }
 
@@ -481,7 +481,7 @@
       /* 只清掉「这批发出去的值没被新意图覆盖」的路径 */
       paths.forEach(function (pth) { if (own(PENDING, pth) && PENDING[pth] === body[pth]) delete PENDING[pth]; });
       failCount = 0; lastErr = null;
-      if (!dirtyNow()) { setBadge("已同步", "ok"); if (staleAgain) { staleAgain = false; scheduleRefresh(); } }
+      if (!dirtyNow()) { setBadge("已自动保存", "ok"); if (staleAgain) { staleAgain = false; scheduleRefresh(); } }
       return true;
     }, function (err0) {
       if (timer) window.clearTimeout(timer);
@@ -738,7 +738,7 @@
     addr.setAttribute("draggable", "false");
     addr.setAttribute("role", "textbox");
     addr.setAttribute("aria-label", text + " 的地址，可输入");
-    addr.setAttribute("data-ph", "地址");
+    addr.setAttribute("data-ph", "写个地址，去的时候好找");
     addr.textContent = it.addr || "";
     addr.addEventListener("click", function (ev) { ev.stopPropagation(); });
     addr.addEventListener("mousedown", function (ev) { ev.stopPropagation(); });
@@ -753,7 +753,7 @@
       addr.textContent = v;
       var cur = itemOf(id);
       if (cur && v !== (cur.addr || "")) {
-        if (setAddr(id, v)) setBadge(dirtyNow() ? "待同步" : "已同步", dirtyNow() ? "busy" : "ok");
+        if (setAddr(id, v)) setBadge(dirtyNow() ? "待同步" : "已自动保存", dirtyNow() ? "busy" : "ok");
       }
       applyMapHref();
       if (pendingRender) window.setTimeout(function () {
@@ -824,7 +824,7 @@
     var cur = itemOf(id);
     if (!cur) return;
     if (!removeItem(id)) return;
-    setBadge(dirtyNow() ? "待同步" : "已同步", dirtyNow() ? "busy" : "ok");
+    setBadge(dirtyNow() ? "待同步" : "已自动保存", dirtyNow() ? "busy" : "ok");
     li.__leaving = true;
     delete openScore[id];
     if (reducedMotion()) { render({ force: true }); return; }
@@ -863,7 +863,7 @@
           var half = ev.clientX > 0 ? ((ev.clientX - r.left) < r.width / 2) : false;
           var val = idx * 2 + (half ? 1 : 2);
           if (!setRating(id, who, val)) return;
-          setBadge(dirtyNow() ? "待同步" : "已同步", dirtyNow() ? "busy" : "ok");
+          setBadge(dirtyNow() ? "待同步" : "已自动保存", dirtyNow() ? "busy" : "ok");
           paintStars(box, val, who, id, text);
           paintScoreTag(li_of(box), id);
         };
@@ -1238,7 +1238,7 @@
         bootDone();
       } else {
         bootDone();
-        setBadge("离线·拿不到内容", "warn");
+        setBadge("没连上，手上没有内容", "warn");
       }
     });
     addEventListener("pagehide", function () { sendKeepalive(); });
@@ -1353,7 +1353,7 @@
       var tgt = Math.max(0, Math.min(ids.length, to));
       ids.splice(tgt, 0, id);
       commitOrder(ids);
-      setBadge(dirtyNow() ? "待同步" : "已同步", dirtyNow() ? "busy" : "ok");
+      setBadge(dirtyNow() ? "待同步" : "已自动保存", dirtyNow() ? "busy" : "ok");
       li.__dragged = true;
       render({ force: true });
     }
