@@ -1,4 +1,4 @@
-  var BUILD_VER = "20261201b";
+  var BUILD_VER = "20261201c";
   var DATA_V = 5;   /* 数据结构版本：v5 = items 叶子对象 + 叶子路径 PATCH */
 (function () {
   var root = document.getElementById("cdp");
@@ -460,7 +460,9 @@
     paths.forEach(function (p) { body[p] = PENDING[p]; });
     /* 每次写都顺带把 meta 钉在 v5：任何一次 PATCH 都让文档自证版本 */
     body["meta/v"] = DATA_V;
-    body["meta/minV"] = MIN_V;
+    /* 不写 meta/minV：它是「随时能一刀切」的开关，只该在 Firebase 控制台改。
+       规则上线后 minV 是 .write:false，多路径 PATCH 原子性会导致整批 403。
+       （2026-11-24 v2-write 实测反证：带 minV 的 PATCH 现在能成，正是因为规则还没部署） */
     body["meta/updatedAt"] = Date.now();
 
     var ac = window.AbortController ? new AbortController() : null;
