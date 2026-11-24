@@ -168,28 +168,45 @@
 
 
 /* 15) 结尾：细分隔线 + 相思句
-   ── 2026-11-30k 逻辑重构：诗句不再用任何视口坐标 ──
-   旧写法 .poem-l{ left:calc((100vw - 1200px)/2 + 72px) } 是「拿视口猜容器」：
-     · 视口 < 1200（1024 笔记本 / 分屏 / 系统缩放）时 (100vw-1200px)/2 变负数，
-       诗句直接落到视口外或撞上左侧花边（实测 1024 屏：诗句 x=8~27，花边 x=16~64）；
-     · 100vw 含滚动条、布局宽度不含，一有滚动条又差 15px（实测 390 屏：fixed 覆盖层
-       宽 390、.container 宽 375，任何「视口算术」都会把诗句算偏）；
-     · 屏幕越宽误差越大 —— 所以换一台电脑就偏。
-   新写法：诗句挂到卡片自己身上（.cdp-tail 移进 #cdp，position:absolute），
-   right/left = 100% + --poem-gap，顶到卡片外缘 → 间距 = 「卡片边缘 + 固定值」，
-   与视口、滚动条、缩放全部无关。 */
+   ── 2026-12-01 浮层化（L1b）：诗句回到「悬在视口」，间距精度照旧 ──
+   历史三次写法：
+     ① .poem-l{ left:calc((100vw - 1200px)/2 + 72px) } —— 拿视口猜容器：
+        视口 < 1200 时括号里变负，诗句落出视口/撞花边（实测 1024 屏 x=8~27，花边 16~64）；
+        100vw 含滚动条、布局宽不含，一有滚动条又差 15px（390 屏：浮层 390、.container 375）。
+     ② 2026-11-30k：挂到卡片上（.cdp-tail 进 #cdp，position:absolute）——
+        间距精度对了，但诗句随卡片滚走了，不是主人要的「浮动」。
+     ③ 2026-12-01（现在）：回到 fixed 浮层，但**间距不靠任何算术复刻**：
+        左句用 right、右句用 left（只用「菜单边缘」一个数，诗句宽度不参与），
+        那个数由 index.html 内联脚本 getBoundingClientRect 量 #cdp 得到，写进
+        --menu-left / --menu-right。不猜 --col、不猜 min-content、不受滚动条影响，
+        九档实测 40px（PC）/ 8px（手机）误差 ≤1px，滚动 400px 后诗句视口坐标不变。 */
 :root{
   --poem-gap: 40px;            /* 诗句 ↔ 菜单边缘：固定值（PC） */
   --scale: 1;                  /* 手机整盘等比缩放系数 */
+  /* 锚点：#cdp 的真实视口矩形，由 index.html 的内联脚本量出来写 px。
+     下面两条只是「脚本跑起来之前那一帧」的兜底估值（卡片在视口里居中 → 50% − 卡片宽/2，
+     卡片宽 = min(可用宽, --col) × --scale），量到真值后立刻被覆盖。
+     别拿它当精度来源，也别把它当「复刻公式」—— 真实值只有实测那一个。 */
+  --menu-left:  calc((100% - min(100% - 2 * var(--margin, 80px), var(--col)) * var(--scale, 1)) / 2);
+  --menu-right: calc((100% - min(100% - 2 * var(--margin, 80px), var(--col)) * var(--scale, 1)) / 2);
 }
 @media (max-width:640px){
   :root{ --poem-gap: 8px; --scale: .86; }   /* 屏窄：间距压到 8px，仍是固定值 */
   .container{ padding:0 40px; }             /* 两侧留白 32 → 40（诗句要放得下） */
+  /* 手机档两侧留白是 40px（不是 --margin 的 80），兜底估值跟着换 */
+  :root{
+    --menu-left:  calc((100% - min(100% - 80px, var(--col)) * var(--scale)) / 2);
+    --menu-right: calc((100% - min(100% - 80px, var(--col)) * var(--scale)) / 2);
+  }
 }
 
-/* inset:-1px = 卡片的 1px 边框，让下面的 100% 正好落在卡片外缘 */
+/* .cdp-tail 已在 index.html 里移出 #cdp，作为 body 的浮层：固定铺满视口，
+   诗句就悬在视口上，滚动时不动。
+   为什么不留在 #cdp 里吃 inset:-1px 的便宜：#cdp.cdp-boot 的 cdpPageTurn 是
+   animation-fill-mode:both，动画结束后 transform 仍是非 none 矩阵 ——
+   那会把所有 fixed 后代改成以 #cdp 为包含块，诗句就跟着卡片滚了。 */
 .cdp-tail{
-  position:absolute; inset:-1px; margin:0; max-width:none; text-align:initial;
+  position:fixed; inset:0; margin:0; max-width:none; text-align:initial;
   pointer-events:none; z-index:3;
 }
 /* 它是 .cdp-tail 第一个流内元素，inset:0 下会被顶到视口顶部横贯整屏 → 直接不显示 */
@@ -205,18 +222,20 @@
   -webkit-font-smoothing:antialiased;
 }
 .poem-line{
-  position:absolute; margin:0; padding:0;
+  position:fixed; margin:0; padding:0;
   writing-mode:vertical-rl; text-orientation:upright;
   white-space:nowrap;          /* 竖排必须锁单列：否则高度不够时会折成第二列（实测 1440 起折了） */
   font-size:16px; line-height:1.2; letter-spacing:.10em;
   opacity:1; color:rgba(var(--ink-rgb),.55);
   transition:opacity .5s ease;
 }
-/* 左句右缘 = 卡片左外缘 − --poem-gap；右句左缘 = 卡片右外缘 + --poem-gap。
-   （垂直只决定「一高一低」，不影响水平间距 —— 竖排里 block 轴是横向，
-   所以这里用 top 百分比，不用 margin-block-*。） */
-.poem-l{ right:calc(100% + var(--poem-gap)); left:auto; top:15%; }
-.poem-r{ left:calc(100% + var(--poem-gap));  right:auto; top:55%; }
+/* 间距只由「菜单边缘」一个数决定，且只用对侧边定位 → 诗句自身宽度不参与运算
+   （竖排里 block 轴是横向，宽度 = line-height，写 1em 会差 25px 以上）：
+     左句右缘 = 菜单左缘 − gap  ⇒  right = 视口宽 − 菜单左缘 + gap
+     右句左缘 = 菜单右缘 + gap  ⇒  left  = 视口宽 − 菜单右缘 + gap
+   垂直：竖排里 block 轴是横向，top 只决定「一高一低」，用视口高度的百分比即可。 */
+.poem-l{ right:calc(100% - var(--menu-left) + var(--poem-gap)); left:auto; top:22%; }
+.poem-r{ left:calc(100% - var(--menu-right) + var(--poem-gap));  right:auto; top:52%; }
 @media (min-width:1024px){
   .poem-line{ font-size:28px; line-height:1.9; letter-spacing:.10em; opacity:1; color:rgba(var(--ink-rgb),.92); }
 }
@@ -251,8 +270,8 @@
   /* 触控目标不缩：★ 与 × 的命中区仍 ≥44px（可访问性，等比缩放会把它压到不合格） */
   /* 手机右侧放不下第二句竖排 → 两句同在卡片左侧、上下错开，仍距卡片 --poem-gap */
   .poem-line{ font-size:18px; line-height:1.32; letter-spacing:.08em; color:rgba(var(--ink-rgb),.40); }
-  .poem-l{ top:12%; }
-  .poem-r{ top:50%; }
+  .poem-l{ top:16%; }
+  .poem-r{ top:56%; }
 }
 
 

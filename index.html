@@ -10,11 +10,11 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E%E2%9C%A6%3C/text%3E%3C/svg%3E">
 <link rel="preload" href="assets/fonts/noto-serif-sc-200-900-normal.woff2?v=20261128w" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/noto-sans-sc-100-900-normal.woff2?v=20261128w" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="styles/fonts.css?v=20261130k">
-<link rel="stylesheet" href="styles/base.css?v=20261130k">
-<link rel="stylesheet" href="styles/app.css?v=20261130k">
-<link rel="stylesheet" href="styles/deco.css?v=20261130k">
-<link rel="stylesheet" href="styles/turn-20261130k.css?v=20261130k">
+<link rel="stylesheet" href="styles/fonts.css?v=20261201b">
+<link rel="stylesheet" href="styles/base.css?v=20261201b">
+<link rel="stylesheet" href="styles/app.css?v=20261201b">
+<link rel="stylesheet" href="styles/deco.css?v=20261201b">
+<link rel="stylesheet" href="styles/turn-20261201b.css?v=20261201b">
 </head>
 <body>
 
@@ -52,20 +52,63 @@
       <button type="submit">加一条</button>
     </form>
     <p class="cdp-hint">点名字打勾，勾掉的会划掉；加进来的会自动同步，换设备也能看到。</p>
-    <div class="cdp-tail">
-      <div class="tail-rule"></div>
-      <div class="tail-poem" id="tailPoem">
-        <span class="poem-line poem-l" data-line="0">山有木兮木有枝</span>
-        <span class="poem-line poem-r" data-line="1">心悦君兮君不知</span>
-      </div>
-    </div>
   </div>
 </section>
 <div class="divider-dot">· · ·</div>
 
 </div>
 
-<script src="scripts/toc.js?v=20261130k"></script>
-<script src="scripts/app.js?v=20261130k"></script>
+<!-- 诗句浮层：悬在视口，滚动页面时不动。
+     必须在 #cdp 外面 —— #cdp 的入场动画 cdpPageTurn 是 animation-fill-mode:both，
+     动画结束后 transform 仍是非 none 矩阵，会把所有 fixed 后代绑成它的子坐标系。 -->
+<div class="cdp-tail">
+  <div class="tail-rule"></div>
+  <div class="tail-poem" id="tailPoem">
+    <span class="poem-line poem-l" data-line="0">山有木兮木有枝</span>
+    <span class="poem-line poem-r" data-line="1">心悦君兮君不知</span>
+  </div>
+</div>
+
+<script>
+/* 诗句浮层的锚点：量一次 #cdp 的真实视口矩形，写进 CSS 变量（只做这件事，不动 app.js）。
+   为什么不用 calc 复刻 --col：--col 只是上限，卡片实际宽可能被 min-content 撑开；
+   而 100vw 含滚动条、布局宽不含 —— 复刻必然差几像素。量真值就没有这些假设。
+   基准取 .cdp-tail 自身宽度（它就是浮层，CSS 里的 100% 也相对它解析）——
+   不能拿 documentElement.clientWidth 当基准：实测 390 档两者会差 15px
+   （clientWidth 390 / 布局视口 375），一混用右句就偏 7.5px。
+   间距由 CSS 用「菜单边缘 ± --poem-gap」算，诗句自身宽度不参与。 */
+(function(){
+  var root = document.documentElement;
+  function syncPoemOffset(){
+    var c = document.getElementById('cdp');
+    var tail = document.querySelector('.cdp-tail');
+    if (!c || !tail) return;
+    var r = c.getBoundingClientRect();
+    var boxW = tail.getBoundingClientRect().width || root.clientWidth;
+    root.style.setProperty('--menu-left',  Math.round(r.left * 100) / 100 + 'px');
+    root.style.setProperty('--menu-right', Math.round((boxW - r.right) * 100) / 100 + 'px');
+  }
+  window.__syncPoemOffset = syncPoemOffset;   /* 审查/调试可手动重算 */
+  syncPoemOffset();
+  addEventListener('resize', syncPoemOffset, { passive: true });
+  addEventListener('orientationchange', syncPoemOffset);
+  addEventListener('load', syncPoemOffset);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(syncPoemOffset);
+  if (window.ResizeObserver) {
+    try {
+      /* 观察浮层自身：滚动条出现/消失会改变它的宽度，此时必须重算（resize 不触发） */
+      var ro = new ResizeObserver(syncPoemOffset);
+      ro.observe(tail);
+      ro.observe(document.getElementById('cdp'));
+    } catch (e) {}
+  }
+  /* 入场是 .86s 的 rotateY 动画：动画期间 getBoundingClientRect 会被矩阵拉偏，
+     等它结束（此时矩阵已是单位阵）再校准一次。 */
+  setTimeout(syncPoemOffset, 1000);
+})();
+</script>
+
+<script src="scripts/toc.js?v=20261201b"></script>
+<script src="scripts/app.js?v=20261201b"></script>
 </body>
 </html>
