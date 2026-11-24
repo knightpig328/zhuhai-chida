@@ -1,4 +1,4 @@
-  var BUILD_VER = "20261130k";
+  var BUILD_VER = "20261130l";
 (function () {
   var root = document.getElementById("cdp");
   if (!root) return;
@@ -37,7 +37,7 @@ var FB_PATH = "/zhuhai-chida.json";
   var TOKEN = "", ETAG = "";   /* Firebase 不需要 token；此前硬编码的 GitHub PAT 已移除 */
   var WORKER = "https://liqianshiqianjin.pages.dev";
   var WKEY = "";   /* 旧 Worker 方案的共享密钥，已废弃 */
-  var TS = { done: {}, extra: {}, del: {}, addr: {}, score: {}, order: { v: [], t: 0 }, delT: 0 };
+  var TS = { done: {}, extra: {}, del: {}, addr: {}, score: {}, order: { v: [], t: 0 }, delT: 0, rosterT: 0 };
   var ADDR = {};
   var CACHE = { done: {}, extra: [] };
   var state = { done: {}, extra: [] };
@@ -77,6 +77,7 @@ var FB_PATH = "/zhuhai-chida.json";
     TS.del = o.del && typeof o.del === "object" ? o.del : TS.del;
     if (typeof o.rev === "number") TS.rev = o.rev;
     if (typeof o.delT === "number") TS.delT = o.delT;
+    if (typeof o.rosterT === "number") TS.rosterT = o.rosterT;
     if (o.score && typeof o.score === "object") TS.score = o.score;
     if (o.order && Object.prototype.toString.call(o.order.v) === "[object Array]") {
       var ov = o.order.v.filter(function (x) { return typeof x === "string"; });
@@ -404,7 +405,7 @@ var FB_PATH = "/zhuhai-chida.json";
   }
 
   function snapshot() {
-    var _snap = { v: SCHEMA_V, rev: TS.rev || 0, updatedAt: new Date().toISOString(), done: TS.done || {}, extra: TS.extra || {}, del: TS.del || {}, delT: TS.delT || 0, addr: TS.addr || {}, score: TS.score || {} };
+    var _snap = { v: SCHEMA_V, rev: TS.rev || 0, updatedAt: new Date().toISOString(), done: TS.done || {}, extra: TS.extra || {}, del: TS.del || {}, delT: TS.delT || 0, rosterT: TS.rosterT || 0, addr: TS.addr || {}, score: TS.score || {} };
   if (ORDER_OK) _snap.order = TS.order || { v: [], t: 0 };
   return _snap;
   }
@@ -504,6 +505,20 @@ var FB_PATH = "/zhuhai-chida.json";
     }
     out.del = dmerged;
     out.delT = Math.max(dta, dtb);
+
+    /* 清单版本（rosterT）：后台做过「整体收敛」后，本地残留的旧菜与旧顺序一律作废。
+       extra/order 原来是「只加不减」的并集，导致云端删了 10 条、本机还渲染 18 个。
+       rosterT 更新的一方整体接管这两项，旧条目才能真的消失。（2026-11-24） */
+    var rta = (a && typeof a.rosterT === "number") ? a.rosterT : 0;
+    var rtb = (b && typeof b.rosterT === "number") ? b.rosterT : 0;
+    if (rta !== rtb) {
+      var rwin = (rtb > rta) ? b : a;
+      out.extra = Object.assign({}, (rwin.extra || {}));
+      if (rwin.order && Object.prototype.toString.call(rwin.order.v) === "[object Array]") {
+        out.order = { v: rwin.order.v.slice(), t: rwin.order.t || 0 };
+      }
+    }
+    out.rosterT = Math.max(rta, rtb);
     out.rev = Math.max((a && a.rev) || 0, (b && b.rev) || 0);
     return out;
   }
@@ -1008,6 +1023,12 @@ var FB_PATH = "/zhuhai-chida.json";
     var tailRows = state.extra.filter(function (t) { return baseVisible.indexOf(t) === -1; });
     var _all = baseVisible.concat(tailRows);
     var _ov = (TS.order && TS.order.v) || [];
+    /* order 是权威清单：云端只留 8 项时，本地 extra 里残留的旧菜不再渲染。
+       原来 _all 全渲染，导致「云端删了 10 条、本机还是 18 个」——
+       因为 extra 的合并只加不减，本地旧条目永远活着（2026-11-24）。 */
+    if (_ov.length >= 2) {
+      _all = _ov.filter(function (t) { return _all.indexOf(t) >= 0; });
+    }
     var _ranked = _ov.length >= 2 ? _ov.filter(function (t) { return _all.indexOf(t) >= 0; }) : [];
     var _rest = _all.filter(function (t) { return _ranked.indexOf(t) === -1; });
     _ranked.concat(_rest).forEach(function (t) { list.appendChild(rowEl(t)); });
@@ -1207,6 +1228,9 @@ var FB_PATH = "/zhuhai-chida.json";
       if (has(BASE, v)) {
         if (!isBaseDeleted(v)) { setBadge("清单里已有", "fail"); return; }
         TS.extra[v] = tsNow();
+        if (!TS.order) TS.order = { v: [], t: 0 };
+        TS.order.v = (TS.order.v || []).filter(function (x) { return x !== v; }).concat([v]);
+        TS.order.t = tsNow();
         save(); push();
         render({ force: true, enter: v });
         setBadge("已恢复", "ok");
