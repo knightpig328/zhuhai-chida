@@ -1,8 +1,14 @@
-  var BUILD_VER = "20261130i";
+  var BUILD_VER = "20261130k";
 (function () {
   var root = document.getElementById("cdp");
   if (!root) return;
   var KEY = "guizang-zhuhai-chida-v1";
+  /* 数据结构版本。升到 4 之后：
+     - 新客户端写 v4，同时接受读 v3/v4（前向兼容）
+     - 旧客户端 okShape 只认 v===3，读到 v4 会走「数据异常·未写入」分支直接 return
+       → 它自动变成只读，再也不会整份 PUT 把新数据覆盖回去
+     这就是「主人在线时后台修数据、刷新后不被回弹」的机制。 */
+  var SCHEMA_V = 4;
   var TS_KEY = KEY + ":ts";
   var list = document.getElementById("cdp-list");
   var form = document.getElementById("cdp-form");
@@ -398,7 +404,7 @@ var FB_PATH = "/zhuhai-chida.json";
   }
 
   function snapshot() {
-    var _snap = { v: 3, rev: TS.rev || 0, updatedAt: new Date().toISOString(), done: TS.done || {}, extra: TS.extra || {}, del: TS.del || {}, delT: TS.delT || 0, addr: TS.addr || {}, score: TS.score || {} };
+    var _snap = { v: SCHEMA_V, rev: TS.rev || 0, updatedAt: new Date().toISOString(), done: TS.done || {}, extra: TS.extra || {}, del: TS.del || {}, delT: TS.delT || 0, addr: TS.addr || {}, score: TS.score || {} };
   if (ORDER_OK) _snap.order = TS.order || { v: [], t: 0 };
   return _snap;
   }
@@ -408,7 +414,7 @@ var FB_PATH = "/zhuhai-chida.json";
 
 
   function mergeState(a, b) {
-    var out = { v: 3, rev: 0, updatedAt: new Date().toISOString(), done: {}, extra: {}, del: {}, addr: {}, score: {} };
+    var out = { v: SCHEMA_V, rev: 0, updatedAt: new Date().toISOString(), done: {}, extra: {}, del: {}, addr: {}, score: {} };
     ["done", "extra", "del"].forEach(function (f) {
       var x = (a && a[f]) || {}, y = (b && b[f]) || {}, m = out[f];
       Object.keys(x).forEach(function (k) { var xv = Number(x[k]); if (isFinite(xv) && xv) m[k] = xv; });
@@ -543,7 +549,7 @@ var FB_PATH = "/zhuhai-chida.json";
         return false;
       }
       var d = res.doc;
-      var okShape = d && d.v === 3 && typeof d.rev === "number" && d.done && typeof d.done === "object" && d.extra && typeof d.extra === "object";
+      var okShape = d && (d.v === 3 || d.v === SCHEMA_V) && typeof d.rev === "number" && d.done && typeof d.done === "object" && d.extra && typeof d.extra === "object";
       if (!okShape) { setBadge("数据异常·未写入", "warn"); markPending(true); return false; }
       hydrated = true;
       applyDoc(d, true);
