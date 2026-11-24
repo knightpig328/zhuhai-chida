@@ -253,11 +253,11 @@
 @media (max-width:640px){
   /* 第3列只有113px，6字需130px；跨到第4列(≈144px)刚好，不碰第5列×与第6列★ */
   #cdp .cdp-name{ grid-column:3 / 5; font-size:1.35rem; letter-spacing:.01em; white-space:normal; overflow-wrap:anywhere; max-width:100%; }
-  #cdp .cdp-rate{ grid-column:6; grid-row:1; align-self:center; margin-top:-12px; }
+  #cdp .cdp-rate{ grid-column:6; grid-row:1; align-self:center; margin-top:-12px; position:relative; z-index:1; }   /* ★ 压在 × 之上，避免点到星却删了行 */
   #cdp .cdp-del{ grid-column:5; grid-row:1; align-self:center; margin-top:-6px; opacity:.85; }
   /* × 命中区扩到 44×44（视觉仍是 22px，只是可点范围变大） */
   #cdp .cdp-del{ position:relative; }
-  #cdp .cdp-del::after{ content:""; position:absolute; top:-11px; bottom:-11px; left:-11px; right:-11px; }
+  #cdp .cdp-del::after{ content:""; position:absolute; top:-11px; bottom:-11px; left:-11px; right:-2px; }
   #cdp .cdp-map{ grid-column:6; grid-row:2; align-self:center; margin-top:-4px; }
   #cdp .cdp-idx{ font-size:.8em; }
 }
@@ -366,3 +366,10 @@
 #cdp .cdp-rate:focus-visible,
 #cdp .cdp-tick:focus-visible,
 #cdp .cdp-sync:focus-visible{ outline:2px solid rgba(var(--accent-rgb),.85) !important; outline-offset:2px !important; border-radius:3px; }
+
+
+/* 深色输入框（chk-mobile 实测：黑字叠黑底，对比度 1.07:1，等于不能输入） */
+:root[data-scheme="dark"] #cdp-input{ color:var(--ink); caret-color:var(--ink); }
+:root[data-scheme="dark"] #cdp-input::placeholder{ color:rgba(var(--ink-rgb),.5); }
+:root[data-scheme="dark"] #cdp .cdp-del{ color:rgba(var(--ink-rgb),.62); }
+:root[data-scheme="dark"] #cdp .cdp-idx{ color:rgba(var(--ink-rgb),.6) !important; }
