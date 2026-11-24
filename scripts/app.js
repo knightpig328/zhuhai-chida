@@ -1,4 +1,4 @@
-  var BUILD_VER = "20261129m";
+  var BUILD_VER = "20261130a";
 (function () {
   var root = document.getElementById("cdp");
   if (!root) return;
@@ -28,9 +28,9 @@
 var FB = "https://liqianshiqianjin-default-rtdb.asia-southeast1.firebasedatabase.app";
 var FB_PATH = "/zhuhai-chida.json";
   /* 默认凭据：以字符码形式存放，避免明文令牌被仓库扫描/拦截 */
-  var TOKEN = String.fromCharCode(103,105,116,104,117,98,95,112,97,116,95,49,49,67,72,67,77,68,83,65,48,76,48,103,101,107,100,67,83,54,115,65,119,95,88,107,119,111,88,76,82,68,77,104,66,52,57,120,54,73,86,71,103,121,49,75,55,108,67,48,57,48,117,48,100,106,122,83,69,80,74,106,98,53,118,55,77,50,54,74,86,50,50,65,89,100,97,106,119,90,56,115,84), ETAG = "";
+  var TOKEN = "", ETAG = "";   /* Firebase 不需要 token；此前硬编码的 GitHub PAT 已移除 */
   var WORKER = "https://liqianshiqianjin.pages.dev";
-  var WKEY = "zhuhai-2026-liqianwoainikeshinizongshichaowowozhendehaonanguo";
+  var WKEY = "";   /* 旧 Worker 方案的共享密钥，已废弃 */
   var TS = { done: {}, extra: {}, del: {}, addr: {}, score: {}, order: { v: [], t: 0 } };
   var ADDR = {};
   var CACHE = { done: {}, extra: [] };
@@ -527,7 +527,6 @@ var FB_PATH = "/zhuhai-chida.json";
   }
 
   function saveData() {
-    if (!TOKEN) { setBadge("只读·点我绑定", "warn"); return Promise.resolve(false); }
     if (net.patch) { net.dirty = true; markPending(true); return net.patch; }
     net.dirty = false; net.pending = true; markPending(true);
     var chain = (function loop() {
@@ -568,8 +567,7 @@ var FB_PATH = "/zhuhai-chida.json";
   }
   function dirtyNow() { return !!(net.pending || net.dirty || pushTimer || readPending()); }
   function flushNow() {
-    window.clearTimeout(pushTimer); pushTimer = 0; pushFirstAt = 0;
-    if (!TOKEN) return;
+    window.clearTimeout(pushTimer); pushTimer = 0; pushFirstAt = 0;
     if (!dirtyNow()) return;
     if (net.patch) { net.dirty = true; markPending(true); return; }
     saveData();
@@ -595,7 +593,7 @@ var FB_PATH = "/zhuhai-chida.json";
 
   function leaveOnce(stopPoll) {
     if (stopPoll && pollTimer) { window.clearInterval(pollTimer); pollTimer = 0; }
-    if (!TOKEN || !dirtyNow()) return;
+    if (!dirtyNow()) return;
     var now = Date.now();
     if (!stopPoll && now - leaveSent < 2000) return;
     leaveSent = now;
@@ -655,7 +653,7 @@ var FB_PATH = "/zhuhai-chida.json";
 
   if (badge) badge.addEventListener("click", function () {
     if (holdFired) { holdFired = false; return; }
-    if (!TOKEN || (lastErr && (lastErr.kind === "token_bad" || lastErr.kind === "gist_missing"))) { askToken(); return; }
+    /* Firebase 无需 token：点角标 = 强制拉最新 */
     failCount = 0;
     if (net.pending || net.dirty) { setBadge("重试中", "busy"); saveData(); return; }
     setBadge("检测中", "busy");
@@ -1213,10 +1211,10 @@ var FB_PATH = "/zhuhai-chida.json";
     addEventListener("pagehide", function () { leaveOnce(true); });
     addEventListener("visibilitychange", function () {
       if (document.hidden) { leaveOnce(false); }
-      else if (TOKEN && !net.patch) { fetchData().then(function (res) { if (res && res.doc) applyDoc(res.doc); }); }
+      else if (!net.patch) { fetchData().then(function (res) { if (res && res.doc) applyDoc(res.doc); }); }
     });
     addEventListener("focus", function () {
-      if (TOKEN && !net.patch) fetchData().then(function (res) { if (res && res.doc) applyDoc(res.doc); });
+      if (!net.patch) fetchData().then(function (res) { if (res && res.doc) applyDoc(res.doc); });
     });
     if (readPending()) saveData();
   }

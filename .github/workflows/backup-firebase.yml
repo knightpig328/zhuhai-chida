@@ -1,0 +1,24 @@
+﻿name: backup-firebase
+on:
+  schedule:
+    - cron: '17 20 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch snapshot (read-only)
+        run: |
+          mkdir -p backup
+          curl -sf "https://liqianshiqianjin-default-rtdb.asia-southeast1.firebasedatabase.app/zhuhai-chida.json" -o "backup/\F.json"
+          ls -la backup | tail -3
+      - name: Commit
+        run: |
+          git config user.name "backup-bot"
+          git config user.email "backup@local"
+          git add backup
+          git diff --staged --quiet || git commit -m "backup \F"
+          git push
