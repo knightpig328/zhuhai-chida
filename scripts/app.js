@@ -970,6 +970,7 @@
           setBadge(dirtyNow() ? "待同步" : "已自动保存", dirtyNow() ? "busy" : "ok");
           paintStars(box, val, who, id, text);
           paintScoreTag(li_of(box), id);
+          paintAvg(li_of(box), id);
         };
       })(i));
       box.appendChild(s);
@@ -998,6 +999,85 @@
         stars[j].className = "cdp-star" + (n === 2 ? " is-full" : n === 1 ? " is-half" : "");
       }
     });
+    paintAvg(li, id);
+  }
+
+  /* ===== 评分面板右侧「平均」小窗口 =====
+     独立第三块，绝对定位贴在面板右缘、垂直对着两行星的中线；
+     配色沿用 ink 色系（--ink-rgb 在换主题/深色时自动反转）。
+     这里全部用内联样式写，styles/ 由另一路在改，不动任何 CSS 文件。
+
+     数值口径（按定下的优先级）：
+       ① 两人都打过分 → 先用 l0-data 写进来的 item.rating，缺了才现算 (me+her)/2
+       ② 只有一人打过分 → item.rating 就是那次算出的单人分
+       ③ 两人都没打分 → 只兼容迁移遗留的单值 rating，否则显示 — */
+  function numOrNull(v) { return (typeof v === "number" && isFinite(v)) ? v : null; }
+  function avgOf(id) {
+    var it = itemOf(id);
+    if (!it) return null;
+    var me  = numOrNull(it.ratingMe);
+    var her = numOrNull(it.ratingHer);
+    var r0  = numOrNull(it.rating);
+    var r   = (r0 !== null && r0 > 0) ? r0 : null;   /* normalizeItem 把缺失的 rating 补成 0，0 视同没有 */
+    if (me !== null && her !== null) return r !== null ? r : (me + her) / 2;
+    if (me !== null || her !== null) return r !== null ? r : (me !== null ? me : her);
+    return r;
+  }
+  function avgText(v) {
+    if (v === null) return "—";
+    return (Math.round(v * 10) / 10).toFixed(1);   /* 5 → 5.0、5.5 → 5.5，一位小数，宽度不跳 */
+  }
+  function paintAvg(li, id) {
+    if (!li) return;
+    var panel = li.querySelector(".cdp-score");
+    if (!panel) return;
+    var v = panel.querySelector(".cdp-avg-v");
+    if (v) v.textContent = avgText(avgOf(id));
+  }
+  /* 精确对中线：面板有 border-top 与 padding-top，用 top:50% 会偏 3px 左右。
+     绝对定位的 top:0 基准是 padding box 上沿，等于 border box 上沿 + border-top。
+     居中的一半交给 transform:translateY(-50%)（高度变了会自动跟着走），
+     JS 只负责把盒顶对齐到「两行星中线」——两边都减 h/2 就会多扣一次。 */
+  function placeAvg(panel) {
+    if (!panel) return;
+    var box = panel.querySelector(".cdp-avg");
+    if (!box) return;
+    var rows = panel.querySelectorAll(".score-row");
+    var pr = panel.getBoundingClientRect();
+    if (!rows.length || !pr.height) { return; }
+    var first = rows[0].getBoundingClientRect();
+    var last = rows[rows.length - 1].getBoundingClientRect();
+    var st = rows[0].querySelectorAll(".cdp-star");
+    var lastStar = st.length ? st[st.length - 1].getBoundingClientRect() : null;
+    var need = box.offsetWidth + 12;                       /* 盒宽 + 与最后一颗星的呼吸位 */
+    var avail = lastStar ? (pr.right - lastStar.right) : pr.width;
+    if (avail < need) {
+      /* 窄屏塞不下：降级成面板里独立的一块（第三块、单独一行、右对齐），
+         绝不压星星、绝不缩星星的点击区。 */
+      box.style.position = "static";
+      box.style.display = "inline-block";
+      box.style.transform = "none";
+      box.style.marginTop = "3px";
+      panel.style.textAlign = "right";
+      return;
+    }
+    box.style.position = "absolute";
+    box.style.display = "";
+    box.style.marginTop = "0";
+    panel.style.textAlign = "";
+    var padTop = parseFloat(window.getComputedStyle(panel).borderTopWidth) || 0;
+    var mid = (first.top + last.bottom) / 2;   /* 两行星在视口里的中线 */
+    box.style.transform = "translateY(-50%)";
+    box.style.top = Math.round(mid - (pr.top + padTop)) + "px";
+  }
+  function placeAvgAll() {
+    if (!list) return;
+    Array.prototype.forEach.call(list.querySelectorAll(".cdp-score"), placeAvg);
+  }
+  var avgPlaceRaf = 0;
+  function scheduleAvgPlace() {
+    if (avgPlaceRaf) return;
+    avgPlaceRaf = raf(function () { avgPlaceRaf = 0; placeAvgAll(); });
   }
 
   function toggleScore(li, id, text) {
@@ -1019,8 +1099,34 @@
       panel.appendChild(row);
       paintStars(box, sc[w[0]] || 0, w[0], id, text);
     });
+    /* 第三块：平均分小窗口。绝对定位贴着面板右缘，不参与两行星的排版；
+       pointer-events:none 保证绝不吃掉星星的点击。 */
+    panel.style.position = "relative";
+    var avgBox = document.createElement("div");
+    avgBox.className = "cdp-avg";
+    avgBox.setAttribute("aria-label", "两人平均分");
+    avgBox.style.cssText =
+      "position:absolute;right:6px;top:50%;transform:translateY(-50%);" +
+      "box-sizing:border-box;text-align:center;white-space:nowrap;pointer-events:none;" +
+      "padding:2px 7px 3px;border-radius:4px;line-height:1.2;" +
+      "border:1px solid rgba(10,10,11,.18);border:1px solid rgba(var(--ink-rgb),.18);" +
+      "background:rgba(10,10,11,.04);background:rgba(var(--ink-rgb),.04);";
+    var avgCap = document.createElement("div");
+    avgCap.textContent = "平均";
+    avgCap.style.cssText =
+      "font-size:.6rem;line-height:1.15;letter-spacing:.08em;" +
+      "color:rgba(10,10,11,.62);color:rgba(var(--ink-rgb),.62);";
+    var avgVal = document.createElement("div");
+    avgVal.className = "cdp-avg-v";
+    avgVal.style.cssText =
+      "font-size:.92rem;font-weight:600;line-height:1.1;font-variant-numeric:tabular-nums;" +
+      "color:rgba(10,10,11,.90);color:rgba(var(--ink-rgb),.90);";
+    avgBox.appendChild(avgCap); avgBox.appendChild(avgVal);
+    panel.appendChild(avgBox);
     li.appendChild(panel);
     li.classList.add("has-score");
+    paintAvg(li, id);
+    placeAvg(panel);
   }
 
   /* 拖拽排序状态：拖拽期间禁止重建列表/刷新编号 */
@@ -1360,6 +1466,8 @@
     var _ro = new ResizeObserver(function () { rebuildScratches(); });
     _ro.observe(list);
   }
+  /* 视口或字号变了，两行星的中线会跟着动 —— 重摆平均小窗口 */
+  addEventListener("resize", scheduleAvgPlace);
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(rebuildScratches);
   }
