@@ -1,4 +1,4 @@
-﻿name: backup-firebase-10min
+name: backup-firebase-10min
 on:
   schedule:
     - cron: '*/10 * * * *'
@@ -13,12 +13,18 @@ jobs:
       - name: Fetch snapshot (read-only)
         run: |
           mkdir -p backup
-          curl -sf "https://liqianshiqianjin-default-rtdb.asia-southeast1.firebasedatabase.app/zhuhai-chida.json" -o "backup/\F.json"
+          STAMP="$(date -u +%Y-%m-%d-%H%M)"
+          curl -sf "https://liqianshiqianjin-default-rtdb.asia-southeast1.firebasedatabase.app/zhuhai-chida.json" -o "backup/${STAMP}.json"
           ls -la backup | tail -3
+      - name: Prune old snapshots (keep 200)
+        run: |
+          cd backup
+          ls -1t *.json 2>/dev/null | tail -n +201 | xargs -r rm -f --
+          echo "remaining: $(ls -1 *.json 2>/dev/null | wc -l)"
       - name: Commit
         run: |
           git config user.name "backup-bot"
           git config user.email "backup@local"
           git add backup
-          git diff --staged --quiet || git commit -m "backup \F"
+          git diff --staged --quiet || git commit -m "backup $(date -u +%Y-%m-%d-%H%M)"
           git push
