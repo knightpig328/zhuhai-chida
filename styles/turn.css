@@ -209,11 +209,14 @@
 #cdp .cdp-rate{
   grid-column:7; justify-self:end; align-self:center; width:24px; height:24px; padding:0;
   background:none; border:0; cursor:pointer; line-height:1;
-  font-size:1.45rem; color:rgba(var(--ink-rgb),.38);
+  /* 未评分 ★：.48 实测 3.19:1（原来 .38 = 2.47:1，低于 3:1 门槛） */
+  font-size:1.45rem; color:rgba(var(--ink-rgb),.48);
   transition:color .18s ease, transform .18s ease;
 }
-#cdp .cdp-rate:hover{ color:rgba(var(--accent-rgb),.85); transform:scale(1.12); }
-#cdp .cdp-rate.is-on{ color:rgba(var(--accent-rgb),.9); }
+#cdp .cdp-rate:hover{ color:rgba(var(--ink-rgb),.72); transform:scale(1.12); }
+/* 已评分：与面板里的满星同色（.90），不再用 accent —— 换主题时 accent≠ink 会变出第二种颜色 */
+#cdp .cdp-rate.is-on{ color:rgba(var(--ink-rgb),.90); }
+
 #cdp .cdp-row.has-score{ grid-auto-rows:auto; }
 #cdp .cdp-score{
   grid-column:1 / -1; margin:4px -2px 0; padding-top:6px;
@@ -230,17 +233,23 @@
 #cdp .score-stars{ display:flex; justify-content:flex-start; }
 #cdp .cdp-star{
   flex:0 0 auto; width:28px; height:28px; padding:0; background:none; border:0; cursor:pointer;
-  font-size:1.5rem; line-height:1; color:rgba(var(--ink-rgb),.32);
+  /* 未选：.48 实测 3.19:1（面板底色 236,234,229 上），比 .90 的已选明显更浅 */
+  font-size:1.5rem; line-height:1; color:rgba(var(--ink-rgb),.48);
   transition:color .15s ease, transform .15s ease;
 }
 #cdp .cdp-star:hover{ transform:scale(1.15); }
-#cdp .cdp-star.is-full{ color:rgba(var(--accent-rgb),.92); }
+/* 一个色系两种透明度：满星 .90 / 未选 .48；半星左半 .90、右半 .48，绝不用元素 opacity（会把已选那半一起变淡） */
+#cdp .cdp-star.is-full{ color:rgba(var(--ink-rgb),.90); }
 #cdp .cdp-star.is-half{
-  color:rgba(var(--ink-rgb),.18);
-  background:linear-gradient(90deg, rgba(var(--accent-rgb),.92) 50%, transparent 50%);
+  color:rgba(var(--ink-rgb),.90);                  /* 不支持文字裁剪的引擎：整颗按满星色显示，不做透明 */
+  background:linear-gradient(90deg, rgba(var(--ink-rgb),.90) 0 50%, rgba(var(--ink-rgb),.48) 50% 100%);
   -webkit-background-clip:text; background-clip:text;
   -webkit-text-fill-color:transparent;
 }
+@supports not ((-webkit-background-clip:text) or (background-clip:text)){
+  #cdp .cdp-star.is-half{ background:none; -webkit-text-fill-color:currentColor; }
+}
+
 @media print{ #cdp .cdp-rate, #cdp .cdp-score{ display:none !important; } }
 
 /* 16b) 手机触控：★ 视觉不变但点击区 44px，星星加大，面板铺满整行 */
@@ -367,7 +376,12 @@
 #cdp .cdp-idx{ color:rgba(var(--ink-rgb),.62) !important; }
 #cdp .cdp-hint{ color:rgba(var(--ink-rgb),.58) !important; font-size:11.5px !important; }
 #cdp .cdp-addr:empty::before{ color:rgba(var(--ink-rgb),.42) !important; }
-#cdp .cdp-star{ color:rgba(var(--ink-rgb),.52) !important; }
+/* ★ 的配色已收归 §16（未选 .48 = 3.19:1，已选 .90）。
+   原来这里有一条 `#cdp .cdp-star{ color:rgba(var(--ink-rgb),.52) !important }`：
+   !important 连 .is-full 的已选色一起盖掉，满星和未选星变成同一个灰，
+   而 .is-half 走 background-clip 不受 color 影响 → 三色混用。
+   2026-11-24 实测后删除，未选色改由 §16 基础规则给出（.48，仍满足 ≥3:1）。 */
+
 #cdp .cdp-bar{ background:rgba(var(--ink-rgb),.16); }
 #cdp .cdp-count small, #cdp .cdp-done-label{ color:rgba(var(--ink-rgb),.58) !important; }
 
