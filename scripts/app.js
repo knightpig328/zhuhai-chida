@@ -647,6 +647,80 @@
     return true;
   }
 
+  /* ===== 删除浮条：删了就删，5 秒内可撤销（不加确认弹窗，情侣清单一天点几十次） ===== */
+  var UNDO = { el: null, outTimer: 0, hideTimer: 0, run: null };
+  function undoToast() {
+    if (UNDO.el && UNDO.el.parentNode) return UNDO.el;
+    var el = document.createElement("div");
+    el.className = "cdp-undo";
+    el.setAttribute("role", "status");
+    el.setAttribute("aria-live", "polite");
+    /* 样式全部内联：不动 styles/，也不和并行改样式的通道撞车 */
+    el.style.cssText = "position:fixed;left:50%;bottom:16px;transform:translateX(-50%) translateY(6px);z-index:2147483000;" +
+      "display:flex;align-items:center;gap:10px;max-width:min(92vw,420px);padding:10px 12px 10px 14px;" +
+      "border-radius:999px;background:rgba(38,32,26,.93);color:#f7f1e3;font-size:13px;line-height:1.35;" +
+      "box-shadow:0 6px 22px rgba(0,0,0,.28);opacity:0;pointer-events:none;" +
+      "transition:opacity .22s ease,transform .22s ease";
+    var t = document.createElement("span");
+    t.className = "cdp-undo-t";
+    t.style.cssText = "flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "cdp-undo-b";
+    b.textContent = "撤销";
+    b.style.cssText = "flex:0 0 auto;border:0;background:transparent;color:#ffd489;font:inherit;font-weight:600;" +
+      "padding:2px 4px;cursor:pointer;text-decoration:underline;text-underline-offset:2px";
+    b.addEventListener("click", function () {
+      var fn = UNDO.run;
+      if (!fn) return;
+      try { fn(); } catch (e) {}
+    });
+    el.appendChild(t);
+    el.appendChild(b);
+    document.body.appendChild(el);
+    UNDO.el = el;
+    return el;
+  }
+  function hideUndo() {
+    if (UNDO.outTimer) { window.clearTimeout(UNDO.outTimer); UNDO.outTimer = 0; }
+    if (UNDO.hideTimer) { window.clearTimeout(UNDO.hideTimer); UNDO.hideTimer = 0; }
+    UNDO.run = null;
+    var el = UNDO.el;
+    if (!el) return;
+    el.style.opacity = "0";
+    el.style.transform = "translateX(-50%) translateY(6px)";
+    el.style.pointerEvents = "none";
+    UNDO.hideTimer = window.setTimeout(function () {
+      UNDO.hideTimer = 0;
+      if (UNDO.el && UNDO.el.parentNode) UNDO.el.parentNode.removeChild(UNDO.el);
+      UNDO.el = null;
+    }, 260);
+  }
+  function showUndo(text, run) {
+    var el = undoToast();
+    var t = el.querySelector(".cdp-undo-t");
+    if (t) t.textContent = "已删掉「" + text + "」";   /* 同时只留一条：连删就替换文案 */
+    UNDO.run = run || null;
+    if (UNDO.hideTimer) { window.clearTimeout(UNDO.hideTimer); UNDO.hideTimer = 0; }
+    el.style.opacity = "1";
+    el.style.transform = "translateX(-50%) translateY(0)";
+    el.style.pointerEvents = "auto";
+    if (UNDO.outTimer) window.clearTimeout(UNDO.outTimer);
+    UNDO.outTimer = window.setTimeout(function () { UNDO.outTimer = 0; hideUndo(); }, 5000);   /* 5 秒自己淡出 */
+  }
+  /* 撤销 = 把墓碑翻回 false（items/<id>/del:false + delAt 刷新）。
+     地址、评分本来就没被删过（v5 删除只打旗），所以地址是原生跟着回来的。 */
+  function undoRemove(id) {
+    hideUndo();
+    var it = itemOf(id);
+    if (!it) return;
+    var t = tsNow();
+    var patch = {};
+    patch["items/" + id + "/del"] = false;
+    patch["items/" + id + "/delAt"] = t;
+    if (canWrite() && enqueue(patch)) { it.del = false; it.delAt = t; }
+    render({ force: true, enter: id });
+  }
   /* 中点值：把条目插到 a、b 之间。返回 null = 空隙太挤，调用方应整表重排 */
   function ordBetween(a, b) {
     if (typeof a !== "number" || !isFinite(a)) a = 0;
@@ -717,6 +791,23 @@
     try { return !!(a.isContentEditable && root.contains(a)); } catch (e) { return false; }
   }
 
+  /* ===== 地址自动保存：输入 600ms 后自动写云端，不再等失焦 ===== */
+  var ADDR_SAVE_MS = 600;
+  var addrSaveTimer = 0, addrSaveFn = null;
+  function queueAddrSave(fn) {
+    addrSaveFn = fn || null;
+    if (addrSaveTimer) window.clearTimeout(addrSaveTimer);
+    addrSaveTimer = window.setTimeout(function () { addrSaveTimer = 0; flushAddrSave(); }, ADDR_SAVE_MS);
+  }
+  function flushAddrSave() {
+    if (addrSaveTimer) { window.clearTimeout(addrSaveTimer); addrSaveTimer = 0; }
+    var fn = addrSaveFn;
+    addrSaveFn = null;
+    if (fn) { try { fn(); } catch (e) {} }
+  }
+  /* 关页面 / 切后台时强制落盘一次：填完直接切走也不会丢 */
+  addEventListener("pagehide", flushAddrSave);
+  addEventListener("visibilitychange", function () { if (document.hidden) flushAddrSave(); });
   /* ===== 行 DOM（结构与 class 与 v4 保持一致，CSS 那路不必跟着改） ===== */
   function rowEl(it) {
     var text = it.name, id = it.id;
@@ -747,6 +838,17 @@
       if (ev.key === "Enter") { ev.preventDefault(); addr.blur(); }
       else if (ev.key === "Escape") { ev.preventDefault(); addr.textContent = (itemOf(id) || {}).addr || ""; addr.blur(); }
     });
+    /* 地址：输入 600ms 后自动落盘（原来的 focusout 继续兜底） */
+    function commitAddr() {
+      var v = Array.from((addr.textContent || "").replace(/\s+/g, " ").trim()).slice(0, 40).join("");
+      var cur = itemOf(id);
+      if (cur && v !== (cur.addr || "")) setAddr(id, v);
+      applyMapHref();
+      if (pendingRender) window.setTimeout(function () {
+        if (pendingRender && !isEditing()) { pendingRender = false; render(); }
+      }, 0);
+    }
+    addr.addEventListener("input", function () { queueAddrSave(commitAddr); });
     addr.addEventListener("focusout", function () {
       try { addr.scrollLeft = 0; } catch (e) {}     /* 失焦后从头显示，而不是停在末尾 */
       var v = Array.from((addr.textContent || "").replace(/\s+/g, " ").trim()).slice(0, 40).join("");
@@ -824,6 +926,8 @@
     var cur = itemOf(id);
     if (!cur) return;
     if (!removeItem(id)) return;
+    /* 底部浮条：5 秒内可撤销 */
+    showUndo(cur.name, function () { undoRemove(id); });
     setBadge(dirtyNow() ? "待同步" : "已自动保存", dirtyNow() ? "busy" : "ok");
     li.__leaving = true;
     delete openScore[id];
