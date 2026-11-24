@@ -474,14 +474,29 @@ var FB_PATH = "/zhuhai-chida.json";
       }
       out.order = { v: merged, t: Math.max(na.t, nb.t) };
     }
-    /* del 墓碑：谁 delT 新谁整体说了算。
-       否则远端把墓碑清空后，本地旧墓碑会在合并时"复活"，把菜继续挡住
-       （2026-11-24 实测：PC 端只剩 4 个就是这条） */
+    /* del 墓碑：并集 + 垃圾回收。
+       原实现只「加」不「删」：远端把墓碑清空后，本地旧墓碑没有任何代码去删它，
+       于是每次加载都把菜挡住（2026-11-24 r2-data 精确复现：PC 端只剩 4 个）。
+       现在：先取并集保住各设备的删除记录，再用 delT 较新那一方的 del 做 GC——
+       它里面没有的键，说明那个时刻之后已被清理，一律丢弃。 */
     var dta = (a && typeof a.delT === "number") ? a.delT : 0;
     var dtb = (b && typeof b.delT === "number") ? b.delT : 0;
-    if (dta !== dtb) {
-      out.del = Object.assign({}, (dtb > dta ? (b.del || {}) : (a.del || {})));
+    var delA = (a && a.del) || {}, delB = (b && b.del) || {};
+    var dmerged = {};
+    Object.keys(delA).forEach(function (k) { var v = Number(delA[k]); if (isFinite(v) && v) dmerged[k] = v; });
+    Object.keys(delB).forEach(function (k) {
+      var v = Number(delB[k]);
+      if (!isFinite(v) || !v) return;
+      if (!own(dmerged, k)) { dmerged[k] = v; return; }
+      if (Math.abs(v) >= Math.abs(Number(dmerged[k]) || 0)) dmerged[k] = v;
+    });
+    if (dta || dtb) {
+      var gcSrc = (dtb >= dta) ? delB : delA;   /* delT 较新的一方是「清理后的真相」 */
+      Object.keys(dmerged).forEach(function (k) {
+        if (!own(gcSrc, k)) delete dmerged[k];  /* 它里面没有 → 已被清理 → 丢弃 */
+      });
     }
+    out.del = dmerged;
     out.delT = Math.max(dta, dtb);
     out.rev = Math.max((a && a.rev) || 0, (b && b.rev) || 0);
     return out;
@@ -516,7 +531,11 @@ var FB_PATH = "/zhuhai-chida.json";
 
 
   function patchOnce(retry) {
-    return fetchData().then(function (res) {
+    /* 写前必须读最新，不能吃 20 秒内的缓存快照。
+       否则：A 删了一道菜 → B 在 20 秒内写别的 → B 用的是旧快照 → 整份 PUT 把 A 的删除抹掉。
+       这就是「删掉的菜又回来了」的根因（2026-11-24 定位）。 */
+    net.get = null;
+    return fetchData(true).then(function (res) {
       /* 本次读失败 / 只拿到静态镜像 → 一律不写。这是唯一可靠的覆盖防护。 */
       if (!res || !res.doc || res.doc.__mirror) {
         setBadge("未连上·未写入", "warn");
@@ -535,12 +554,18 @@ var FB_PATH = "/zhuhai-chida.json";
       var putHeaders = { "Content-Type": "application/json" };
       /* 乐观锁：带读时的 ETag，别人先写过就 412，避免整份覆盖丢写 */
       if (net.etag) putHeaders["if-match"] = net.etag;
-      return fetch(FB + FB_PATH, {
+      /* 写也要有超时：原来只给 GET 加了 12 秒，写路径裸奔——
+         半死连接会悬挂 22 秒以上，锁死 net.patch，之后所有点击都不落盘 */
+      var pac = window.AbortController ? new AbortController() : null;
+      var ptimer = pac ? window.setTimeout(function () { try { pac.abort(); } catch (e) {} }, 12000) : 0;
+      var putP = fetch(FB + FB_PATH, {
         method: "PUT",
         headers: putHeaders,
         body: text,
-        cache: "no-store"
+        cache: "no-store",
+        signal: pac ? pac.signal : undefined
       }).then(function (r) {
+        if (ptimer) window.clearTimeout(ptimer);
         var et2 = r.headers.get("ETag") || "";
         if (et2) { try { net.etag = et2.replace(/^W\//, "").replace(/"/g, ""); } catch (e2) {} }
         if (r.status === 412) { var e412 = new Error("precondition"); e412.kind = "conflict"; throw e412; }
@@ -557,6 +582,11 @@ var FB_PATH = "/zhuhai-chida.json";
           if (r2 && r2.doc && !r2.doc.__mirror) applyDoc(r2.doc, true);
         }).catch(function () {});
         return true;
+      }, function (pe) {
+        if (ptimer) window.clearTimeout(ptimer);
+        var e3 = new Error("put timeout");
+        e3.kind = "timeout";
+        throw e3;
       });
       return putP.then(null, function (e) {
         if (e && e.kind === "conflict" && retry < 2) {
@@ -620,15 +650,13 @@ var FB_PATH = "/zhuhai-chida.json";
     try {
       var text = JSON.stringify(snapshot(), null, 1);
       if (text.length > 60000) { setBadge("改动太大·未上传", "fail"); return; }
-      var u = FB + FB_PATH;   /* 原 Worker 已废弃，保底写入改打 Firebase */
-      var sent = false;
-      try {
-        if (navigator.sendBeacon) sent = navigator.sendBeacon(u, new Blob([text], { type: "text/plain;charset=UTF-8" }));
-      } catch (e) { sent = false; }
-      if (sent) { net.lastBody = null; return; }   /* sendBeacon 的 true 只代表「已排队」，不清 pending，等下次拉取确认 */
+      var u = FB + FB_PATH;
+      /* 保底写入必须用 PUT：Firebase REST 的 POST 是 push，会生成 -Nxxxx 随机键，
+         把整份文档挂到子节点下（2026-11-24 实测：数据里出现 -P7B7Wh_75yZClh0MOAd）。
+         sendBeacon 只能发 text/plain，Firebase 不接受；改用 fetch keepalive + PUT。 */
       fetch(u, {
-        method: "POST", keepalive: true, cache: "no-store",
-        headers: { "Content-Type": "text/plain;charset=UTF-8" },
+        method: "PUT", keepalive: true, cache: "no-store",
+        headers: { "Content-Type": "application/json" },
         body: text
       }).then(function () { markPending(false); net.lastBody = null; }, function () {});
     } catch (e) {}
@@ -792,9 +820,24 @@ var FB_PATH = "/zhuhai-chida.json";
     del.type = "button"; del.className = "cdp-del"; del.textContent = "×";
     del.setAttribute("aria-label", "删掉 " + text);
     del.addEventListener("click", function (ev) { ev.stopPropagation(); removeRow(li, text); });
+    /* 记录按下位置与时刻，供上面的 click 容差判断使用 */
+    li.addEventListener("pointerdown", function (ev) {
+      if (ev.target && ev.target.closest && ev.target.closest(".cdp-del, .cdp-addr, .cdp-map, .cdp-rate")) { li.__downX = null; return; }
+      li.__downX = ev.clientX || 0; li.__downY = ev.clientY || 0; li.__downT = Date.now();
+    }, true);
     li.appendChild(del);
     li.addEventListener("click", function (ev) {
       if (li.__dragged) { li.__dragged = false; ev.preventDefault(); return; }
+      /* 位移/时长容差：轻扫 2~12px 或长按都会被浏览器算成 click，
+         直接把「已吃」翻掉并写远端（2026-11-24 实测 3×4px 就误勾）。
+         没有位移记录的 click（键盘/读屏）照常放行。 */
+      if (typeof li.__downX === "number") {
+        var ddx = Math.abs((ev.clientX || 0) - li.__downX);
+        var ddy = Math.abs((ev.clientY || 0) - li.__downY);
+        var dtms = Date.now() - (li.__downT || 0);
+        if (ddx > 10 || ddy > 10 || dtms > 600) { li.__downX = null; return; }
+        li.__downX = null;
+      }
       if (ev.target && ev.target.closest && ev.target.closest(".cdp-del, .cdp-addr, .cdp-map, .cdp-score, .cdp-rate")) return;
       if (li.classList.contains("is-leaving")) return;
       if (state.done[text]) { delete state.done[text]; TS.done[text] = -tsNow(); }
