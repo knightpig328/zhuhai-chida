@@ -146,10 +146,10 @@ var FB_PATH = "/zhuhai-chida.json";
 
   /* ===== 失败分类 ===== */
   var FAIL_TXT = {
-    token_bad: "token 失效·点我换", token_scope: "无 gist 写权限", forbidden: "被拒·查 gist",
-    rate_limited: "限流·稍后自愈", abuse: "请求太密·稍后自愈", gist_missing: "gist 找不到",
-    invalid: "内容被拒", server: "GitHub 服务器问题", offline: "离线·已存本机",
-    timeout: "超时·已存本机", conflict: "冲突·重试中", http: "同步失败"
+    token_bad: "登录过期了，点这里重新连上", token_scope: "没有云端写权限", forbidden: "云端拒绝了这次保存",
+    rate_limited: "刚才点太快了，等几秒自己会好", abuse: "刚才点太快了，等几秒自己会好", gist_missing: "云端的数据找不到了",
+    invalid: "内容被云端拒了", server: "存到云端时出错了，点一下重试", offline: "没网，先存在本机",
+    timeout: "太慢了，先存在本机", conflict: "别人刚改过，正在重试", http: "没存上，点一下重试"
   };
   var FAIL_STATE = {
     rate_limited: "warn", abuse: "warn", server: "warn", offline: "warn",
@@ -191,8 +191,8 @@ var FB_PATH = "/zhuhai-chida.json";
   badge.setAttribute("role", "status");
   badge.setAttribute("aria-live", "polite");
   badge.setAttribute("tabindex", "0");
-  badge.setAttribute("title", "同步状态｜点一下重试｜按住 800ms 强制拉最新｜Shift+回车 同上");
-  badge.setAttribute("aria-label", "同步状态。回车重试，Shift 加回车强制拉取最新");
+  badge.setAttribute("title", "点一下重新保存；按住不放＝从云端取最新");
+  badge.setAttribute("aria-label", "同步状态。回车重新保存，Shift 加回车从云端取最新");
   badge.setAttribute("data-state", "local");
   var head = root.querySelector(".cdp-head");
   if (head) head.appendChild(badge);
@@ -357,7 +357,7 @@ var FB_PATH = "/zhuhai-chida.json";
       state.done = mst.done; state.extra = mst.extra; ADDR = mst.addr || {};
       if (root.classList.contains("cdp-boot")) root.classList.remove("cdp-boot");
       render();
-      try { setBadge("只读·未连上"); } catch (e) {}
+      try { setBadge("没连上，先看看上次的"); } catch (e) {}
       return false;
     }
     TS = mergeState(TS, doc);
@@ -570,7 +570,7 @@ var FB_PATH = "/zhuhai-chida.json";
       applyDoc(d, true);
       var doc = snapshot();
       var text = JSON.stringify(doc, null, 1);
-      if (net.lastBody === contentKey(doc) && retry === 0) { setBadge("已同步", "ok"); return true; }
+      if (net.lastBody === contentKey(doc) && retry === 0) { setBadge("已自动保存", "ok"); return true; }
       setBadge("同步中", "busy");
       var putHeaders = { "Content-Type": "application/json" };
       /* 乐观锁：带读时的 ETag，别人先写过就 412，避免整份覆盖丢写 */
@@ -596,7 +596,7 @@ var FB_PATH = "/zhuhai-chida.json";
           throw e;
         }
         failCount = 0; lastErr = null; net.lastBody = contentKey(doc);
-        setBadge("已同步", "ok");
+        setBadge("已自动保存", "ok");
         /* 写成功后强制回读一次（绕过 CDN 缓存），本机立刻确认远端已是刚写入的版本 */
         net.get = null;
         fetchData(true).then(function (r2) {
@@ -611,7 +611,7 @@ var FB_PATH = "/zhuhai-chida.json";
       });
       return putP.then(null, function (e) {
         if (e && e.kind === "conflict" && retry < 2) {
-          setBadge("冲突·重试中", "warn");
+          setBadge("别人刚改过，正在重试", "warn");
           return new Promise(function (r) { window.setTimeout(r, 400 * Math.pow(2, retry)); })
             .then(function () { return patchOnce(retry + 1); });
         }
@@ -644,7 +644,7 @@ var FB_PATH = "/zhuhai-chida.json";
   /* R2: 未 hydrate（没成功读到远端）时禁止任何写入，避免用空壳覆盖云端 */
   function canWrite() {
     if (hydrated) return true;
-    try { setBadge("未连上·暂不能改"); } catch (e) {}
+    try { setBadge("还没连上，先不能改"); } catch (e) {}
     return false;
   }
 
@@ -701,8 +701,8 @@ var FB_PATH = "/zhuhai-chida.json";
       if (res && res.doc) {
         hydrated = true;
         applyDoc(res.doc);
-        setBadge(res && res.viaWorker ? "已取最新" : "只读·未连上", res && res.viaWorker ? "ok" : "warn");
-        window.setTimeout(function () { if (badge && badge.textContent === "已取最新") setBadge("已同步", "ok"); }, 1600);
+        setBadge(res && res.viaWorker ? "已取最新" : "没连上，先看看上次的", res && res.viaWorker ? "ok" : "warn");
+        window.setTimeout(function () { if (badge && badge.textContent === "已取最新") setBadge("已自动保存", "ok"); }, 1600);
         return true;
       }
       if (res && res.unchanged) { setBadge(TOKEN ? "已是最新" : "只读·点我绑定", TOKEN ? "ok" : "warn"); return true; }
@@ -750,8 +750,8 @@ var FB_PATH = "/zhuhai-chida.json";
     if (net.pending || net.dirty) { setBadge("重试中", "busy"); saveData(); return; }
     setBadge("检测中", "busy");
     fetchData().then(function (res) {
-      if (res && res.doc) { applyDoc(res.doc); setBadge(res.viaWorker ? "已同步" : "只读·未连上", res.viaWorker ? "ok" : "warn"); }
-      else if (res && res.unchanged) { setBadge("已同步", "ok"); }
+      if (res && res.doc) { applyDoc(res.doc); setBadge(res.viaWorker ? "已自动保存" : "没连上，先看看上次的", res.viaWorker ? "ok" : "warn"); }
+      else if (res && res.unchanged) { setBadge("已自动保存", "ok"); }
       else { setBadge(failText(lastErr), failState(lastErr)); }
     });
   });
@@ -775,7 +775,7 @@ var FB_PATH = "/zhuhai-chida.json";
     addr.setAttribute("draggable", "false");
     addr.setAttribute("role", "textbox");
     addr.setAttribute("aria-label", text + " 的地址，可输入");
-    addr.setAttribute("data-ph", "地址");
+    addr.setAttribute("data-ph", "写个地址，去的时候好找");
     addr.textContent = ADDR[text] || "";
     addr.addEventListener("click", function (ev) { ev.stopPropagation(); });
     addr.addEventListener("mousedown", function (ev) { ev.stopPropagation(); });
@@ -1279,9 +1279,9 @@ var FB_PATH = "/zhuhai-chida.json";
       if (_bo.addr && Object.keys(_bo.addr).length) ADDR = _bo.addr;
       hydrated = true;
       render({ force: true });
-      setBadge(tokenProblem ? "token 失效·点我换" : "离线·上次内容", tokenProblem ? "fail" : "warn");
+      setBadge(tokenProblem ? "登录过期了，点这里重新连上" : "没连上，这是上次的内容", tokenProblem ? "fail" : "warn");
     } else {
-      setBadge(tokenProblem ? "token 失效·点我换" : "离线·拿不到内容", tokenProblem ? "fail" : "fail");
+      setBadge(tokenProblem ? "登录过期了，点这里重新连上" : "没连上，手上没有内容", tokenProblem ? "fail" : "fail");
     }
   }
 
@@ -1305,7 +1305,7 @@ var FB_PATH = "/zhuhai-chida.json";
       if (res && res.doc) {
         applyDoc(res.doc);
         bootDone();
-        setBadge(res && res.viaWorker ? "已同步" : "只读·未连上", res && res.viaWorker ? "ok" : "warn");
+        setBadge(res && res.viaWorker ? "已自动保存" : "没连上，先看看上次的", res && res.viaWorker ? "ok" : "warn");
       } else if (res && res.unchanged) {
         if (Object.keys(CACHE.done).length || CACHE.extra.length) {
           var _st = buildState(TS);
@@ -1314,7 +1314,7 @@ var FB_PATH = "/zhuhai-chida.json";
           render({ force: true });
         }
         bootDone();
-        setBadge(res && res.viaWorker ? "已同步" : "只读·未连上", res && res.viaWorker ? "ok" : "warn");
+        setBadge(res && res.viaWorker ? "已自动保存" : "没连上，先看看上次的", res && res.viaWorker ? "ok" : "warn");
       } else {
         bootOffline();
       }
