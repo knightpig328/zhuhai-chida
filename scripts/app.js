@@ -1,4 +1,4 @@
-  var BUILD_VER = "20261130b";
+  var BUILD_VER = "20261130d";
 (function () {
   var root = document.getElementById("cdp");
   if (!root) return;
@@ -324,8 +324,15 @@ var FB_PATH = "/zhuhai-chida.json";
     sse.addEventListener("patch", function (e) { onData(e.data); });
     sse.onopen = function () { sseRetry = 0; };
     sse.onerror = function () {
-      /* EventSource 会自动重连；连续失败时退回轮询节奏，不做额外动作 */
+      /* EventSource 会自动重连；但角标必须说实话，否则用户以为还在同步 */
       sseRetry++;
+      if (sseRetry >= 2) {
+        try { setBadge("连接断了·重连中", "warn"); } catch (e) {}
+      }
+      /* 兜底：每 30 秒补拉一次，避免长连接静默死掉后一直看不到对方改动 */
+      if (!net.get && !net.patch) {
+        fetchData().then(function (r) { if (r && r.doc) applyDoc(r.doc); }).catch(function () {});
+      }
     };
   }
 
@@ -515,7 +522,8 @@ var FB_PATH = "/zhuhai-chida.json";
           if (r2 && r2.doc && !r2.doc.__mirror) applyDoc(r2.doc, true);
         }).catch(function () {});
         return true;
-      }, function (e) {
+      });
+      return putP.then(null, function (e) {
         if (e && e.kind === "conflict" && retry < 2) {
           setBadge("冲突·重试中", "warn");
           return new Promise(function (r) { window.setTimeout(r, 400 * Math.pow(2, retry)); })
@@ -577,7 +585,7 @@ var FB_PATH = "/zhuhai-chida.json";
     try {
       var text = JSON.stringify(snapshot(), null, 1);
       if (text.length > 60000) { setBadge("改动太大·未上传", "fail"); return; }
-      var u = WORKER + "/data?k=" + encodeURIComponent(WKEY);
+      var u = FB + FB_PATH;   /* 原 Worker 已废弃，保底写入改打 Firebase */
       var sent = false;
       try {
         if (navigator.sendBeacon) sent = navigator.sendBeacon(u, new Blob([text], { type: "text/plain;charset=UTF-8" }));
