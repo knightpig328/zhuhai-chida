@@ -254,7 +254,7 @@
   /* 第3列只有113px，6字需130px；跨到第4列(≈144px)刚好，不碰第5列×与第6列★ */
   #cdp .cdp-name{ grid-column:3 / 5; font-size:1.35rem; letter-spacing:.01em; white-space:normal; overflow-wrap:anywhere; max-width:100%; }
   #cdp .cdp-rate{ grid-column:6; grid-row:1; align-self:center; margin-top:-12px; }
-  #cdp .cdp-del{ grid-column:5; grid-row:1; align-self:center; margin-top:-6px; opacity:.55; }
+  #cdp .cdp-del{ grid-column:5; grid-row:1; align-self:center; margin-top:-6px; opacity:.85; }
   /* × 命中区扩到 44×44（视觉仍是 22px，只是可点范围变大） */
   #cdp .cdp-del{ position:relative; }
   #cdp .cdp-del::after{ content:""; position:absolute; top:-11px; bottom:-11px; left:-11px; right:-11px; }
@@ -350,3 +350,19 @@
 @media (max-width:640px){
   #cdp .cdp-name{ max-width:100%; }
 }
+
+
+/* 对比度补丁（chk-ux 实测：14/37 个文本节点低于 4.5:1，最低 2.01:1） */
+#cdp .cdp-idx{ color:rgba(var(--ink-rgb),.62) !important; }
+#cdp .cdp-hint{ color:rgba(var(--ink-rgb),.58) !important; font-size:11.5px !important; }
+#cdp .cdp-addr:empty::before{ color:rgba(var(--ink-rgb),.42) !important; }
+#cdp .cdp-star{ color:rgba(var(--ink-rgb),.52) !important; }
+#cdp .cdp-bar{ background:rgba(var(--ink-rgb),.16); }
+#cdp .cdp-count small, #cdp .cdp-done-label{ color:rgba(var(--ink-rgb),.58) !important; }
+
+/* 地址框聚焦可见（原来 outline:none + box-shadow:none 双重砍掉，Tab 到这里焦点消失） */
+#cdp .cdp-addr:focus{ outline:2px solid rgba(var(--accent-rgb),.85) !important; outline-offset:1px !important; border-radius:2px; }
+#cdp .cdp-del:focus-visible,
+#cdp .cdp-rate:focus-visible,
+#cdp .cdp-tick:focus-visible,
+#cdp .cdp-sync:focus-visible{ outline:2px solid rgba(var(--accent-rgb),.85) !important; outline-offset:2px !important; border-radius:3px; }

@@ -1,4 +1,4 @@
-  var BUILD_VER = "20261130a";
+  var BUILD_VER = "20261130b";
 (function () {
   var root = document.getElementById("cdp");
   if (!root) return;
@@ -815,7 +815,8 @@ var FB_PATH = "/zhuhai-chida.json";
         return function (ev) {
           ev.stopPropagation();
           var r = this.getBoundingClientRect();
-          var half = (ev.clientX - r.left) < r.width / 2;
+          /* 键盘/辅助技术触发 click 时 clientX 恒为 0，会一律判成半星；这种来源按整星处理 */
+        var half = ev.clientX > 0 ? ((ev.clientX - r.left) < r.width / 2) : false;
           var val = idx * 2 + (half ? 1 : 2);
           if (!TS.score) TS.score = {};
           if (!TS.score[text]) TS.score[text] = {};
