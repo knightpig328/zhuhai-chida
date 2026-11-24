@@ -168,7 +168,8 @@
 
 
 /* 15) 结尾：细分隔线 + 相思句 */
-.cdp-tail{ margin:20px auto 4px; max-width:420px; text-align:center; }
+/* 诗词改为固定两侧竖排（主人选定方案）：不占文档流、不挡点击、淡色 */
+.cdp-tail{ position:fixed; inset:0; margin:0; max-width:none; pointer-events:none; z-index:1; }
 .tail-rule{
   height:1px; margin:0 0 16px;
   background:linear-gradient(90deg, transparent, rgba(var(--ink-rgb),.26), transparent);
@@ -187,9 +188,9 @@
   text-rendering:optimizeLegibility;
   -webkit-font-smoothing:antialiased;
 }
-.poem-line{ display:block; transition:opacity .5s ease, transform .5s ease; }
-.poem-l{ text-align:left; padding-left:6%; }
-.poem-r{ text-align:right; padding-right:6%; }
+.poem-line{ position:fixed; writing-mode:vertical-rl; text-orientation:upright; letter-spacing:.18em; opacity:.3; transition:opacity .5s ease, transform .5s ease; }
+.poem-l{ left:10px; top:22%; }
+.poem-r{ right:10px; top:58%; }
 .poem-line.is-fading{ opacity:0; transform:translateY(3px); }
 @media print{ .tail-rule::after{ background:transparent; } }
 
@@ -373,3 +374,13 @@
 :root[data-scheme="dark"] #cdp-input::placeholder{ color:rgba(var(--ink-rgb),.5); }
 :root[data-scheme="dark"] #cdp .cdp-del{ color:rgba(var(--ink-rgb),.62); }
 :root[data-scheme="dark"] #cdp .cdp-idx{ color:rgba(var(--ink-rgb),.6) !important; }
+
+
+/* 诗词两侧：窄屏收敛（390 下左右各 43px，字要够小才不压卡片） */
+@media (max-width:640px){
+  .poem-line{ font-size:.86rem; letter-spacing:.12em; opacity:.26; }
+  .poem-l{ left:4px; top:18%; }
+  .poem-r{ right:4px; top:56%; }
+}
+@media (prefers-reduced-motion: reduce){ .poem-line{ transition:none; } }
+@media print{ .cdp-tail{ display:none; } }
