@@ -1,0 +1,392 @@
+/* ==== 2026-11-22 第六轮：四角空心角括号 / 铅笔斜杠 / 书页翻开 · 在 deco.css 之后 ==== */
+:root{
+  --brk-l: 13px;
+  --brk-r: 13px;
+  --brk-a: .52;
+  --brk-lt: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 13 13'%3E%3Cpath d='M.75.75H12.25M.75.75V12.25' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  --brk-rt: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 13 13'%3E%3Cpath d='M12.25.75H.75M12.25.75V12.25' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  --brk-lb: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 13 13'%3E%3Cpath d='M.75 12.25H12.25M.75.75V12.25' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  --brk-rb: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 13 13'%3E%3Cpath d='M12.25 12.25H.75M12.25.75V12.25' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+/* 1) 卡片四角空心角括：左 13 / 右 8，单线 L，离开卡片边框 4px */
+#cdp .cdp-row{ padding-left:12px; padding-right:12px; }
+#cdp .cdp-row::before{
+  content:""; display:block; position:absolute; top:4px; right:4px; bottom:4px; left:4px; width:auto; height:auto; z-index:2;
+  background-color:rgba(var(--ink-rgb), var(--brk-a));
+  -webkit-mask-image: var(--brk-lt), var(--brk-rt), var(--brk-lb), var(--brk-rb);
+  mask-image:         var(--brk-lt), var(--brk-rt), var(--brk-lb), var(--brk-rb);
+  -webkit-mask-position: left top, right top, left bottom, right bottom;
+  mask-position:         left top, right top, left bottom, right bottom;
+  -webkit-mask-size: var(--brk-l) var(--brk-l), var(--brk-r) var(--brk-r), var(--brk-l) var(--brk-l), var(--brk-r) var(--brk-r);
+  mask-size:         var(--brk-l) var(--brk-l), var(--brk-r) var(--brk-r), var(--brk-l) var(--brk-l), var(--brk-r) var(--brk-r);
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  pointer-events:none;
+  transition:background-color .2s ease, transform .26s cubic-bezier(.2,.7,.3,1);
+  transform-origin:center;
+}
+#cdp .cdp-row::after{ content:none; display:none; }
+#cdp .cdp-name::after{ content:none; display:none; }
+#cdp .cdp-row:hover::before,
+#cdp .cdp-row:focus-within::before{ background-color:rgba(var(--ink-rgb), .78); }
+#cdp .cdp-row.is-done::before{ background-color:rgba(var(--ink-rgb), .20); }
+[data-scheme="dark"] #cdp .cdp-row::before{ background-color:rgba(var(--ink-rgb), .46); }
+[data-scheme="dark"] #cdp .cdp-row:hover::before{ background-color:rgba(var(--accent-rgb), .72); }
+[data-scheme="dark"] #cdp .cdp-row.is-done::before{ background-color:rgba(var(--ink-rgb), .18); }
+@media (max-width:640px){
+  :root{ --brk-l:11px; --brk-r:7px; }
+  #cdp .cdp-row::before{ top:3px; right:3px; bottom:3px; left:3px; }
+}
+
+/* 2) 铅笔涂抹：贴 .cdp-name 生成 <svg class="cdp-scratch">，5–8 道交错 + 颗粒 + 回描 */
+#cdp .cdp-name{ justify-self:start; max-width:100%; position:relative; }
+#cdp .cdp-row.has-scratch .cdp-name::after{ width:0 !important; opacity:0 !important; transition:none !important; }
+.cdp-defs{ position:absolute; width:0; height:0; overflow:hidden; pointer-events:none; }
+
+#cdp .cdp-scratch{
+  position:absolute; z-index:2; pointer-events:none; overflow:visible;
+  color:rgba(var(--ink-rgb), .60);
+  --sc-ease:cubic-bezier(.12,.66,.30,1);
+}
+[data-scheme="dark"] #cdp .cdp-scratch{ color:rgba(var(--ink-rgb), .72); }
+
+#cdp .cdp-scratch path{
+  fill:none; stroke:currentColor; stroke-linecap:round; stroke-linejoin:round;
+  vector-effect:non-scaling-stroke;
+  stroke-dasharray:1; stroke-dashoffset:0;
+  animation:scDraw var(--dur,190ms) var(--sc-ease) calc(var(--d,0) * 1ms) both;
+}
+@keyframes scDraw{ from{ stroke-dashoffset:1 } to{ stroke-dashoffset:0 } }
+@keyframes scFade{ from{ opacity:0 } to{ opacity:1 } }
+
+#cdp .cdp-scratch .sc-main{ stroke-width:2.3; }
+#cdp .cdp-scratch .sc-tail{ stroke-width:.9;  opacity:.62; }
+#cdp .cdp-scratch .sc-ret { stroke-width:1.5; opacity:.44; }
+
+#cdp .cdp-scratch .sc-haze{ filter:url(#cdpScSmudge); animation:scFade 300ms ease 60ms both; }
+#cdp .cdp-scratch .sc-haze ellipse{ fill:currentColor; }
+
+#cdp .cdp-scratch .sc-dust{ filter:url(#cdpScDust); animation:scFade 220ms ease calc(var(--d,0) * 1ms) both; }
+#cdp .cdp-scratch .sc-dust path{
+  stroke-width:2.8; opacity:.28; stroke-dasharray:1.3 2.6; stroke-dashoffset:0; animation:none;
+}
+
+#cdp .cdp-scratch[data-static] path,
+#cdp .cdp-scratch[data-static] g,
+#cdp .cdp-list.no-anim .cdp-scratch path,
+#cdp .cdp-list.no-anim .cdp-scratch g{ animation:none !important; }
+#cdp .cdp-scratch[data-static] path,
+#cdp .cdp-list.no-anim .cdp-scratch path{ stroke-dashoffset:0 !important; }
+
+/* 3) 书页翻开 */
+@keyframes cdpPageTurn{
+  0%  { opacity:0; transform:perspective(1200px) rotateY(-30deg) translateX(-8px); }
+  60% { opacity:1; }
+  100%{ opacity:1; transform:perspective(1200px) rotateY(0) translateX(0); }
+}
+#cdp.cdp-boot{
+  transform-origin:left center;
+  animation:cdpPageTurn .86s cubic-bezier(.2,.7,.12,1) both;
+}
+#cdp.cdp-boot .cdp-row{ animation:none !important; }
+@media (max-width:640px){ #cdp.cdp-boot{ animation-duration:.72s; } }
+
+/* 打印：保留涂抹的实色线条，隐藏淡晕 */
+@media print{
+  #cdp .cdp-row{ padding:13px 12px !important; }
+  #cdp .cdp-row::before{
+    top:2px !important; bottom:2px !important; left:0 !important; right:0 !important;
+    background-color:rgba(var(--ink-rgb),.55) !important;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  #cdp .cdp-scratch{ color:#3f3b35 !important; }
+  #cdp .cdp-scratch path{
+    animation:none !important; stroke-dashoffset:0 !important; stroke-dasharray:none !important;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  #cdp .cdp-scratch g{ animation:none !important; filter:none !important; }
+  #cdp .cdp-scratch .sc-haze{ display:none !important; }
+  #cdp .cdp-scratch .sc-dust path{ stroke-dasharray:1.3 2.6 !important; opacity:.45 !important; }
+  #cdp.cdp-boot{ animation:none !important; transform:none !important; opacity:1 !important; }
+}
+
+/* 减少动效 */
+@media (prefers-reduced-motion: reduce){
+  #cdp.cdp-boot{ animation:none !important; transform:none !important; opacity:1 !important; }
+  #cdp .cdp-row::before{ transition:none !important; }
+  #cdp .cdp-scratch path, #cdp .cdp-scratch g{ animation:none !important; }
+  #cdp .cdp-scratch path{ stroke-dashoffset:0 !important; }
+}
+
+
+/* 9) 地址栏字体：与名字同一衬线栈（mono 没有中文，会回退成系统字体，字形与正文不齐） */
+#cdp .cdp-addr{
+  font-family: var(--font-serif);
+  font-size: .78em;
+  letter-spacing: .01em;
+}
+
+
+
+/* 10) 菜单名字用行楷；其余恢复原字体栈，地址栏用衬线（楷体笔画倾斜，地址会看着上下扭曲） */
+#cdp .cdp-name{
+  font-family:'Xingkai Web','STXingkai','华文行楷','KaiTi','Kaiti SC',var(--font-serif);
+  font-size:1.5rem;
+  letter-spacing:.06em;
+}
+#cdp .cdp-idx{ font-family:var(--font-mono); }
+#cdp .cdp-addr{ font-family:var(--font-serif); font-size:.78em; letter-spacing:.01em; }
+#cdp .cdp-tick, #cdp .cdp-del, #cdp .cdp-map{ font-family:var(--font-sans); }
+
+
+/* 11) 悬停：整卡连内容一起收紧（角括号随行，不再单独缩） */
+#cdp .cdp-row{
+  box-shadow:0 1px 2px rgba(var(--ink-rgb),.055), 0 1px 0 rgba(var(--ink-rgb),.035);
+  transition:background-image .18s ease, border-color .2s ease, box-shadow .2s ease,
+             transform .2s cubic-bezier(.2,.7,.3,1);
+  transform-origin:center center;
+  backface-visibility:hidden;
+}
+@media (hover:hover) and (pointer:fine){
+  #cdp .cdp-row:hover{
+    background-image:linear-gradient(180deg, rgba(var(--ink-rgb),.080), rgba(var(--ink-rgb),.032));
+    border-color:rgba(var(--ink-rgb),.42);
+    box-shadow:0 5px 14px rgba(var(--ink-rgb),.16), 0 1px 0 rgba(var(--ink-rgb),.05);
+    transform:translateY(-1px) scale(.978);
+  }
+}
+#cdp .cdp-row.is-done{ box-shadow:none; }
+
+/* 12) 角括号只交颜色，几何交给整行（禁用单独缩放，避免叠加成 .941） */
+#cdp .cdp-row:hover::before,
+#cdp .cdp-row:focus-within::before,
+#cdp .cdp-row:active::before{ transform:none; }
+
+/* 14) 卡片区加宽：直接放宽阅读列（--col 原为 30 字 = 510px） */
+:root{ --col: calc(38 * 1.0625rem); }
+@media (max-width:640px){ :root{ --col: calc(30 * 1.0625rem); } }
+
+
+/* 15) 结尾：细分隔线 + 相思句 */
+/* 诗词改为固定两侧竖排（主人选定方案）：不占文档流、不挡点击、淡色 */
+/* 覆盖层必须满视口：margin/max-width/text-align 一项不清掉，fixed 后又会退回居中窄条 */
+.cdp-tail{
+  position:fixed; inset:0; margin:0; max-width:none; text-align:initial;
+  pointer-events:none; z-index:3;
+}
+/* 它是 .cdp-tail 第一个流内元素，inset:0 下会被顶到视口顶部横贯整屏 → 直接不显示 */
+.tail-rule,
+.tail-rule::after{ display:none; }
+.tail-poem{
+  font-family:'Xingkai Web','STXingkai','华文行楷',var(--font-serif);
+  font-size:1.2rem; font-weight:400; font-synthesis:none;
+  line-height:2.3; letter-spacing:.16em;
+  color:rgba(var(--ink-rgb),.78);
+  text-rendering:optimizeLegibility;
+  -webkit-font-smoothing:antialiased;
+}
+/* 竖排：两个 fixed 元素原来只有 padding-left/right、没有 left/right，会叠在同一处 */
+.poem-line{
+  position:fixed; writing-mode:vertical-rl; text-orientation:upright;
+  margin:0; padding:0;
+  font-size:16px; line-height:1.2; letter-spacing:.10em;
+  opacity:1; color:rgba(var(--ink-rgb),.55);
+  transition:opacity .5s ease;
+}
+/* 手机 390：右侧只剩约 10px 缝，放不下第二列竖排 → 同一列往下挪 */
+.poem-l{ left:8px; top:22%; }
+.poem-r{ left:8px; top:58%; }
+@media (min-width:1200px){
+  .poem-line{ font-size:24px; line-height:1.9; letter-spacing:.10em; opacity:1; color:rgba(var(--ink-rgb),.92); }
+  .poem-l{ left:calc((100vw - 1200px)/2 + 72px); top:22%; }
+  .poem-r{ right:calc((100vw - 1200px)/2 + 72px); left:auto; top:58%; }
+}
+/* 换诗只淡出淡入：原来带 translateY(3px)，每 6 秒上下跳一次 */
+.poem-line.is-fading{ opacity:0; }
+
+
+/* 16) 评分：★ 按钮 + 展开面板（不增加卡片宽度） */
+#cdp .cdp-rate{
+  grid-column:7; justify-self:end; align-self:center; width:24px; height:24px; padding:0;
+  background:none; border:0; cursor:pointer; line-height:1;
+  font-size:1.45rem; color:rgba(var(--ink-rgb),.38);
+  transition:color .18s ease, transform .18s ease;
+}
+#cdp .cdp-rate:hover{ color:rgba(var(--accent-rgb),.85); transform:scale(1.12); }
+#cdp .cdp-rate.is-on{ color:rgba(var(--accent-rgb),.9); }
+#cdp .cdp-row.has-score{ grid-auto-rows:auto; }
+#cdp .cdp-score{
+  grid-column:1 / -1; margin:4px -2px 0; padding-top:6px;
+  animation:cdpScoreIn .22s cubic-bezier(.2,.7,.3,1) both;
+  border-top:1px dashed rgba(var(--ink-rgb),.16);
+  display:block;
+}
+#cdp .score-row{ display:flex; align-items:center; }
+#cdp .score-who{
+  font-family:var(--font-serif); font-weight:400; font-size:.8rem; line-height:1;
+  color:rgba(var(--ink-rgb),.62); min-width:2.6em; margin:0 4px 0 0;
+  align-self:center; display:inline-block; white-space:nowrap;
+}
+#cdp .score-stars{ display:flex; justify-content:flex-start; }
+#cdp .cdp-star{
+  flex:0 0 auto; width:28px; height:28px; padding:0; background:none; border:0; cursor:pointer;
+  font-size:1.5rem; line-height:1; color:rgba(var(--ink-rgb),.32);
+  transition:color .15s ease, transform .15s ease;
+}
+#cdp .cdp-star:hover{ transform:scale(1.15); }
+#cdp .cdp-star.is-full{ color:rgba(var(--accent-rgb),.92); }
+#cdp .cdp-star.is-half{
+  color:rgba(var(--ink-rgb),.18);
+  background:linear-gradient(90deg, rgba(var(--accent-rgb),.92) 50%, transparent 50%);
+  -webkit-background-clip:text; background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+@media print{ #cdp .cdp-rate, #cdp .cdp-score{ display:none !important; } }
+
+/* 16b) 手机触控：★ 视觉不变但点击区 44px，星星加大，面板铺满整行 */
+@media (max-width:640px){
+  #cdp .cdp-rate{
+    align-self:start; width:44px; height:44px; margin:-9px -8px 0 0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.5rem; line-height:1;
+  }
+  #cdp .cdp-star{ flex:0 0 32px; width:32px; height:32px; font-size:2rem; line-height:1; margin:0; }
+
+  #cdp .cdp-score{ width:100%; box-sizing:border-box; margin-left:-2px; margin-right:-2px; }
+  #cdp .score-row{ flex-wrap:nowrap; }
+  #cdp .score-stars{ flex-wrap:nowrap; justify-content:flex-start; }
+  #cdp .score-who{ min-width:48px; white-space:nowrap; font-size:.9rem; margin:0 2px 0 0; line-height:1; }
+
+}
+
+
+/* 16c) 手机名字不换行：字号与字距收一点，6 字名一行放得下 */
+@media (max-width:640px){
+  /* 第3列只有113px，6字需130px；跨到第4列(≈144px)刚好，不碰第5列×与第6列★ */
+  #cdp .cdp-name{ grid-column:3 / 5; font-size:1.35rem; letter-spacing:.01em; white-space:normal; overflow-wrap:anywhere; max-width:100%; }
+  #cdp .cdp-rate{ grid-column:6; grid-row:1; align-self:center; margin-top:-12px; position:relative; z-index:1; }   /* ★ 压在 × 之上，避免点到星却删了行 */
+  #cdp .cdp-del{ grid-column:5; grid-row:1; align-self:center; margin-top:-6px; opacity:.85; }
+  /* × 命中区扩到 44×44（视觉仍是 22px，只是可点范围变大） */
+  #cdp .cdp-del{ position:relative; }
+  #cdp .cdp-del::after{ content:""; position:absolute; top:-11px; bottom:-11px; left:-11px; right:-2px; }
+  #cdp .cdp-map{ grid-column:6; grid-row:2; align-self:center; margin-top:-4px; }
+  #cdp .cdp-idx{ font-size:.8em; }
+}
+
+
+/* 17) 地址不溢出：grid 子项必须能收缩，否则光标到末尾时整段被挤出卡片 */
+#cdp .cdp-addr{ min-width:0; max-width:100%; width:100%; box-sizing:border-box; }
+@media (max-width:640px){
+  /* 全部交给 app.css 的 6 列制，这里只调字号与垂直微调，不再写 grid-area */
+  #cdp .cdp-addr{ grid-column:2 / 6; grid-row:2; width:auto; min-width:0; max-width:100%; box-sizing:border-box; font-size:.72em; padding:1px 4px; white-space:nowrap; overflow-x:auto; overflow-y:hidden; text-overflow:clip; scrollbar-width:none; }
+  #cdp .cdp-addr::-webkit-scrollbar{ display:none; }
+  /* 评分面板：左边界对齐名字列（第3列起），整体往上贴 */
+  #cdp .cdp-score{ padding-left:calc(18px + 1.9em + 9px - 30px); margin:-12px -2px 0; padding-top:2px; }
+  /* 标签在星星左侧，同一行、垂直居中 */
+  #cdp .cdp-score .score-row{ flex-direction:row; align-items:center; justify-content:flex-start; margin:0; }
+  #cdp .cdp-score .score-row .score-who{ min-width:0; width:auto; margin:0 3px 0 -10px; font-size:calc(.74rem + 1.5px); line-height:1; align-self:center; transform:translateY(4px); }
+  #cdp .cdp-score{ margin-top:-12px; }
+}
+
+@keyframes cdpScoreIn{
+  from{ opacity:0; transform:translateY(-4px); }
+  to  { opacity:1; transform:translateY(0); }
+}
+@media (prefers-reduced-motion: reduce){ #cdp .cdp-score{ animation:none; } }
+
+/* 兼容：用 margin 代替 flex gap（旧内核不支持 gap） */
+#cdp .score-stars .cdp-star:last-child{ margin-right:0; }
+#cdp .cdp-score{ display:block; }
+#cdp .cdp-score .score-row + .score-row{ margin-top:2px; }
+
+/* 18) 动效偏好与打印：hover 缩放必须归零 */
+@media (prefers-reduced-motion: reduce){
+  #cdp .cdp-row{ transition:none; }
+  #cdp .cdp-row:hover{ transform:none; }
+}
+@media print{
+  #cdp .cdp-row{ box-shadow:none !important; transform:none !important; }
+}
+
+
+/* 19) 拖拽排序：手柄在编号列，行本体只做 transform */
+#cdp .cdp-idx{
+  position:relative; touch-action:none; cursor:grab;
+  -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
+}
+#cdp .cdp-idx::after{ content:""; position:absolute; top:-14px; bottom:-14px; left:-8px; right:-6px; }
+#cdp .cdp-idx:active{ cursor:grabbing; }
+#cdp .cdp-list{ touch-action:pan-y; }
+
+#cdp .cdp-row.is-dragging,
+#cdp .cdp-row.is-dragging:hover{
+  transform:translate3d(0,var(--dy,0px),0) scale(1.012) !important;
+  z-index:3; transition:none !important; cursor:grabbing;
+  box-shadow:0 10px 22px rgba(var(--ink-rgb),.18);
+}
+#cdp .cdp-row.is-drag-src{ opacity:.38; }
+#cdp .cdp-row.is-shift{
+  transform:translate3d(0,var(--shift,0px),0);
+  transition:transform .16s cubic-bezier(.22,1,.36,1);
+}
+@media (prefers-reduced-motion: reduce){ #cdp .cdp-row.is-shift{ transition:none; } }
+@media print{ #cdp .cdp-idx{ cursor:auto; } }
+
+
+/* 20) 深色主题变量（补齐 :root 缺的一组，之前 21 条 dark 规则没有变量支撑） */
+:root[data-scheme="dark"]{
+  --paper:#141312;
+  --paper-2:#1c1a18;
+  --paper-rgb:20,19,18;
+  --ink:#ece7dd;
+  --ink-rgb:236,231,221;
+  --accent:#d4a04a;
+  --accent-rgb:212,160,74;
+  --accent-soft:#3a352c;
+  --accent-on:#141312;
+  --accent-on-rgb:20,19,18;
+  --accent-ink:#141312;
+  --accent-display:#d4a04a;
+  --accent-ink-inverse:#6a6258;
+  --accent-on-text:#141312;
+  --accent-on-text-rgb:20,19,18;
+  /* 次要文字：浅色下是灰，深色下必须提亮，否则 01 / 已经吃完 这类几乎看不见 */
+  --ink-2:#c9c2b6;
+  --ink-3:#9a9186;
+}
+:root[data-scheme="dark"] body{ background-color:var(--paper); color:var(--ink); }
+:root[data-scheme="dark"] #cdp{ background-color:var(--paper); border-color:rgba(var(--ink-rgb),.22); }
+
+/* 21) 名称不省略（省略=看不见，用户明确反对）；超长改用换行 */
+@media (max-width:640px){
+  #cdp .cdp-name{ max-width:100%; }
+}
+
+
+/* 对比度补丁（chk-ux 实测：14/37 个文本节点低于 4.5:1，最低 2.01:1） */
+#cdp .cdp-idx{ color:rgba(var(--ink-rgb),.62) !important; }
+#cdp .cdp-hint{ color:rgba(var(--ink-rgb),.58) !important; font-size:11.5px !important; }
+#cdp .cdp-addr:empty::before{ color:rgba(var(--ink-rgb),.42) !important; }
+#cdp .cdp-star{ color:rgba(var(--ink-rgb),.52) !important; }
+#cdp .cdp-bar{ background:rgba(var(--ink-rgb),.16); }
+#cdp .cdp-count small, #cdp .cdp-done-label{ color:rgba(var(--ink-rgb),.58) !important; }
+
+/* 地址框聚焦可见（原来 outline:none + box-shadow:none 双重砍掉，Tab 到这里焦点消失） */
+#cdp .cdp-addr:focus{ outline:2px solid rgba(var(--accent-rgb),.85) !important; outline-offset:1px !important; border-radius:2px; }
+#cdp .cdp-del:focus-visible,
+#cdp .cdp-rate:focus-visible,
+#cdp .cdp-tick:focus-visible,
+#cdp .cdp-sync:focus-visible{ outline:2px solid rgba(var(--accent-rgb),.85) !important; outline-offset:2px !important; border-radius:3px; }
+
+
+/* 深色输入框（chk-mobile 实测：黑字叠黑底，对比度 1.07:1，等于不能输入） */
+:root[data-scheme="dark"] #cdp-input{ color:var(--ink); caret-color:var(--ink); }
+:root[data-scheme="dark"] #cdp-input::placeholder{ color:rgba(var(--ink-rgb),.5); }
+:root[data-scheme="dark"] #cdp .cdp-del{ color:rgba(var(--ink-rgb),.62); }
+:root[data-scheme="dark"] #cdp .cdp-idx{ color:rgba(var(--ink-rgb),.6) !important; }
+
+
+/* 诗词两侧窄屏：几何与字号统一由上面的 16px 基线与 1200 断点决定，旧的 640 覆盖已废弃
+   （原来这里是 .86rem / left:4px，会把 390 的竖排挤回贴边小字） */
+@media (prefers-reduced-motion: reduce){ .poem-line{ transition:none; } }
+@media print{ .cdp-tail{ display:none; } }

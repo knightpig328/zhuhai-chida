@@ -194,8 +194,8 @@
   transition:opacity .5s ease;
 }
 /* 手机 390：右侧只剩约 10px 缝，放不下第二列竖排 → 同一列往下挪 */
-.poem-l{ left:24px; top:22%; }
-.poem-r{ left:24px; top:58%; }
+.poem-l{ left:8px; top:22%; }
+.poem-r{ left:8px; top:58%; }
 @media (min-width:1200px){
   .poem-line{ font-size:24px; line-height:1.9; letter-spacing:.10em; opacity:1; color:rgba(var(--ink-rgb),.92); }
   .poem-l{ left:calc((100vw - 1200px)/2 + 72px); top:22%; }
