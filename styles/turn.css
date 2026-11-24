@@ -1,4 +1,4 @@
-﻿/* ==== 2026-11-22 第六轮：四角空心角括号 / 铅笔斜杠 / 书页翻开 · 在 deco.css 之后 ==== */
+/* ==== 2026-11-22 第六轮：四角空心角括号 / 铅笔斜杠 / 书页翻开 · 在 deco.css 之后 ==== */
 :root{
   --brk-l: 13px;
   --brk-r: 13px;
@@ -169,17 +169,14 @@
 
 /* 15) 结尾：细分隔线 + 相思句 */
 /* 诗词改为固定两侧竖排（主人选定方案）：不占文档流、不挡点击、淡色 */
-.cdp-tail{ position:fixed; inset:0; margin:0; max-width:none; pointer-events:none; z-index:1; }
-.tail-rule{
-  height:1px; margin:0 0 16px;
-  background:linear-gradient(90deg, transparent, rgba(var(--ink-rgb),.26), transparent);
-  position:relative;
+/* 覆盖层必须满视口：margin/max-width/text-align 一项不清掉，fixed 后又会退回居中窄条 */
+.cdp-tail{
+  position:fixed; inset:0; margin:0; max-width:none; text-align:initial;
+  pointer-events:none; z-index:3;
 }
-.tail-rule::after{
-  content:"✦"; position:absolute; left:50%; top:-8px; transform:translateX(-50%);
-  font-size:.55rem; color:rgba(var(--ink-rgb),.42);
-  background:transparent; line-height:1;
-}
+/* 它是 .cdp-tail 第一个流内元素，inset:0 下会被顶到视口顶部横贯整屏 → 直接不显示 */
+.tail-rule,
+.tail-rule::after{ display:none; }
 .tail-poem{
   font-family:'Xingkai Web','STXingkai','华文行楷',var(--font-serif);
   font-size:1.2rem; font-weight:400; font-synthesis:none;
@@ -188,11 +185,24 @@
   text-rendering:optimizeLegibility;
   -webkit-font-smoothing:antialiased;
 }
-.poem-line{ position:fixed; writing-mode:vertical-rl; text-orientation:upright; letter-spacing:.18em; opacity:.3; transition:opacity .5s ease, transform .5s ease; }
-.poem-l{ left:10px; top:22%; }
-.poem-r{ right:10px; top:58%; }
-.poem-line.is-fading{ opacity:0; transform:translateY(3px); }
-@media print{ .tail-rule::after{ background:transparent; } }
+/* 竖排：两个 fixed 元素原来只有 padding-left/right、没有 left/right，会叠在同一处 */
+.poem-line{
+  position:fixed; writing-mode:vertical-rl; text-orientation:upright;
+  margin:0; padding:0;
+  font-size:16px; line-height:1.2; letter-spacing:.10em;
+  opacity:1; color:rgba(var(--ink-rgb),.55);
+  transition:opacity .5s ease;
+}
+/* 手机 390：右侧只剩约 10px 缝，放不下第二列竖排 → 同一列往下挪 */
+.poem-l{ left:24px; top:22%; }
+.poem-r{ left:24px; top:58%; }
+@media (min-width:1200px){
+  .poem-line{ font-size:24px; line-height:1.9; letter-spacing:.10em; opacity:1; color:rgba(var(--ink-rgb),.92); }
+  .poem-l{ left:calc((100vw - 1200px)/2 + 72px); top:22%; }
+  .poem-r{ right:calc((100vw - 1200px)/2 + 72px); left:auto; top:58%; }
+}
+/* 换诗只淡出淡入：原来带 translateY(3px)，每 6 秒上下跳一次 */
+.poem-line.is-fading{ opacity:0; }
 
 
 /* 16) 评分：★ 按钮 + 展开面板（不增加卡片宽度） */
@@ -376,11 +386,7 @@
 :root[data-scheme="dark"] #cdp .cdp-idx{ color:rgba(var(--ink-rgb),.6) !important; }
 
 
-/* 诗词两侧：窄屏收敛（390 下左右各 43px，字要够小才不压卡片） */
-@media (max-width:640px){
-  .poem-line{ font-size:.86rem; letter-spacing:.12em; opacity:.26; }
-  .poem-l{ left:4px; top:18%; }
-  .poem-r{ right:4px; top:56%; }
-}
+/* 诗词两侧窄屏：几何与字号统一由上面的 16px 基线与 1200 断点决定，旧的 640 覆盖已废弃
+   （原来这里是 .86rem / left:4px，会把 390 的竖排挤回贴边小字） */
 @media (prefers-reduced-motion: reduce){ .poem-line{ transition:none; } }
 @media print{ .cdp-tail{ display:none; } }
