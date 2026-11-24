@@ -1,4 +1,4 @@
-  var BUILD_VER = "20261130d";
+  var BUILD_VER = "20261130e";
 (function () {
   var root = document.getElementById("cdp");
   if (!root) return;
@@ -39,7 +39,7 @@ var FB_PATH = "/zhuhai-chida.json";
   var pushTimer = 0, pollTimer = 0, failCount = 0, pendingRender = false, leaving = 0, maxTs = 0;
   var pushFirstAt = 0, leaveSent = 0, lastErr = null;
   var PUSH_DELAY = 300, PUSH_MAXWAIT = 1200;   /* 标准防抖：合并连点/连续输入，避免整份 PUT 过于频繁 */
-  var net = { get: null, getAt: 0, patch: null, dirty: false, pending: false };
+  var net = { get: null, getAt: 0, patch: null, dirty: false, pending: false, etag: "" };
   var sse = null, sseRetry = 0;
 
   function normAddr(e) {
@@ -272,10 +272,13 @@ var FB_PATH = "/zhuhai-chida.json";
     var rawUrl = FB + FB_PATH + "?r=" + Date.now();
     var base = fetch(rawUrl, {
       cache: "no-store",
+      headers: { "X-Firebase-ETag": "true" },
       signal: ac ? ac.signal : undefined
     }).then(function (r) {
       if (timer) clearTimeout(timer);
       if (!r.ok) { var e0 = new Error("raw " + r.status); e0.kind = "upstream"; throw e0; }
+      var et = r.headers.get("ETag") || "";
+      if (et) net.etag = et.replace(/^W\//, "").replace(/"/g, "");
       return r.text();
     }).then(function (t) {
       var doc = JSON.parse(t);
@@ -503,12 +506,18 @@ var FB_PATH = "/zhuhai-chida.json";
       var text = JSON.stringify(doc, null, 1);
       if (net.lastBody === contentKey(doc) && retry === 0) { setBadge("已同步", "ok"); return true; }
       setBadge("同步中", "busy");
+      var putHeaders = { "Content-Type": "application/json" };
+      /* 乐观锁：带读时的 ETag，别人先写过就 412，避免整份覆盖丢写 */
+      if (net.etag) putHeaders["if-match"] = net.etag;
       return fetch(FB + FB_PATH, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: putHeaders,
         body: text,
         cache: "no-store"
       }).then(function (r) {
+        var et2 = r.headers.get("ETag") || "";
+        if (et2) { try { net.etag = et2.replace(/^W\//, "").replace(/"/g, ""); } catch (e2) {} }
+        if (r.status === 412) { var e412 = new Error("precondition"); e412.kind = "conflict"; throw e412; }
         if (!r.ok) {
           var e = new Error("worker " + r.status);
           e.kind = r.status === 409 ? "conflict" : (r.status === 401 ? "key_bad" : "server");
@@ -575,7 +584,7 @@ var FB_PATH = "/zhuhai-chida.json";
   }
   function dirtyNow() { return !!(net.pending || net.dirty || pushTimer || readPending()); }
   function flushNow() {
-    window.clearTimeout(pushTimer); pushTimer = 0; pushFirstAt = 0;
+    window.clearTimeout(pushTimer); pushTimer = 0; pushFirstAt = 0;
     if (!dirtyNow()) return;
     if (net.patch) { net.dirty = true; markPending(true); return; }
     saveData();
