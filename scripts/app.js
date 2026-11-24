@@ -559,13 +559,13 @@ var FB_PATH = "/zhuhai-chida.json";
     return fetchData(true).then(function (res) {
       /* 本次读失败 / 只拿到静态镜像 → 一律不写。这是唯一可靠的覆盖防护。 */
       if (!res || !res.doc || res.doc.__mirror) {
-        setBadge("未连上·未写入", "warn");
+        setBadge("还没连上，这次没存", "warn");
         markPending(true);
         return false;
       }
       var d = res.doc;
       var okShape = d && (d.v === 3 || d.v === SCHEMA_V) && typeof d.rev === "number" && d.done && typeof d.done === "object" && d.extra && typeof d.extra === "object";
-      if (!okShape) { setBadge("数据异常·未写入", "warn"); markPending(true); return false; }
+      if (!okShape) { setBadge("数据有问题，这次没存", "warn"); markPending(true); return false; }
       hydrated = true;
       applyDoc(d, true);
       var doc = snapshot();
