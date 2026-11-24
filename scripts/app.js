@@ -1,4 +1,4 @@
-  var BUILD_VER = "20261130g";
+  var BUILD_VER = "20261130h";
 (function () {
   var root = document.getElementById("cdp");
   if (!root) return;
@@ -31,7 +31,7 @@ var FB_PATH = "/zhuhai-chida.json";
   var TOKEN = "", ETAG = "";   /* Firebase 不需要 token；此前硬编码的 GitHub PAT 已移除 */
   var WORKER = "https://liqianshiqianjin.pages.dev";
   var WKEY = "";   /* 旧 Worker 方案的共享密钥，已废弃 */
-  var TS = { done: {}, extra: {}, del: {}, addr: {}, score: {}, order: { v: [], t: 0 } };
+  var TS = { done: {}, extra: {}, del: {}, addr: {}, score: {}, order: { v: [], t: 0 }, delT: 0 };
   var ADDR = {};
   var CACHE = { done: {}, extra: [] };
   var state = { done: {}, extra: [] };
@@ -70,6 +70,7 @@ var FB_PATH = "/zhuhai-chida.json";
     TS.extra = o.extra && typeof o.extra === "object" ? o.extra : TS.extra;
     TS.del = o.del && typeof o.del === "object" ? o.del : TS.del;
     if (typeof o.rev === "number") TS.rev = o.rev;
+    if (typeof o.delT === "number") TS.delT = o.delT;
     if (o.score && typeof o.score === "object") TS.score = o.score;
     if (o.order && Object.prototype.toString.call(o.order.v) === "[object Array]") {
       var ov = o.order.v.filter(function (x) { return typeof x === "string"; });
@@ -397,7 +398,7 @@ var FB_PATH = "/zhuhai-chida.json";
   }
 
   function snapshot() {
-    var _snap = { v: 3, rev: TS.rev || 0, updatedAt: new Date().toISOString(), done: TS.done || {}, extra: TS.extra || {}, del: TS.del || {}, addr: TS.addr || {}, score: TS.score || {} };
+    var _snap = { v: 3, rev: TS.rev || 0, updatedAt: new Date().toISOString(), done: TS.done || {}, extra: TS.extra || {}, del: TS.del || {}, delT: TS.delT || 0, addr: TS.addr || {}, score: TS.score || {} };
   if (ORDER_OK) _snap.order = TS.order || { v: [], t: 0 };
   return _snap;
   }
@@ -473,6 +474,15 @@ var FB_PATH = "/zhuhai-chida.json";
       }
       out.order = { v: merged, t: Math.max(na.t, nb.t) };
     }
+    /* del 墓碑：谁 delT 新谁整体说了算。
+       否则远端把墓碑清空后，本地旧墓碑会在合并时"复活"，把菜继续挡住
+       （2026-11-24 实测：PC 端只剩 4 个就是这条） */
+    var dta = (a && typeof a.delT === "number") ? a.delT : 0;
+    var dtb = (b && typeof b.delT === "number") ? b.delT : 0;
+    if (dta !== dtb) {
+      out.del = Object.assign({}, (dtb > dta ? (b.del || {}) : (a.del || {})));
+    }
+    out.delT = Math.max(dta, dtb);
     out.rev = Math.max((a && a.rev) || 0, (b && b.rev) || 0);
     return out;
   }
@@ -804,6 +814,7 @@ var FB_PATH = "/zhuhai-chida.json";
     if (TS.order && TS.order.v) TS.order.v = TS.order.v.filter(function (x) { return x !== text; });
     delete openScore[text];
     TS.del[text] = now;
+    TS.delT = now;
     /* R7: 删除只写 del 墓碑，不抹地址；复活时地址原样保留 */
     TS.done[text] = -Math.max(now, prev + 1);
     delete ADDR[text];
